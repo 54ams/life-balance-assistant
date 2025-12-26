@@ -1,27 +1,59 @@
+import { useFocusEffect } from "expo-router";
+import { useMemo, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
+import { calculateLBI } from "../../lib/lbi";
+import { loadCheckIn, type DailyCheckIn } from "../../lib/storage";
+
 
 export default function TodayScreen() {
+  const todayKey = useMemo(() => new Date().toISOString().slice(0, 10), []);
+  const [checkIn, setCheckIn] = useState<DailyCheckIn | null>(null);
+
+  // TEMP placeholders until WHOOP is integrated
+  const recovery = 42;     // 0–100
+  const sleepHours = 6.5;  // hours
+
+ useFocusEffect(() => {
+  let alive = true;
+
+  (async () => {
+    const saved = await loadCheckIn(todayKey);
+    if (alive) setCheckIn(saved);
+  })();
+
+  return () => {
+    alive = false;
+  };
+});
+
+
+  const { lbi, reason } = calculateLBI({ recovery, sleepHours, checkIn });
+
+  const focus =
+    !checkIn
+      ? "Do your check-in to unlock personalised actions."
+      : checkIn.stress >= 4 || checkIn.mood <= 2
+      ? "Low-demand day: walk + early wind-down."
+      : "Normal day: train as planned + do 1 priority task.";
+
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Life Balance</Text>
 
       <View style={styles.card}>
         <Text style={styles.label}>Life Balance Index</Text>
-        <Text style={styles.score}>72</Text>
-        <Text style={styles.reason}>
-          Recovery is moderate and mood is stable.
-        </Text>
+        <Text style={styles.score}>{lbi}</Text>
+        <Text style={styles.reason}>{reason}</Text>
       </View>
 
       <View style={styles.card}>
         <Text style={styles.label}>Today’s Focus</Text>
-        <Text style={styles.action}>
-          Light training + one important task only.
-        </Text>
+        <Text style={styles.action}>{focus}</Text>
       </View>
     </View>
   );
 }
+
 
 const styles = StyleSheet.create({
   container: {

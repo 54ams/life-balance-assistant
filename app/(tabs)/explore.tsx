@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { Alert, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { saveCheckIn } from "../../lib/storage";
 
 type Rating = 1 | 2 | 3 | 4 | 5;
 
@@ -65,11 +66,21 @@ export default function CheckInScreen() {
       </View>
 
       <TouchableOpacity
-        style={styles.button}
-        onPress={() => Alert.alert("Saved (next step)", "We’ll wire real saving in the next step.")}
-      >
-        <Text style={styles.buttonText}>Save Check-in</Text>
-      </TouchableOpacity>
+  style={styles.button}
+  onPress={async () => {
+    await saveCheckIn({
+      date: todayKey,
+      mood,
+      stress,
+      energy,
+      notes: notes.trim() || undefined,
+    });
+    Alert.alert("Saved", "Your check-in was saved for today.");
+  }}
+>
+  <Text style={styles.buttonText}>Save Check-in</Text>
+</TouchableOpacity>
+
     </View>
   );
 }
