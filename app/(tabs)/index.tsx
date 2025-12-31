@@ -5,7 +5,10 @@ import { StyleSheet, Text, View } from "react-native";
 import { average, loadLastNDaysLbi } from "../../lib/baseline";
 import { calculateLBI } from "../../lib/lbi";
 import { ensureNotificationPermissions, sendBalanceDropNow } from "../../lib/notifications";
+import { isBalanceDrop } from "../../lib/rules";
 import { loadCheckIn, saveDailyResult, type DailyCheckIn } from "../../lib/storage";
+
+import { getLastDropNotifyDate, setLastDropNotifyDate } from "../../lib/storage";
 
 export default function TodayScreen() {
   const todayKey = useMemo(() => new Date().toISOString().slice(0, 10), []);
@@ -13,8 +16,8 @@ export default function TodayScreen() {
   const [baseline, setBaseline] = useState<number | null>(null);
 
   // TEMP placeholders until WHOOP is integrated
-  const recovery = 42; // 0–100
-  const sleepHours = 6.5; // hours
+  const recovery = 1; // 0–100
+  const sleepHours = 5.0; // hours
 
   // Reload check-in whenever this tab is focused
 useFocusEffect(() => {
@@ -53,6 +56,26 @@ useFocusEffect(() => {
       setBaseline(average(last7));
     })();
   }, [todayKey, lbi]);
+  
+  const balanceDrop = isBalanceDrop(lbi, baseline);
+  console.log("Balance drop:", balanceDrop);
+useEffect(() => {
+  (async () => {
+    if (!balanceDrop) return;
+
+    const last = await getLastDropNotifyDate();
+    if (last === todayKey) return; // already notified today
+
+    const ok = await ensureNotificationPermissions();
+    if (!ok) return;
+
+    await sendBalanceDropNow(
+      "Your score is below your 7-day baseline. Consider a low-demand day: 20–30 min walk + early wind-down."
+    );
+
+    await setLastDropNotifyDate(todayKey);
+  })();
+}, [balanceDrop, todayKey]);
 
   const focus =
     !checkIn
