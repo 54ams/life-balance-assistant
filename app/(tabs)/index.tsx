@@ -2,40 +2,53 @@ import { useFocusEffect } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 
-import { average, loadLastNDaysLbi } from "../../lib/baseline";
+import { buildActionPlan } from "../../lib/actions";
+import { loadBaseline } from "../../lib/baseline";
 import { calculateLBI } from "../../lib/lbi";
+import { generateExplanation } from "../../lib/llm";
 import { ensureNotificationPermissions, sendBalanceDropNow } from "../../lib/notifications";
 import { isBalanceDrop } from "../../lib/rules";
+import { getWearableMetricsForToday } from "../../lib/wearables";
+
 import {
   getLastDropNotifyDate,
   loadCheckIn,
   saveDailyResult,
+  savePlan,
   setLastDropNotifyDate,
   type DailyCheckIn,
+  type StoredPlan,
 } from "../../lib/storage";
+
+import type { WearableMetrics } from "../../lib/types";
 
 export default function TodayScreen() {
   const todayKey = useMemo(() => new Date().toISOString().slice(0, 10), []);
+
   const [checkIn, setCheckIn] = useState<DailyCheckIn | null>(null);
   const [baseline, setBaseline] = useState<number | null>(null);
+  const [wearable, setWearable] = useState<WearableMetrics>({
+    recovery: 60,
+    sleepHours: 9.0,
+  });
+  const [llmText, setLlmText] = useState<string | null>(null);
 
-  // TEMP placeholders until WHOOP is integrated
-  const recovery = 60;
-  const sleepHours = 9.0;
-
-  // Reload check-in + baseline whenever Home tab is focused
+  // Reload data whenever Home tab is focused
   useFocusEffect(
     useCallback(() => {
       let alive = true;
 
       (async () => {
         const saved = await loadCheckIn(todayKey);
-        const last7 = await loadLastNDaysLbi(todayKey, 7);
+        const { baseline } = await loadBaseline(todayKey, 7, 3);
+        const w = await getWearableMetricsForToday();
 
         if (!alive) return;
 
         setCheckIn(saved);
-        setBaseline(average(last7));
+        setBaseline(baseline);
+        setWearable(w);
+        setLlmText(null);
       })();
 
       return () => {
@@ -44,9 +57,14 @@ export default function TodayScreen() {
     }, [todayKey])
   );
 
-  const { lbi, reason } = calculateLBI({ recovery, sleepHours, checkIn });
+  // Calculate today’s score using wearable + check-in
+  const { lbi, reason } = calculateLBI({
+    recovery: wearable.recovery,
+    sleepHours: wearable.sleepHours,
+    checkIn,
+  });
 
-  // Save today’s LBI for history/baseline calculations
+  // Save today’s computed LBI so baseline/history work
   useEffect(() => {
     (async () => {
       await saveDailyResult({ date: todayKey, lbi });
@@ -55,7 +73,74 @@ export default function TodayScreen() {
 
   const delta = baseline === null ? null : lbi - baseline;
 
-  // Notify once per day if a balance drop occurs
+  // Build action plan (rules engine) — memoised so it doesn't rebuild every render
+  const plan = useMemo(() => {
+    const p = buildActionPlan({
+      date: todayKey,
+      wearable,
+      checkIn,
+      lbi,
+      baseline,
+    });
+
+    if (!p || !p.category) {
+      throw new Error("ActionPlan invalid");
+    }
+
+    return p;
+  }, [todayKey, wearable, checkIn, lbi, baseline]);
+
+  // Explainability: show which signals pushed the plan into RECOVERY
+  const triggers = useMemo(() => {
+    const stressHigh = checkIn ? checkIn.stress >= 4 : false;
+    const moodLow = checkIn ? checkIn.mood <= 2 : false;
+    const recoveryLow = wearable.recovery <= 40;
+    const sleepLow = wearable.sleepHours <= 6.5;
+    const baselineDrop = baseline !== null ? lbi < baseline * 0.85 : false;
+
+    const t: string[] = [];
+    if (stressHigh) t.push("High stress (4–5)");
+    if (moodLow) t.push("Low mood (1–2)");
+    if (recoveryLow) t.push("Low recovery (≤ 40)");
+    if (sleepLow) t.push("Low sleep (≤ 6.5h)");
+    if (baselineDrop) t.push("Below baseline threshold (−15%+)");
+
+    return t;
+  }, [checkIn, wearable.recovery, wearable.sleepHours, baseline, lbi]);
+
+  // ✅ Save today’s plan AFTER plan + triggers exist
+ useEffect(() => {
+  (async () => {
+    const payload: StoredPlan = {
+      date: todayKey,
+      category: plan.category,
+      focus: plan.focus,
+      actions: plan.actions,
+      triggers,
+      lbi,
+      baseline,
+      explanation: llmText,
+    };
+    await savePlan(payload);
+  })();
+}, [todayKey, plan.category, plan.focus, plan.actions, triggers, lbi, baseline, llmText]);
+
+  // Tone for UI based on plan category
+  const planTone = plan.category === "RECOVERY" ? "#f59e0b" : "#10b981";
+
+  // Mock LLM explanation (for viva/demo)
+  useEffect(() => {
+    (async () => {
+      if (!plan.llmPrompt) {
+        setLlmText(null);
+        return;
+      }
+      const txt = await generateExplanation(plan.llmPrompt);
+      setLlmText(txt);
+    })();
+  }, [plan.llmPrompt]);
+
+  // Notify once per day if there’s a baseline drop
   useEffect(() => {
     (async () => {
       if (baseline === null) return;
@@ -70,19 +155,13 @@ export default function TodayScreen() {
       if (!ok) return;
 
       await sendBalanceDropNow(
-        "Your score is below your 7-day baseline. Consider a low-demand day: 20–30 min walk + early wind-down."
+        plan.notifyBody ??
+          "Your score is below your 7-day baseline. Consider a low-demand day: walk + early wind-down."
       );
 
       await setLastDropNotifyDate(todayKey);
     })();
-  }, [baseline, lbi, todayKey]);
-
-  const focus =
-    !checkIn
-      ? "Do your check-in to unlock personalised actions."
-      : checkIn.stress >= 4 || checkIn.mood <= 2
-      ? "Low-demand day: walk + early wind-down."
-      : "Normal day: train as planned + do 1 priority task.";
+  }, [baseline, lbi, todayKey, plan.notifyBody]);
 
   return (
     <View style={styles.container}>
@@ -93,9 +172,11 @@ export default function TodayScreen() {
         <Text style={styles.score}>{lbi}</Text>
         <Text style={styles.reason}>{reason}</Text>
 
-        {baseline !== null && delta !== null && (
+        {baseline === null ? (
+          <Text style={styles.baseline}>Building baseline… (need 3+ days)</Text>
+        ) : (
           <Text style={styles.baseline}>
-            Baseline (last 7): {baseline} • Today: {delta >= 0 ? "+" : ""}
+            Baseline (last 7): {baseline} • Today: {delta! >= 0 ? "+" : ""}
             {delta}
           </Text>
         )}
@@ -103,7 +184,31 @@ export default function TodayScreen() {
 
       <View style={styles.card}>
         <Text style={styles.label}>Today’s Focus</Text>
-        <Text style={styles.action}>{focus}</Text>
+
+        <View style={[styles.badge, { borderColor: planTone }]}>
+          <Text style={[styles.badgeText, { color: planTone }]}>{plan.category}</Text>
+        </View>
+
+        <Text style={styles.action}>{plan.focus}</Text>
+
+        {plan.actions.map((a, i) => (
+          <Text key={i} style={styles.bullet}>
+            • {a}
+          </Text>
+        ))}
+
+        {plan.category === "RECOVERY" && triggers.length > 0 && (
+          <View style={styles.triggersBox}>
+            <Text style={styles.triggersLabel}>Why recovery today</Text>
+            {triggers.map((t, i) => (
+              <Text key={i} style={styles.triggerItem}>
+                • {t}
+              </Text>
+            ))}
+          </View>
+        )}
+
+        {llmText && <Text style={styles.llm}>{llmText}</Text>}
       </View>
     </View>
   );
@@ -117,5 +222,19 @@ const styles = StyleSheet.create({
   score: { fontSize: 48, fontWeight: "700", color: "#38bdf8" },
   reason: { fontSize: 16, color: "#e5e7eb", marginTop: 8 },
   baseline: { marginTop: 10, color: "#94a3b8" },
+  badge: {
+    alignSelf: "flex-start",
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    marginBottom: 10,
+  },
+  badgeText: { fontSize: 12, fontWeight: "700", letterSpacing: 0.4 },
   action: { fontSize: 18, fontWeight: "500", color: "#a7f3d0" },
+  bullet: { color: "#e5e7eb", marginTop: 6 },
+  triggersBox: { marginTop: 14, padding: 12, borderRadius: 12, backgroundColor: "#0b1224" },
+  triggersLabel: { color: "#94a3b8", marginBottom: 6, fontWeight: "600" },
+  triggerItem: { color: "#e5e7eb", marginTop: 4 },
+  llm: { marginTop: 12, color: "#94a3b8" },
 });

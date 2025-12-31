@@ -24,3 +24,10 @@ export function average(nums: number[]) {
   const sum = nums.reduce((a, b) => a + b, 0);
   return Math.round(sum / nums.length);
 }
+export async function loadBaseline(endDate: string, windowDays = 7, minDays = 3) {
+  const values = await loadLastNDaysLbi(endDate, windowDays); // excludes today already (starts at i=1)
+  if (values.length < minDays) {
+    return { baseline: null as number | null, daysUsed: values.length };
+  }
+  return { baseline: average(values), daysUsed: values.length };
+}
