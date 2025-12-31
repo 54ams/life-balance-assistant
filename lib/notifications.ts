@@ -1,35 +1,57 @@
 import * as Notifications from "expo-notifications";
+import { Platform } from "react-native";
+
+const DAILY_REMINDER_ID = "daily-checkin-reminder";
 
 Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: false,
-    shouldSetBadge: false,
-  }),
+  handleNotification: async () =>
+    ({
+      shouldShowAlert: true,
+      shouldPlaySound: false,
+      shouldSetBadge: false,
+    } as Notifications.NotificationBehavior),
 });
 
-export async function ensureNotificationPermissions() {
-  const settings = await Notifications.getPermissionsAsync();
-  if (settings.granted || settings.ios?.status === Notifications.IosAuthorizationStatus.PROVISIONAL) {
-    return true;
-  }
-  const req = await Notifications.requestPermissionsAsync();
+
+
+export async function ensureNotificationPermissions(): Promise<boolean> {
+  // iOS needs explicit permission; Android usually OK but still request
+  const current = await Notifications.getPermissionsAsync();
+
+  const granted =
+    current.granted ||
+    (Platform.OS === "ios" &&
+      current.ios?.status === Notifications.IosAuthorizationStatus.PROVISIONAL);
+
+  if (granted) return true;
+
+  const requested = await Notifications.requestPermissionsAsync();
   return (
-    req.granted || req.ios?.status === Notifications.IosAuthorizationStatus.PROVISIONAL
+    requested.granted ||
+    (Platform.OS === "ios" &&
+      requested.ios?.status === Notifications.IosAuthorizationStatus.PROVISIONAL)
   );
 }
 
 export async function scheduleDailyCheckInReminder(hour: number, minute: number) {
-  await Notifications.cancelScheduledNotificationAsync("daily-checkin");
+  await Notifications.cancelScheduledNotificationAsync(DAILY_REMINDER_ID).catch(() => {});
+
   await Notifications.scheduleNotificationAsync({
-    identifier: "daily-checkin",
+    identifier: DAILY_REMINDER_ID,
     content: {
       title: "Daily check-in",
-      body: "Log mood, stress, and energy to update your Life Balance Index.",
+      body: "Log your mood + stress to update your Life Balance Index.",
     },
-    trigger: { hour, minute, repeats: true },
+trigger: {
+  type: "daily",
+  hour,
+  minute,
+  repeats: true,
+} as Notifications.DailyTriggerInput,
   });
 }
+
+
 
 export async function sendBalanceDropNow(message: string) {
   await Notifications.scheduleNotificationAsync({
@@ -37,6 +59,13 @@ export async function sendBalanceDropNow(message: string) {
       title: "Balance drop detected",
       body: message,
     },
-    trigger: null, // send immediately
+    trigger: null, // immediately
+  });
+}
+
+export async function sendTestNotificationNow() {
+  await Notifications.scheduleNotificationAsync({
+    content: { title: "Test notification", body: "If you see this, notifications work ✅" },
+    trigger: null,
   });
 }
