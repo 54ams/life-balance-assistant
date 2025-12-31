@@ -32,3 +32,13 @@ export async function loadCheckIn(date: string): Promise<DailyCheckIn | null> {
   const raw = await AsyncStorage.getItem(keyForDate(date));
   return raw ? (JSON.parse(raw) as DailyCheckIn) : null;
 }
+const LAST_DROP_NOTIFY_KEY = "last_drop_notify_date";
+
+export async function getLastDropNotifyDate(): Promise<string | null> {
+  return AsyncStorage.getItem(LAST_DROP_NOTIFY_KEY);
+}
+
+export async function setLastDropNotifyDate(dateKey: string): Promise<void> {
+  await AsyncStorage.setItem(LAST_DROP_NOTIFY_KEY, dateKey);
+}
+
