@@ -1,73 +1,114 @@
-import type { DailyCheckIn } from "./storage";
+// lib/lbi.ts
+import type { DailyCheckIn } from "./types";
 
-export type LbiInputs = {
-  recovery: number; // 0-100
-  sleepHours: number; // hours
+export type LbiInput = {
+  recovery: number; // 0–100
+  sleepHours: number;
+  strain?: number; // 0–21
   checkIn: DailyCheckIn | null;
 };
 
-function clamp(n: number, min: number, max: number) {
-  return Math.max(min, Math.min(max, n));
+export type LbiOutput = {
+  lbi: number; // 0–100
+  classification: "balanced" | "overloaded" | "under-recovered";
+  confidence: "high" | "medium" | "low";
+  reason: string;
+  subscores: {
+    recovery: number;
+    sleep: number;
+    mood: number;
+    stress: number;
+  };
+};
+
+const clamp = (n: number, min: number, max: number) =>
+  Math.max(min, Math.min(max, n));
+
+const roundInt = (n: number) => Math.round(n);
+
+function moodScore(mood: 1 | 2 | 3 | 4) {
+  // 1..4 -> 0..100
+  return ((mood - 1) / 3) * 100;
 }
 
-function toNum(x: unknown, fallback: number) {
-  const n = typeof x === "number" ? x : Number(x);
-  return Number.isFinite(n) ? n : fallback;
-}
-
-function clampInt(n: number, min: number, max: number) {
-  return Math.round(clamp(n, min, max));
-}
-
-export function scoreFrom1to5(value: 1 | 2 | 3 | 4 | 5) {
-  return ((value - 1) / 4) * 100;
-}
-
-export function stressInverseFrom1to5(stress: 1 | 2 | 3 | 4 | 5) {
-  return ((5 - stress) / 4) * 100;
+function stressScoreFromIndicators(ind: DailyCheckIn["stressIndicators"]) {
+  // More indicators = more stress, so we invert to score "goodness"
+  const count = Object.values(ind).filter(Boolean).length; // 0..5
+  return 100 - (count / 5) * 100;
 }
 
 function sleepScoreFromHours(hours: number) {
-  // Map ~5h => 0, ~9h => 100 (clamped)
+  // Simple and explainable:
+  // 5h => 0, 9h => 100, clamp outside
   const h = clamp(hours, 4, 10);
-  const scaled = ((h - 5) / (9 - 5)) * 100;
-  return clamp(scaled, 0, 100);
+  return clamp(((h - 5) / 4) * 100, 0, 100);
 }
 
-export function calculateLBI(input: LbiInputs): { lbi: number; reason: string } {
-  // ✅ safe inputs (prevents NaN)
-  const rec = clamp(toNum(input.recovery, 60), 0, 100);
-  const sleepHours = clamp(toNum(input.sleepHours, 7.5), 0, 24);
+function confidenceFromCompleteness(hasCheckIn: boolean, recovery: number, sleepHours: number) {
+  let c = 1.0;
 
-  // mood/stress may be missing in demo mode → default to neutral (3)
-  const moodRaw = input.checkIn ? toNum((input.checkIn as any).mood, 3) : 3;
-  const stressRaw = input.checkIn ? toNum((input.checkIn as any).stress, 3) : 3;
+  if (!hasCheckIn) c -= 0.35;
+  if (sleepHours <= 0 || sleepHours > 14) c -= 0.25;
+  if (recovery < 0 || recovery > 100) c -= 0.25;
 
-  const mood15 = clampInt(moodRaw, 1, 5) as 1 | 2 | 3 | 4 | 5;
-  const stress15 = clampInt(stressRaw, 1, 5) as 1 | 2 | 3 | 4 | 5;
+  if (c >= 0.75) return "high";
+  if (c >= 0.45) return "medium";
+  return "low";
+}
 
-  const recoveryScore = rec; // already 0–100
-  const sleepScore = sleepScoreFromHours(sleepHours);
-  const moodScore = scoreFrom1to5(mood15);
-  const stressScore = stressInverseFrom1to5(stress15);
+export function calculateLBI(input: LbiInput): LbiOutput {
+  const recovery = clamp(input.recovery, 0, 100);
+  const sleep = sleepScoreFromHours(input.sleepHours);
 
-  // weights (simple + stable for MVP)
-  const score =
-    recoveryScore * 0.4 + // 40%
-    sleepScore * 0.3 + // 30%
-    moodScore * 0.15 + // 15%
-    stressScore * 0.15; // 15%
+  const hasCheckIn = !!input.checkIn;
 
-  // ✅ final guard
-  const safeScore = Number.isFinite(score) ? score : 60;
-  const lbi = clampInt(safeScore, 0, 100);
+  const mood = input.checkIn?.mood ?? 2;
+  const moodS = moodScore(mood);
 
-  // Reason string (simple explainability)
+  const stressS = input.checkIn?.stressIndicators
+    ? stressScoreFromIndicators(input.checkIn.stressIndicators)
+    : 50;
+
+  // Objective spine (70%): Recovery + Sleep
+  // Subjective (30%): Mood + Stress indicators
+  const objective = 0.5 * recovery + 0.5 * sleep;
+  const subjective = 0.5 * moodS + 0.5 * stressS;
+
+  let score = 0.7 * objective + 0.3 * subjective;
+
+  // Simple mismatch penalty (optional but strong)
+  const strain = input.strain == null ? null : clamp(input.strain, 0, 21);
+  if (strain != null && strain >= 15 && recovery <= 40) {
+    score -= 6;
+  }
+
+  const lbi = roundInt(clamp(score, 0, 100));
+  const confidence = confidenceFromCompleteness(hasCheckIn, recovery, input.sleepHours);
+
+  // Classification rules (simple + defendable)
+  let classification: LbiOutput["classification"] = "balanced";
+
+  if (recovery <= 40 || sleep <= 35) classification = "under-recovered";
+  else if (hasCheckIn) {
+    const stressCount = Object.values(input.checkIn!.stressIndicators).filter(Boolean).length;
+    if (stressCount >= 3 || mood <= 2) classification = "overloaded";
+  }
+
   let reason = "Your balance looks steady today.";
-  if (stress15 >= 4) reason = "Stress is high, which is pulling your balance down.";
-  else if (mood15 <= 2) reason = "Mood is low, which is pulling your balance down.";
-  else if (sleepHours <= 6.5) reason = "Sleep is low, which is pulling your balance down.";
-  else if (rec <= 40) reason = "Recovery is low, which is pulling your balance down.";
+  if (!hasCheckIn) reason = "Complete a check-in to improve accuracy.";
+  else if (classification === "under-recovered") reason = "Low recovery and/or sleep are pulling your balance down.";
+  else if (classification === "overloaded") reason = "Stress indicators and/or mood suggest mental overload.";
 
-  return { lbi, reason };
+  return {
+    lbi,
+    classification,
+    confidence,
+    reason,
+    subscores: {
+      recovery: roundInt(recovery),
+      sleep: roundInt(sleep),
+      mood: roundInt(moodS),
+      stress: roundInt(stressS),
+    },
+  };
 }

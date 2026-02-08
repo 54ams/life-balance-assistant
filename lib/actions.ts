@@ -1,5 +1,4 @@
-import type { DailyCheckIn } from "./storage";
-import type { WearableMetrics } from "./types";
+import type { DailyCheckIn, WearableMetrics } from "./types";
 
 export type ActionPlan = {
   category: "RECOVERY" | "NORMAL";
@@ -18,7 +17,9 @@ export function buildActionPlan(input: {
 }): ActionPlan {
   const { wearable, checkIn, lbi, baseline } = input;
 
-  const stressHigh = checkIn ? checkIn.stress >= 4 : false;
+const stressHigh = checkIn
+  ? Object.values(checkIn.stressIndicators).filter(Boolean).length >= 3
+  : false;
   const moodLow = checkIn ? checkIn.mood <= 2 : false;
   const recoveryLow = wearable.recovery <= 40;
   const sleepLow = wearable.sleepHours <= 6.5;

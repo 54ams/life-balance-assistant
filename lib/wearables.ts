@@ -1,20 +1,13 @@
-import { getDemoWearable, isDemoEnabled } from "./demo";
+// lib/wearables.ts
 import type { WearableMetrics } from "./types";
 
-// MVP: return placeholders
-// Demo mode: override values for viva/testing
-// Later: swap implementation to WHOOP + HealthKit
-export async function getWearableMetricsForToday(): Promise<WearableMetrics> {
-  // ✅ Demo override
-  const demoOn = await isDemoEnabled();
-  if (demoOn) {
-    const demo = await getDemoWearable();
-    if (demo) return demo;
-  }
-
-  // ✅ Default placeholder (current MVP behaviour)
+// For now: stub.
+// Later: replace with WHOOP API / export parsing.
+export async function getTodayWearable(): Promise<WearableMetrics> {
+  // Replace these with real WHOOP numbers when ready
   return {
-    recovery: 60,
-    sleepHours: 9.0,
+    recovery: 62,
+    sleepHours: 7.4,
+    strain: 11.2,
   };
 }

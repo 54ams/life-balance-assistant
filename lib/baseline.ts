@@ -1,33 +1,34 @@
-import { loadDailyResult } from "./storage";
+// lib/baseline.ts
+import { getAllDays } from "./storage";
 
-function yyyyMmDd(d: Date) {
-  return d.toISOString().slice(0, 10);
+export async function computeBaseline(days = 7): Promise<number | null> {
+  const all = await getAllDays();
+  const recent = all.filter((r) => typeof r.lbi === "number").slice(-days);
+
+  if (recent.length < 3) return null; // not enough data
+  const avg = recent.reduce((sum, r) => sum + (r.lbi as number), 0) / recent.length;
+  return Math.round(avg);
 }
 
-export async function loadLastNDaysLbi(endDate: string, n: number) {
-  const end = new Date(endDate);
-  const values: number[] = [];
+export type BaselineMeta = {
+  baseline: number | null;
+  daysUsed: number;
+  targetDays: number;
+  status: "calibrating" | "stable";
+};
 
-  for (let i = 1; i <= n; i++) {
-    const d = new Date(end);
-    d.setDate(d.getDate() - i);
-    const key = yyyyMmDd(d);
-    const res = await loadDailyResult(key);
-    if (res) values.push(res.lbi);
-  }
+export async function computeBaselineMeta(targetDays = 7): Promise<BaselineMeta> {
+  const all = await getAllDays();
+  const recent = all.filter((r) => typeof r.lbi === "number").slice(-targetDays);
 
-  return values;
-}
+  const daysUsed = recent.length;
+  const baseline =
+    daysUsed < 3
+      ? null
+      : Math.round(recent.reduce((sum, r) => sum + (r.lbi as number), 0) / daysUsed);
 
-export function average(nums: number[]) {
-  if (nums.length === 0) return null;
-  const sum = nums.reduce((a, b) => a + b, 0);
-  return Math.round(sum / nums.length);
-}
-export async function loadBaseline(endDate: string, windowDays = 7, minDays = 3) {
-  const values = await loadLastNDaysLbi(endDate, windowDays); // excludes today already (starts at i=1)
-  if (values.length < minDays) {
-    return { baseline: null as number | null, daysUsed: values.length };
-  }
-  return { baseline: average(values), daysUsed: values.length };
+  // "Stable" once the window is filled; otherwise calibrating.
+  const status: BaselineMeta["status"] = daysUsed >= targetDays ? "stable" : "calibrating";
+
+  return { baseline, daysUsed, targetDays, status };
 }
