@@ -45,3 +45,6 @@ app-example
 .env
 node_modules
 dist
+
+# local review artefacts
+review_bundle/
