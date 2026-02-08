@@ -1,4 +1,5 @@
 import { Screen } from "@/components/Screen";
+import { TabSwipe } from "@/components/TabSwipe";
 import { Button } from "@/components/ui/button";
 import { GlassCard } from "@/components/ui/glass-card";
 import { IconSymbol } from "@/components/ui/icon-symbol";
@@ -7,15 +8,14 @@ import { useColorScheme } from "@/hooks/use-color-scheme";
 import { computeBaseline, computeBaselineMeta } from "@/lib/baseline";
 import { formatDisplayDate } from "@/lib/date";
 import { calculateLBI, type LbiOutput } from "@/lib/lbi";
+import { predictTomorrowRisk, trainIfReady } from "@/lib/ml";
 import { generatePlan } from "@/lib/plan";
 import { getAllDays, getDay, savePlan, upsertLBI, upsertWearable } from "@/lib/storage";
 import type { ISODate } from "@/lib/types";
 import { getTodayWearable } from "@/lib/wearables";
-import { predictTomorrowRisk, trainIfReady } from "@/lib/ml";
 import { router, useLocalSearchParams } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
 import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
-import { TabSwipe } from "@/components/TabSwipe";
 
 const TAB_ORDER = ["/", "/checkin", "/insights", "/history", "/profile"] as const;
 
@@ -92,6 +92,8 @@ export default function HomeScreen() {
 
       const b = await computeBaseline(7);
       setBaseline(b);
+      const meta = await computeBaselineMeta(7);
+      setBaselineMeta(meta);
 
       // Generate and persist a daily plan so History/Trends/Export have real data.
       const plan = generatePlan({
