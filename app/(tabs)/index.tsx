@@ -245,9 +245,9 @@ setRisk(r);
       <GlassCard padding={14} style={styles.riskCard}>
         <Text style={[styles.riskTitle, { color: c.text }]}>Signal integration</Text>
         <Text style={[styles.riskSub, { color: c.muted }]}>
-          {baselineMeta?.status === "calibrating"
+          {baselineMeta?.status !== "stable"
             ? `Baseline calibrating (${baselineMeta?.daysUsed ?? 0}/${baselineMeta?.targetDays ?? 7} days)`
-            : `Baseline stable (${baselineMeta?.daysUsed ?? 0}/${baselineMeta?.targetDays ?? 7} days)`}
+            : `Baseline stable (${baselineMeta.daysUsed}/${baselineMeta.targetDays} days)`}
           {" • "}
           Confidence: {result?.confidence ?? "—"}
         </Text>
