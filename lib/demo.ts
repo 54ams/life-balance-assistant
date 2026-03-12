@@ -2,6 +2,7 @@
 import { calculateLBI } from "./lbi";
 import { clearAll, upsertCheckIn, upsertLBI, upsertWearable } from "./storage";
 import type { ISODate } from "./types";
+import { clamp } from "./util/clamp";
 // lib/demo.ts
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import type { DailyCheckIn, WearableMetrics } from "./types";
@@ -41,10 +42,15 @@ export async function getDemoWearable(): Promise<WearableMetrics | null> {
   return raw ? (JSON.parse(raw) as WearableMetrics) : null;
 }
 
+import { todayISO } from "./util/todayISO";
+
 function isoDateNDaysAgo(n: number): ISODate {
-  const d = new Date();
+  const d = new Date(todayISO());
   d.setDate(d.getDate() - n);
-  return d.toISOString().slice(0, 10) as ISODate;
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}` as ISODate;
 }
 
 function randBetween(min: number, max: number) {
@@ -82,31 +88,29 @@ export async function seedDemo(days = 14) {
       restlessness: stressed ? Math.random() < 0.5 : Math.random() < 0.18,
     };
 
-    const mood = pick([1, 2, 3, 4]) as 1 | 2 | 3 | 4;
-    const energy = pick([1, 2, 3, 4]) as 1 | 2 | 3 | 4;
+    const mood = pick([1, 2, 3, 4, 5]) as 1 | 2 | 3 | 4 | 5;
+    const energy = pick([1, 2, 3, 4, 5]) as 1 | 2 | 3 | 4 | 5;
 
-    await upsertCheckIn(date, {
-      mood: stressed ? (mood <= 3 ? mood : 3) as 1 | 2 | 3 | 4 : mood,
+    const checkIn: DailyCheckIn = {
+      mood: stressed ? (mood <= 3 ? mood : 3) as 1 | 2 | 3 | 4 | 5 : mood,
       energy,
+      stressLevel: stressed ? pick([3, 4, 5]) as 3 | 4 | 5 : pick([1, 2, 3]) as 1 | 2 | 3,
+      sleepQuality: pick([2, 3, 4, 5]) as 1 | 2 | 3 | 4 | 5,
       stressIndicators,
       caffeineAfter2pm: Math.random() < 0.25,
       alcohol: Math.random() < 0.15,
+      exerciseDone: Math.random() < 0.5,
       deepWorkMins: pick([0, 15, 30, 60, 90, 120]),
-    });
+      hydrationLitres: Math.round((Math.random() * 1.5 + 1.5) * 10) / 10,
+    };
+    await upsertCheckIn(date, checkIn);
 
     // Compute + store LBI
     const lbiRes = calculateLBI({
       recovery,
       sleepHours,
       strain,
-      checkIn: {
-        mood: stressed ? (mood <= 3 ? mood : 3) as 1 | 2 | 3 | 4 : mood,
-        energy,
-        stressIndicators,
-        caffeineAfter2pm: Math.random() < 0.25,
-        alcohol: Math.random() < 0.15,
-        deepWorkMins: pick([0, 15, 30, 60, 90, 120]),
-      },
+      checkIn,
     });
 
     await upsertLBI(date, {
@@ -116,8 +120,4 @@ export async function seedDemo(days = 14) {
       reason: lbiRes.reason,
     });
   }
-}
-
-function clamp(n: number, min: number, max: number) {
-  return Math.max(min, Math.min(max, n));
 }

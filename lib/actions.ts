@@ -17,8 +17,10 @@ export function buildActionPlan(input: {
 }): ActionPlan {
   const { wearable, checkIn, lbi, baseline } = input;
 
-const stressHigh = checkIn
+const stressHigh = checkIn?.stressIndicators
   ? Object.values(checkIn.stressIndicators).filter(Boolean).length >= 3
+  : checkIn?.stressLevel
+  ? checkIn.stressLevel >= 4
   : false;
   const moodLow = checkIn ? checkIn.mood <= 2 : false;
   const recoveryLow = wearable.recovery <= 40;

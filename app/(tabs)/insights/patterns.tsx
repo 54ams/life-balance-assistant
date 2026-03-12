@@ -6,12 +6,13 @@ import { Screen } from "@/components/Screen";
 import { InsightsDatePicker } from "@/components/InsightsDatePicker";
 import { Button } from "@/components/ui/button";
 import { GlassCard } from "@/components/ui/glass-card";
-import { Colors } from "@/constants/theme";
-import { useColorScheme } from "@/hooks/use-color-scheme";
+import { Colors } from "@/constants/Colors";
+import { useColorScheme } from "react-native";
 import { getInsightsSelectedDate, setInsightsSelectedDate } from "@/lib/insightsDate";
 import { getAllDays } from "@/lib/storage";
 import { buildPatterns } from "@/lib/explain";
 import type { ISODate } from "@/lib/types";
+import { todayISO } from "@/lib/util/todayISO";
 
 export default function PatternsScreen() {
   const scheme = useColorScheme();
@@ -19,7 +20,7 @@ export default function PatternsScreen() {
 
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState<{ title: string; detail: string }[]>([]);
-  const [date, setDate] = useState<ISODate>(new Date().toISOString().slice(0,10) as ISODate);
+  const [date, setDate] = useState<ISODate>(todayISO());
 
   // Load persisted selected date once
   useEffect(() => {
@@ -57,10 +58,10 @@ export default function PatternsScreen() {
     <Screen scroll>
       <Stack.Screen options={{ title: "Patterns", headerShown: false }} />
 
-      <Text style={{ fontSize: 26, fontWeight: "800", color: c.text }}>
+      <Text style={{ fontSize: 26, fontWeight: "800", color: c.text.primary }}>
         Patterns
       </Text>
-      <Text style={{ marginTop: 6, color: c.muted }}>
+      <Text style={{ marginTop: 6, color: c.text.secondary }}>
         Simple, defensible comparisons from your last 30 days.
       </Text>
 
@@ -74,10 +75,10 @@ export default function PatternsScreen() {
       </View>
 
       <GlassCard style={{ marginTop: 14 }}>
-        <Text style={{ color: c.text, fontWeight: "800" }}>
+        <Text style={{ color: c.text.primary, fontWeight: "800" }}>
           Why this matters (viva-ready)
         </Text>
-        <Text style={{ marginTop: 8, color: c.muted }}>
+        <Text style={{ marginTop: 8, color: c.text.secondary }}>
           These insights are intentionally transparent: group averages and counts, not opaque AI. That makes them easier to validate and ethically safer for wellbeing support.
         </Text>
       </GlassCard>
@@ -85,16 +86,16 @@ export default function PatternsScreen() {
       <View style={{ marginTop: 14, gap: 12 }}>
         {loading ? (
           <GlassCard>
-            <Text style={{ color: c.text, fontWeight: "700" }}>Loading…</Text>
-            <Text style={{ marginTop: 6, color: c.muted }}>
+            <Text style={{ color: c.text.primary, fontWeight: "700" }}>Loading…</Text>
+            <Text style={{ marginTop: 6, color: c.text.secondary }}>
               Calculating simple relationships from recent days.
             </Text>
           </GlassCard>
         ) : (
           items.map((it, i) => (
             <GlassCard key={i}>
-              <Text style={{ color: c.text, fontWeight: "900" }}>{it.title}</Text>
-              <Text style={{ marginTop: 8, color: c.muted }}>{it.detail}</Text>
+              <Text style={{ color: c.text.primary, fontWeight: "900" }}>{it.title}</Text>
+              <Text style={{ marginTop: 8, color: c.text.secondary }}>{it.detail}</Text>
             </GlassCard>
           ))
         )}

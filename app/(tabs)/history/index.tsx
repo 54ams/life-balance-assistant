@@ -1,23 +1,30 @@
 import { router, useFocusEffect } from "expo-router";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { Screen } from "@/components/Screen";
-import { GlassCard } from "@/components/ui/glass-card";
-import { Colors } from "@/constants/theme";
-import { useColorScheme } from "@/hooks/use-color-scheme";
+import { GlassCard } from "@/components/ui/GlassCard";
+import { Colors } from "@/constants/Colors";
+import { TAB_ORDER } from "@/constants/navigation";
+import { useColorScheme } from "react-native";
+import { Typography } from "@/constants/Typography";
+import { Spacing } from "@/constants/Spacing";
 import { loadPlan, type StoredPlan } from "@/lib/storage";
 import { TabSwipe } from "@/components/TabSwipe";
-
-const TAB_ORDER = ["/", "/checkin", "/insights", "/history", "/profile"] as const;
 
 function lastNDates(n: number) {
   const out: string[] = [];
   const d = new Date();
+  const toISO = (value: Date) => {
+    const y = value.getFullYear();
+    const m = String(value.getMonth() + 1).padStart(2, "0");
+    const day = String(value.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+  };
   for (let i = 0; i < n; i++) {
     const x = new Date(d);
     x.setDate(d.getDate() - i);
-    out.push(x.toISOString().slice(0, 10));
+    out.push(toISO(x));
   }
   return out;
 }
@@ -28,9 +35,8 @@ function categoryLabel(cat: StoredPlan["category"]) {
 
 export default function HistoryScreen() {
   const scheme = useColorScheme();
-  const C = Colors[scheme ?? "light"];
+  const C = scheme === "dark" ? Colors.dark : Colors.light;
 
-  const dates = useMemo(() => lastNDates(7), []);
   const [rows, setRows] = useState<StoredPlan[]>([]);
   const [missingCount, setMissingCount] = useState<number>(0);
 
@@ -39,6 +45,7 @@ export default function HistoryScreen() {
       let alive = true;
 
       (async () => {
+        const dates = lastNDates(7);
         const plans: StoredPlan[] = [];
         let missing = 0;
 
@@ -58,24 +65,28 @@ export default function HistoryScreen() {
       return () => {
         alive = false;
       };
-    }, [dates])
+    }, [])
   );
 
   return (
     <TabSwipe order={TAB_ORDER}>
       <Screen scroll>
-      <Text style={[styles.title, { color: C.text }]}>History (7 days)</Text>
-      <Text style={[styles.subtitle, { color: C.muted }]}>Saved daily outputs and triggers.</Text>
+      <Text style={[styles.title, { color: C.text.primary }]}>History (7 days)</Text>
+      <Text style={[styles.subtitle, { color: C.text.secondary }]}>Saved daily outputs and triggers.</Text>
 
       {missingCount > 0 && (
         <GlassCard style={styles.note}>
-          <Text style={[styles.noteText, { color: C.muted }]}>Missing days: {missingCount}. Open Home to generate plans.</Text>
+          <Text style={[styles.noteText, { color: C.text.secondary }]}>
+            Missing days: {missingCount}. Open Home to generate plans.
+          </Text>
         </GlassCard>
       )}
 
       {rows.length === 0 ? (
         <GlassCard>
-          <Text style={[styles.empty, { color: C.muted }]}>No saved plans yet — open Home for a few days.</Text>
+          <Text style={[styles.empty, { color: C.text.secondary }]}>
+            No saved plans yet — open Home for a few days.
+          </Text>
         </GlassCard>
       ) : (
         <View style={{ gap: 12 }}>
@@ -83,33 +94,46 @@ export default function HistoryScreen() {
             <Pressable
               key={r.date}
               onPress={() =>
-                router.push({ pathname: "/history/plan-details", params: { date: r.date } } as any)
+                router.push({ pathname: "/day/[date]", params: { date: r.date } } as any)
               }
+              accessibilityLabel={`Open day details for ${r.date}`}
+              accessibilityRole="button"
               style={({ pressed }) => [pressed && { opacity: 0.9 }]}
             >
               <GlassCard>
-                <Text style={[styles.date, { color: C.muted }]}>{r.date}</Text>
+                <Text style={[styles.date, { color: C.text.secondary }]}>{r.date}</Text>
 
                 <View style={styles.rowLine}>
-                  <Text style={[styles.metric, { color: C.text }]}>LBI</Text>
-                  <Text style={[styles.metricValue, { color: C.text }]}>{r.lbi}</Text>
+                  <Text style={[styles.metric, { color: C.text.primary }]}>LBI</Text>
+                  <Text style={[styles.metricValue, { color: C.text.primary }]}>{r.lbi}</Text>
                 </View>
 
                 <View style={styles.rowLine}>
-                  <Text style={[styles.metric, { color: C.muted }]}>Baseline</Text>
-                  <Text style={[styles.metricValue, { color: C.muted }]}>
+                  <Text style={[styles.metric, { color: C.text.secondary }]}>Baseline</Text>
+                  <Text style={[styles.metricValue, { color: C.text.secondary }]}>
                     {r.baseline !== null ? r.baseline : "—"}
                   </Text>
                 </View>
 
                 <View style={styles.badgeRow}>
-                  <View style={[styles.badge, { borderColor: C.border, backgroundColor: C.card }]}>
-                    <Text style={[styles.badgeText, { color: C.text }]}>{categoryLabel(r.category)}</Text>
+                  <View
+                    style={[
+                      styles.badge,
+                      { borderColor: C.border.medium, backgroundColor: C.glass.primary },
+                    ]}
+                  >
+                    <Text style={[styles.badgeText, { color: C.text.primary }]}>
+                      {categoryLabel(r.category)}
+                    </Text>
                   </View>
                 </View>
 
+                <Text style={[styles.triggers, { color: C.text.secondary }]}>
+                  Adherence: {r.actions.length ? Math.round((((r.completedActions ?? []).filter(Boolean).length / r.actions.length) * 100)) : 0}%
+                </Text>
+
                 {r.triggers.length > 0 && (
-                  <Text style={[styles.triggers, { color: C.muted }]} numberOfLines={3}>
+                  <Text style={[styles.triggers, { color: C.text.secondary }]} numberOfLines={3}>
                     Triggers: {r.triggers.join(" • ")}
                   </Text>
                 )}

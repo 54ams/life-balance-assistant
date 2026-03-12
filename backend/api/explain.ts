@@ -9,9 +9,27 @@ if (!apiKey) {
 
 const client = new OpenAI({ apiKey });
 
+function hasSelfHarmSignals(text: string): boolean {
+  const t = text.toLowerCase();
+  const cues = [
+    "suicide",
+    "kill myself",
+    "self-harm",
+    "self harm",
+    "end my life",
+    "hurt myself",
+  ];
+  return cues.some((c) => t.includes(c));
+}
+
 export async function explainPlan(prompt: string, context?: string) {
   if (!process.env.OPENAI_API_KEY) {
     throw new Error("Missing OPENAI_API_KEY in backend/.env");
+  }
+
+  const joined = `${prompt}\n${context ?? ""}`;
+  if (hasSelfHarmSignals(joined)) {
+    return "I cannot provide reflective output for this content. If you are in immediate danger, contact emergency services or a crisis line (for example, 988 in the US).";
   }
 
   const response = await client.responses.create({
@@ -20,7 +38,7 @@ export async function explainPlan(prompt: string, context?: string) {
       {
         role: "system",
         content:
-          "You are a wellbeing assistant. Be brief, practical, non-judgmental. No medical claims. Avoid diagnosis.",
+          "You are a wellbeing reflection assistant. Be brief, non-judgmental, observational, and non-directive. Not medical advice. No diagnosis. No crisis management instructions.",
       },
       {
         role: "user",

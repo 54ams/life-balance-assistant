@@ -1,14 +1,17 @@
 import * as Clipboard from "expo-clipboard";
+import * as FileSystem from "expo-file-system";
 import { useFocusEffect } from "expo-router";
 import { useCallback, useMemo, useState } from "react";
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { Screen } from "@/components/Screen";
 import { GlassCard } from "@/components/ui/glass-card";
-import { Colors } from "@/constants/theme";
-import { useColorScheme } from "@/hooks/use-color-scheme";
-import { exportPlans } from "@/lib/export";
-import { exportDailyCsv, exportResearchJson, exportSusCsv } from "@/lib/researchExport";
+import { Colors } from "@/constants/Colors";
+import { useColorScheme } from "react-native";
+import { exportPlans, exportModelSensitivity } from "@/lib/export";
+import { analyticsToMarkdown, buildAnalyticsSummary } from "@/lib/analytics";
+import { getAllDays } from "@/lib/storage";
+import { buildAppendixSummary } from "@/lib/report";
 
 export default function ExportScreen() {
   const scheme = useColorScheme();
@@ -16,10 +19,12 @@ export default function ExportScreen() {
 
   const [days, setDays] = useState(7);
   const [payload, setPayload] = useState<string>("{}");
+  const [appendix, setAppendix] = useState<string>("");
 
   const refresh = useCallback(async () => {
     const out = await exportPlans(days);
     setPayload(out);
+    setAppendix(await buildAppendixSummary(days));
   }, [days]);
 
   useFocusEffect(
@@ -39,7 +44,7 @@ export default function ExportScreen() {
 
   const onCopyDatasetJson = useCallback(async () => {
     try {
-      const txt = await exportResearchJson(days);
+      const txt = await exportPlans(days);
       await Clipboard.setStringAsync(txt);
       Alert.alert("Copied", "Research JSON copied to clipboard.");
     } catch (e: any) {
@@ -47,42 +52,51 @@ export default function ExportScreen() {
     }
   }, [days]);
 
-  const onCopyDailyCsv = useCallback(async () => {
+  const onCopySensitivity = useCallback(async () => {
     try {
-      const txt = await exportDailyCsv(days);
+      const txt = exportModelSensitivity();
       await Clipboard.setStringAsync(txt);
-      Alert.alert("Copied", "Daily CSV copied to clipboard.");
-    } catch (e: any) {
-      Alert.alert("Export failed", e?.message ?? "Unknown error");
-    }
-  }, [days]);
-
-  const onCopySusCsv = useCallback(async () => {
-    try {
-      const txt = await exportSusCsv();
-      await Clipboard.setStringAsync(txt);
-      Alert.alert("Copied", "SUS CSV copied to clipboard.");
+      Alert.alert("Copied", "Model sensitivity JSON copied to clipboard.");
     } catch (e: any) {
       Alert.alert("Export failed", e?.message ?? "Unknown error");
     }
   }, []);
 
+  const onSaveFiles = useCallback(async () => {
+    try {
+      const exportDir = `${FileSystem.documentDirectory ?? FileSystem.cacheDirectory}life-balance-exports`;
+      await FileSystem.makeDirectoryAsync(exportDir, { intermediates: true });
+      const jsonPath = `${exportDir}/research-export-${days}d.json`;
+      const sensitivityPath = `${exportDir}/model-sensitivity.json`;
+      const analyticsPath = `${exportDir}/analytics-summary-${days}d.md`;
+      const appendixPath = `${exportDir}/appendix-summary-${days}d.txt`;
+      await FileSystem.writeAsStringAsync(jsonPath, await exportPlans(days));
+      await FileSystem.writeAsStringAsync(sensitivityPath, exportModelSensitivity());
+      const records = (await getAllDays()).slice(-Math.max(days, 30));
+      await FileSystem.writeAsStringAsync(analyticsPath, analyticsToMarkdown(buildAnalyticsSummary(records, 30)));
+      await FileSystem.writeAsStringAsync(appendixPath, await buildAppendixSummary(days));
+      Alert.alert("Saved", `Export files written to:\n${exportDir}`);
+    } catch (e: any) {
+      Alert.alert("Save failed", e?.message ?? "Could not write export files.");
+    }
+  }, [days]);
+
   const subtitle = useMemo(
     () =>
-      "Use this in your evaluation appendix to evidence plan outputs, triggers and changes over time.",
+      "Use this bundle in your dissertation appendix to evidence daily outputs, adherence, analytics, and evaluation data.",
     []
   );
 
   return (
     <Screen scroll>
       <View style={styles.header}>
-        <Text style={[styles.title, { color: c.text }]}>Export ({days} days)</Text>
-        <Text style={[styles.subtitle, { color: c.muted }]}>{subtitle}</Text>
+        <Text style={[styles.title, { color: c.text.primary }]}>Export ({days} days)</Text>
+        <Text style={[styles.subtitle, { color: c.text.secondary }]}>{subtitle}</Text>
       </View>
 
       <GlassCard style={styles.card}>
-        <Text style={[styles.cardTitle, { color: c.text }]}>How to copy</Text>
-        <Text style={[styles.cardText, { color: c.muted }]}>Tap Copy to put the JSON on your clipboard.</Text>
+        <Text style={[styles.cardTitle, { color: c.text.primary }]}>How to copy</Text>
+        <Text style={[styles.cardText, { color: c.text.secondary }]}>Tap Copy to put the JSON on your clipboard.</Text>
         <View style={styles.controlsRow}>
           <View style={styles.daysRow}>
             {[1, 7, 14, 30].map((n) => {
@@ -94,35 +108,48 @@ export default function ExportScreen() {
                   style={[
                     styles.pill,
                     {
-                      backgroundColor: active ? c.accent : "transparent",
-                      borderColor: c.border,
+                      backgroundColor: active ? c.accent.primary : "transparent",
+                      borderColor: c.border.medium,
                     },
                   ]}
                 >
-                  <Text style={[styles.pillText, { color: active ? "#fff" : c.text }]}>{n}d</Text>
+                  <Text style={[styles.pillText, { color: active ? "#fff" : c.text.primary }]}>{n}d</Text>
                 </Pressable>
               );
             })}
           </View>
-          <Pressable onPress={onCopy} style={[styles.copyBtn, { backgroundColor: c.accent }]}>
+          <Pressable onPress={onCopy} style={[styles.copyBtn, { backgroundColor: c.accent.primary }]}>
             <Text style={styles.copyText}>Copy plans JSON</Text>
           </Pressable>
-          <Pressable onPress={onCopyDatasetJson} style={[styles.copyBtn, { backgroundColor: c.accent }]}>
+          <Pressable onPress={onCopyDatasetJson} style={[styles.copyBtn, { backgroundColor: c.accent.primary }]}>
             <Text style={styles.copyText}>Copy research JSON</Text>
           </Pressable>
-          <Pressable onPress={onCopyDailyCsv} style={[styles.copyBtn, { backgroundColor: c.accent }]}>
-            <Text style={styles.copyText}>Copy daily CSV</Text>
+          <Pressable onPress={onCopySensitivity} style={[styles.copyBtn, { backgroundColor: c.accent.primary }]}>
+            <Text style={styles.copyText}>Copy model sensitivity</Text>
           </Pressable>
-          <Pressable onPress={onCopySusCsv} style={[styles.copyBtn, { backgroundColor: c.accent }]}>
-            <Text style={styles.copyText}>Copy SUS CSV</Text>
+          <Pressable onPress={onSaveFiles} style={[styles.copyBtn, { backgroundColor: c.accent.primary }]}>
+            <Text style={styles.copyText}>Save export files</Text>
           </Pressable>
+          {/* CSV exports removed from UI; JSON exports retained */}
         </View>
       </GlassCard>
 
       <GlassCard style={styles.codeCard}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          <Text style={[styles.code, { color: c.text, opacity: 0.95 }]} selectable>
+          <Text style={[styles.code, { color: c.text.primary, opacity: 0.95 }]} selectable>
             {payload}
+          </Text>
+        </ScrollView>
+      </GlassCard>
+
+      <GlassCard style={styles.codeCard}>
+        <Text style={[styles.cardTitle, { color: c.text.primary }]}>Appendix summary preview</Text>
+        <Text style={[styles.cardText, { color: c.text.secondary }]}>
+          This is the short report-facing summary that is also saved to the export bundle.
+        </Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 10 }}>
+          <Text style={[styles.code, { color: c.text.primary, opacity: 0.95 }]} selectable>
+            {appendix || "No summary yet."}
           </Text>
         </ScrollView>
       </GlassCard>

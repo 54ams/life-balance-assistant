@@ -3,8 +3,8 @@ import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
 
 import { Screen } from "@/components/Screen";
 import { GlassCard } from "@/components/ui/glass-card";
-import { Colors } from "@/constants/theme";
-import { useColorScheme } from "@/hooks/use-color-scheme";
+import { Colors } from "@/constants/Colors";
+import { useColorScheme } from "react-native";
 import { seedDemoData } from "@/lib/demoSeed";
 import {
   clearDemoOverrides,
@@ -60,14 +60,14 @@ export default function DemoToolsScreen() {
 
   return (
     <Screen scroll contentStyle={styles.container}>
-      <Text style={[styles.title, { color: c.text }]}>Demo tools</Text>
-      <Text style={[styles.sub, { color: c.muted }]}>Seed data and simulate wearable/check-in states for your viva.</Text>
+      <Text style={[styles.title, { color: c.text.primary }]}>Demo tools</Text>
+      <Text style={[styles.sub, { color: c.text.secondary }]}>Seed data and simulate wearable/check-in states for your viva.</Text>
 
       <GlassCard>
         <View style={styles.rowBetween}>
           <View style={{ flex: 1 }}>
-            <Text style={[styles.rowTitle, { color: c.text }]}>Demo mode</Text>
-            <Text style={[styles.rowSub, { color: c.muted }]}>Uses seeded data + predictable outputs.</Text>
+            <Text style={[styles.rowTitle, { color: c.text.primary }]}>Demo mode</Text>
+            <Text style={[styles.rowSub, { color: c.text.secondary }]}>Uses seeded data + predictable outputs.</Text>
           </View>
           <Pressable
             accessibilityRole="button"
@@ -75,11 +75,11 @@ export default function DemoToolsScreen() {
             disabled={saving}
             style={({ pressed }) => [
               styles.pill,
-              { backgroundColor: demoOn ? c.tint : c.card, borderColor: c.border },
+              { backgroundColor: demoOn ? c.accent.primary : c.glass.primary, borderColor: c.border.medium },
               pressed && styles.pressed,
             ]}
           >
-            <Text style={[styles.pillText, { color: demoOn ? "#fff" : c.text }]}>
+            <Text style={[styles.pillText, { color: demoOn ? "#fff" : c.text.primary }]}>
               {demoOn ? "On" : "Off"}
             </Text>
           </Pressable>
@@ -90,7 +90,7 @@ export default function DemoToolsScreen() {
         <Pressable
           onPress={onSeed}
           disabled={saving}
-          style={({ pressed }) => [styles.primaryBtn, { backgroundColor: c.tint }, pressed && styles.pressed]}
+          style={({ pressed }) => [styles.primaryBtn, { backgroundColor: c.accent.primary }, pressed && styles.pressed]}
         >
           <Text style={styles.primaryText}>Seed 14 days demo data</Text>
         </Pressable>
@@ -99,40 +99,58 @@ export default function DemoToolsScreen() {
           onPress={async () => {
             setSaving(true);
             try {
-              await setDemoWearable({ sleepHours: 7.4, recovery: 78, hrv: 58, rhr: 54 });
+              await setDemoWearable({ sleepHours: 7.4, recovery: 78, hrv: 58, restingHR: 54 });
               Alert.alert("Done", "Set demo wearable values.");
             } finally {
               setSaving(false);
             }
           }}
           disabled={saving}
-          style={({ pressed }) => [styles.secondaryBtn, { borderColor: c.border }, pressed && styles.pressed]}
+          style={({ pressed }) => [styles.secondaryBtn, { borderColor: c.border.medium }, pressed && styles.pressed]}
         >
-          <Text style={[styles.secondaryText, { color: c.text }]}>Set demo wearable values</Text>
+          <Text style={[styles.secondaryText, { color: c.text.primary }]}>Set demo wearable values</Text>
         </Pressable>
         <View style={{ height: 12 }} />
         <Pressable
           onPress={async () => {
             setSaving(true);
             try {
-              await setDemoCheckIn({ recovery: 7, connection: 6, purpose: 5, notes: "Demo check-in" });
+              await setDemoCheckIn({
+                mood: 3,
+                energy: 3,
+                stressLevel: 3,
+                sleepQuality: 3,
+                stressIndicators: {
+                  muscleTension: false,
+                  racingThoughts: false,
+                  irritability: false,
+                  avoidance: false,
+                  restlessness: false,
+                },
+                caffeineAfter2pm: false,
+                alcohol: false,
+                exerciseDone: true,
+                deepWorkMins: 45,
+                hydrationLitres: 2,
+                notes: "Demo check-in",
+              });
               Alert.alert("Done", "Set demo check-in values.");
             } finally {
               setSaving(false);
             }
           }}
           disabled={saving}
-          style={({ pressed }) => [styles.secondaryBtn, { borderColor: c.border }, pressed && styles.pressed]}
+          style={({ pressed }) => [styles.secondaryBtn, { borderColor: c.border.medium }, pressed && styles.pressed]}
         >
-          <Text style={[styles.secondaryText, { color: c.text }]}>Set demo check-in values</Text>
+          <Text style={[styles.secondaryText, { color: c.text.primary }]}>Set demo check-in values</Text>
         </Pressable>
         <View style={{ height: 12 }} />
         <Pressable
           onPress={onClearOverrides}
           disabled={saving}
-          style={({ pressed }) => [styles.secondaryBtn, { borderColor: c.border }, pressed && styles.pressed]}
+          style={({ pressed }) => [styles.secondaryBtn, { borderColor: c.border.medium }, pressed && styles.pressed]}
         >
-          <Text style={[styles.secondaryText, { color: c.text }]}>Clear demo overrides</Text>
+          <Text style={[styles.secondaryText, { color: c.text.primary }]}>Clear demo overrides</Text>
         </Pressable>
       </GlassCard>
     </Screen>

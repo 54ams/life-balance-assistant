@@ -5,13 +5,15 @@ import { StyleSheet, Text, View } from "react-native";
 import { Screen } from "@/components/Screen";
 import { InsightsDatePicker } from "@/components/InsightsDatePicker";
 import { GlassCard } from "@/components/ui/glass-card";
-import { Colors } from "@/constants/theme";
-import { useColorScheme } from "@/hooks/use-color-scheme";
+import { Colors } from "@/constants/Colors";
+import { TAB_ORDER } from "@/constants/navigation";
+import { useColorScheme } from "react-native";
 import { getInsightsSelectedDate, setInsightsSelectedDate } from "@/lib/insightsDate";
 import { listPlans } from "@/lib/storage";
 import type { PlanCategory } from "@/lib/types";
 import type { StoredPlan } from "@/lib/storage";
 import type { ISODate } from "@/lib/types";
+import { todayISO } from "@/lib/util/todayISO";
 
 function categoryLabel(cat: PlanCategory) {
   switch (cat) {
@@ -19,15 +21,13 @@ function categoryLabel(cat: PlanCategory) {
       return "Recovery day";
     case "NORMAL":
       return "Normal day";
-    case "PUSH":
-      return "Push day";
     default:
       return cat;
   }
 }
 
 export default function TrendsScreen() {
-  const [date, setDate] = useState<ISODate>(new Date().toISOString().slice(0,10) as ISODate);
+  const [date, setDate] = useState<ISODate>(todayISO());
 
   useEffect(() => {
     (async () => {
@@ -68,6 +68,27 @@ export default function TrendsScreen() {
     return { latest, avg, min, max };
   }, [days]);
 
+  const interpretation = useMemo(() => {
+    if (days.length < 4) return null;
+    const recent = days.slice(-Math.min(7, days.length));
+    const previous = days.slice(Math.max(0, days.length - 14), Math.max(0, days.length - recent.length));
+    const avg = (xs: StoredPlan[]) => Math.round(xs.reduce((s, p) => s + (p.lbi ?? 0), 0) / xs.length);
+    const recentAvg = avg(recent);
+    const previousAvg = previous.length ? avg(previous) : null;
+    const delta = previousAvg == null ? null : recentAvg - previousAvg;
+    const recoveryDays = recent.filter((p) => p.category === "RECOVERY").length;
+    const topTrigger = Object.entries(
+      recent.reduce<Record<string, number>>((acc, p) => {
+        p.triggers.forEach((t) => {
+          acc[t] = (acc[t] ?? 0) + 1;
+        });
+        return acc;
+      }, {})
+    ).sort((a, b) => b[1] - a[1])[0];
+
+    return { recentAvg, previousAvg, delta, recoveryDays, topTrigger };
+  }, [days]);
+
   const bars = useMemo(() => {
     // simple normalised bar heights 0..1
     if (!days.length) return [];
@@ -87,26 +108,26 @@ export default function TrendsScreen() {
 
   return (
     <Screen scroll contentStyle={{ paddingBottom: 28 }}>
-      <Text style={[styles.title, { color: c.text }]}>Trends (7 days)</Text>
-      <Text style={[styles.subtitle, { color: c.muted }]}>Visual summary of your Life Balance Index and recommended day type.</Text>
+      <Text style={[styles.title, { color: c.text.primary }]}>Trends (7 days)</Text>
+      <Text style={[styles.subtitle, { color: c.text.secondary }]}>Visual summary of your Life Balance Index and recommended day type.</Text>
 
       <GlassCard>
-        <Text style={[styles.cardTitle, { color: c.text }]}>Life Balance Index</Text>
+        <Text style={[styles.cardTitle, { color: c.text.primary }]}>Life Balance Index</Text>
 
         {!summary ? (
-          <Text style={[styles.empty, { color: c.muted }]}>No saved results yet. Open Home to generate a plan and save it.</Text>
+          <Text style={[styles.empty, { color: c.text.secondary }]}>No saved results yet. Open Home to generate a plan and save it.</Text>
         ) : (
           <>
             <View style={styles.topRow}>
               <View>
-                <Text style={[styles.smallLabel, { color: c.muted }]}>Latest</Text>
-                <Text style={[styles.big, { color: c.text }]}>{summary.latest.lbi}</Text>
+                <Text style={[styles.smallLabel, { color: c.text.secondary }]}>Latest</Text>
+                <Text style={[styles.big, { color: c.text.primary }]}>{summary.latest.lbi}</Text>
               </View>
 
               <View style={{ alignItems: "flex-end" }}>
-                <Text style={[styles.smallLabel, { color: c.muted }]}>Recommended</Text>
-                <Text style={[styles.reco, { color: c.text }]}>{categoryLabel(summary.latest.category)}</Text>
-                <Text style={[styles.range, { color: c.muted }]}>Avg {summary.avg} • {summary.min}–{summary.max}</Text>
+                <Text style={[styles.smallLabel, { color: c.text.secondary }]}>Recommended</Text>
+                <Text style={[styles.reco, { color: c.text.primary }]}>{categoryLabel(summary.latest.category)}</Text>
+                <Text style={[styles.range, { color: c.text.secondary }]}>Avg {summary.avg} • {summary.min}–{summary.max}</Text>
               </View>
             </View>
 
@@ -118,12 +139,12 @@ export default function TrendsScreen() {
                       styles.bar,
                       {
                         height: 10 + b.t * 56,
-                        backgroundColor: c.tint,
+                          backgroundColor: c.accent.primary,
                         opacity: 0.25 + b.t * 0.75,
                       },
                     ]}
                   />
-                  <Text style={[styles.barLabel, { color: c.muted }]}>{b.date.slice(5)}</Text>
+                  <Text style={[styles.barLabel, { color: c.text.secondary }]}>{b.date.slice(5)}</Text>
                 </View>
               ))}
             </View>
@@ -132,8 +153,27 @@ export default function TrendsScreen() {
       </GlassCard>
 
       <GlassCard style={{ marginTop: 14 }}>
-        <Text style={[styles.cardTitle, { color: c.text }]}>What this means</Text>
-        <Text style={[styles.body, { color: c.muted }]}>This is a simple visual layer over your saved plans. Next step is adding “why” explanations per score and showing trends by domain (Recovery / Connection / Purpose).</Text>
+        <Text style={[styles.cardTitle, { color: c.text.primary }]}>What this means</Text>
+        {!interpretation ? (
+          <Text style={[styles.body, { color: c.text.secondary }]}>
+            Build more saved days to compare recent performance with the previous period.
+          </Text>
+        ) : (
+          <>
+            <Text style={[styles.body, { color: c.text.secondary }]}>
+              Recent 7-day average: {interpretation.recentAvg}
+              {interpretation.previousAvg != null
+                ? ` vs previous period ${interpretation.previousAvg} (${interpretation.delta! > 0 ? "+" : ""}${interpretation.delta})`
+                : "."}
+            </Text>
+            <Text style={[styles.body, { color: c.text.secondary }]}>
+              Recovery-biased recommendation days in the recent window: {interpretation.recoveryDays}.
+            </Text>
+            <Text style={[styles.body, { color: c.text.secondary }]}>
+              Most recurring trigger: {interpretation.topTrigger ? `${interpretation.topTrigger[0]} (${interpretation.topTrigger[1]} times)` : "none yet"}.
+            </Text>
+          </>
+        )}
       </GlassCard>
     </Screen>
   );

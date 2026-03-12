@@ -26,7 +26,12 @@ export type RiskPrediction = {
 
 export async function loadModels(): Promise<DualModels | null> {
   const raw = await AsyncStorage.getItem(KEY);
-  return raw ? (JSON.parse(raw) as DualModels) : null;
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw) as DualModels;
+  } catch {
+    return null;
+  }
 }
 
 export async function saveModels(m: DualModels) {

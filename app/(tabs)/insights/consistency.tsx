@@ -5,8 +5,8 @@ import { Text, View } from "react-native";
 
 import { Screen } from "@/components/Screen";
 import { GlassCard } from "@/components/ui/glass-card";
-import { Colors } from "@/constants/theme";
-import { useColorScheme } from "@/hooks/use-color-scheme";
+import { Colors } from "@/constants/Colors";
+import { useColorScheme } from "react-native";
 
 import type { ISODate } from "@/lib/types";
 import { getAllDays } from "@/lib/storage";
@@ -15,16 +15,17 @@ import { computeConsistency } from "@/lib/consistency";
 import { getInsightsSelectedDate, setInsightsSelectedDate } from "@/lib/insightsDate";
 import { InsightsDatePicker } from "@/components/InsightsDatePicker";
 import { formatDisplayDate } from "@/lib/date";
+import { todayISO } from "@/lib/util/todayISO";
 
 function Bar({ label, value, c }: { label: string; value: number; c: any }) {
   return (
     <View style={{ gap: 6 }}>
       <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
-        <Text style={{ color: c.text, fontWeight: "700" }}>{label}</Text>
-        <Text style={{ color: c.icon }}>{value}%</Text>
+        <Text style={{ color: c.text.primary, fontWeight: "700" }}>{label}</Text>
+        <Text style={{ color: c.text.tertiary }}>{value}%</Text>
       </View>
-      <View style={{ height: 10, borderRadius: 999, backgroundColor: "rgba(255,255,255,0.10)" }}>
-        <View style={{ width: `${value}%`, height: 10, borderRadius: 999, backgroundColor: c.tint }} />
+      <View style={{ height: 10, borderRadius: 999, backgroundColor: c.glass }}>
+        <View style={{ width: `${value}%`, height: 10, borderRadius: 999, backgroundColor: c.accent.primary }} />
       </View>
     </View>
   );
@@ -34,7 +35,7 @@ export default function ConsistencyScreen() {
   const scheme = useColorScheme();
   const c = Colors[scheme ?? "light"] as any;
 
-  const [date, setDate] = useState<ISODate>(new Date().toISOString().slice(0, 10) as ISODate);
+  const [date, setDate] = useState<ISODate>(todayISO());
   const [loading, setLoading] = useState(true);
   const [days, setDays] = useState<any[]>([]);
 
@@ -86,7 +87,7 @@ export default function ConsistencyScreen() {
 
         {!hasAny ? (
           <GlassCard style={{ padding: 14 }}>
-            <Text style={{ color: c.text, fontWeight: "800" }}>No data in this window</Text>
+            <Text style={{ color: c.text.primary, fontWeight: "800" }}>No data in this window</Text>
             <Text style={{ color: c.icon, marginTop: 6 }}>
               There are no saved records in the 14 days up to {formatDisplayDate(date)}.
             </Text>
@@ -94,7 +95,7 @@ export default function ConsistencyScreen() {
         ) : (
           <>
             <GlassCard style={{ padding: 14 }}>
-              <Text style={{ color: c.text, fontWeight: "900", fontSize: 18 }}>
+              <Text style={{ color: c.text.primary, fontWeight: "900", fontSize: 18 }}>
                 Consistency score: {out.score} / 100
               </Text>
               <Text style={{ color: c.icon, marginTop: 6 }}>
@@ -113,7 +114,7 @@ export default function ConsistencyScreen() {
             </GlassCard>
 
             <GlassCard style={{ padding: 14, gap: 14 }}>
-              <Text style={{ color: c.text, fontWeight: "800" }}>Components</Text>
+              <Text style={{ color: c.text.primary, fontWeight: "800" }}>Components</Text>
               <Bar label="Sleep consistency" value={out.components.sleepConsistency} c={c} />
               <Bar label="Recovery consistency" value={out.components.recoveryConsistency} c={c} />
               <Bar label="Mood stability" value={out.components.moodStability} c={c} />

@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "life-balance-app",
+    "name": "Life Balance Assistant",
     "slug": "life-balance-app",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -8,10 +8,15 @@
     "scheme": "lifebalanceapp",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.lifebalanceassistant.app"
     },
     "android": {
+      "package": "com.lifebalanceassistant.app",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -40,6 +45,9 @@
         }
       ]
     ],
+    "updates": {
+      "fallbackToCacheTimeout": 0
+    },
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true

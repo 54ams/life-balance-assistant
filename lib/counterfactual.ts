@@ -8,9 +8,7 @@ export type Counterfactual = {
   detail: string;
 };
 
-function clamp(n: number, a: number, b: number) {
-  return Math.max(a, Math.min(b, n));
-}
+import { clamp } from "./util/clamp";
 
 export function buildCounterfactuals(args: {
   date: ISODate;
@@ -44,9 +42,16 @@ export function buildCounterfactuals(args: {
 
   // Reduce stress indicators by 1 (if any are selected)
   if (args.checkIn) {
-    const current = Object.values(args.checkIn.stressIndicators ?? {}).filter(Boolean).length;
+    const stressIndicatorsSafe = args.checkIn.stressIndicators ?? {
+      muscleTension: false,
+      racingThoughts: false,
+      irritability: false,
+      avoidance: false,
+      restlessness: false,
+    };
+    const current = Object.values(stressIndicatorsSafe).filter(Boolean).length;
     if (current > 0) {
-      const stressIndicators = { ...(args.checkIn.stressIndicators ?? {}) };
+      const stressIndicators = { ...stressIndicatorsSafe };
       // turn off one indicator deterministically (first true)
       for (const k of Object.keys(stressIndicators)) {
         const key = k as keyof typeof stressIndicators;
@@ -70,7 +75,7 @@ export function buildCounterfactuals(args: {
     }
 
     // Mood +1 step
-    if (args.checkIn.mood < 4) {
+    if (args.checkIn.mood < 5) {
       const alt = calculateLBI({
         recovery: args.wearable?.recovery ?? 50,
         sleepHours: args.wearable?.sleepHours ?? 7,

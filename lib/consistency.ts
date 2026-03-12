@@ -13,9 +13,7 @@ export type ConsistencyOutput = {
   notes: string[];
 };
 
-function clamp(n: number, a: number, b: number) {
-  return Math.max(a, Math.min(b, n));
-}
+import { clamp } from "./util/clamp";
 
 function mean(xs: number[]) {
   if (!xs.length) return 0;
@@ -42,7 +40,9 @@ export function computeConsistency(records: DailyRecord[]): ConsistencyOutput {
 
   const sleep = last.map((r) => r.wearable?.sleepHours).filter((v): v is number => typeof v === "number");
   const recovery = last.map((r) => r.wearable?.recovery).filter((v): v is number => typeof v === "number");
-  const mood = last.map((r) => r.checkIn?.mood).filter((v): v is number => typeof v === "number");
+  const mood = last
+    .map((r) => r.checkIn?.mood)
+    .filter((v): v is 1 | 2 | 3 | 4 => typeof v === "number");
 
   const sleepSd = sd(sleep);
   const recoverySd = sd(recovery);

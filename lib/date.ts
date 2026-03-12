@@ -1,5 +1,6 @@
 // lib/date.ts
 import type { ISODate } from "./types";
+export { todayISO } from "./util/todayISO";
 
 /**
  * UI display date.

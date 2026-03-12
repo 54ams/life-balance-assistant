@@ -2,8 +2,8 @@ import { StyleSheet, Text } from "react-native";
 
 import { Screen } from "@/components/Screen";
 import { GlassCard } from "@/components/ui/glass-card";
-import { Colors } from "@/constants/theme";
-import { useColorScheme } from "@/hooks/use-color-scheme";
+import { Colors } from "@/constants/Colors";
+import { useColorScheme } from "react-native";
 
 export default function AboutScreen() {
   const scheme = useColorScheme();
@@ -11,18 +11,17 @@ export default function AboutScreen() {
 
   return (
     <Screen scroll contentStyle={{ paddingTop: 18 }}>
-      <Text style={[styles.h1, { color: c.text }]}>About</Text>
-      <Text style={[styles.sub, { color: c.muted }]}>Life Balance Assistant — synoptic prototype.</Text>
+      <Text style={[styles.h1, { color: c.text.primary }]}>About</Text>
+      <Text style={[styles.sub, { color: c.text.secondary }]}>Life Balance Assistant — synoptic prototype.</Text>
 
       <GlassCard style={styles.card}>
-        <Text style={[styles.cardTitle, { color: c.text }]}>What it does</Text>
-        <Text style={[styles.p, { color: c.muted }]}>Generates a daily Life Balance Index (LBI) and a short, actionable plan.
-          Wearable CSVs can improve accuracy and explainability.</Text>
+        <Text style={[styles.cardTitle, { color: c.text.primary }]}>What it does</Text>
+        <Text style={[styles.p, { color: c.text.secondary }]}>Generates a daily Life Balance Index (LBI), a short actionable plan, and transparent explanation screens using wearable and self-report data. WHOOP integration improves signal quality; manual wearable entry is available as a fallback.</Text>
       </GlassCard>
 
       <GlassCard style={styles.card}>
-        <Text style={[styles.cardTitle, { color: c.text }]}>Prototype scope</Text>
-        <Text style={[styles.p, { color: c.muted }]}>All data is stored locally. AI integrations (summaries, coaching) are intentionally out of scope for the current build and discussed in the report as future work.</Text>
+        <Text style={[styles.cardTitle, { color: c.text.primary }]}>Prototype scope</Text>
+        <Text style={[styles.p, { color: c.text.secondary }]}>All user data is stored locally on-device, with WHOOP tokens kept server-side. Predictive and reflective features are exploratory, non-medical, and intended for dissertation evaluation rather than clinical use.</Text>
       </GlassCard>
     </Screen>
   );

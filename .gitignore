@@ -43,8 +43,6 @@ app-example
 /android
 
 .env
-node_modules
-dist
 
 # local review artefacts
 review_bundle/

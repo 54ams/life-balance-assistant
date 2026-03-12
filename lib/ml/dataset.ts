@@ -43,15 +43,21 @@ function zscore(v: number, m: number, s: number) {
 
 function stressToScore(r: DailyRecord): number | null {
   const ci = r.checkIn;
-  if (!ci?.stressIndicators) return null;
-  const vals = Object.values(ci.stressIndicators);
-  const count = vals.filter(Boolean).length;
-  return count / vals.length; // 0..1
+  if (!ci) return null;
+  if (typeof ci.stressLevel === "number") {
+    return (ci.stressLevel - 1) / 4; // 0..1
+  }
+  if (ci.stressIndicators) {
+    const vals = Object.values(ci.stressIndicators);
+    const count = vals.filter(Boolean).length;
+    return count / vals.length; // 0..1
+  }
+  return null;
 }
 
 function moodToScore(r: DailyRecord): number | null {
   const m = r.checkIn?.mood;
-  return typeof m === "number" ? (m - 1) / 3 : null; // 0..1
+  return typeof m === "number" ? (m - 1) / 4 : null; // 0..1
 }
 
 function byDateAsc(a: DailyRecord, b: DailyRecord) {
@@ -107,19 +113,21 @@ export function buildDataset(records: DailyRecord[]): FeatureRow[] {
 
     const rec_t = t.wearable!.recovery;
     const sleep_t = t.wearable!.sleepHours;
-    const strain_t = t.wearable!.strain;
+    const strain_t = t.wearable?.strain ?? 0;
     const lbi_t = t.lbi as number;
 
     const mood_t = moodToScore(t);
     const stress_t = stressToScore(t);
 
     // Require mood+stress to be present to keep the model aligned to your app's purpose.
-    if (mood_t == null || stress_t == null) continue;
+    if (mood_t == null || stress_t == null || typeof strain_t !== "number" || !Number.isFinite(strain_t)) {
+      continue;
+    }
 
     const lbiWindow = windowVals(i, (r) => (typeof r.lbi === "number" ? (r.lbi as number) : null));
     const recWindow = windowVals(i, (r) => (r.wearable ? r.wearable.recovery : null));
     const sleepWindow = windowVals(i, (r) => (r.wearable ? r.wearable.sleepHours : null));
-    const strainWindow = windowVals(i, (r) => (r.wearable ? r.wearable.strain : null));
+    const strainWindow = windowVals(i, (r) => (r.wearable ? r.wearable.strain ?? null : null));
     const moodWindow = windowVals(i, (r) => moodToScore(r));
     const stressWindow = windowVals(i, (r) => stressToScore(r));
 

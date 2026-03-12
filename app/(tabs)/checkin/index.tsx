@@ -1,430 +1,410 @@
-import { router } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
-import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { router } from "expo-router";
 
 import { Screen } from "@/components/Screen";
 import { TabSwipe } from "@/components/TabSwipe";
-import { Button } from "@/components/ui/button";
-import { GlassCard } from "@/components/ui/glass-card";
+import { TAB_ORDER } from "@/constants/navigation";
+import { GlassCard } from "@/components/ui/GlassCard";
+import { GlassButton } from "@/components/ui/GlassButton";
 import { IconSymbol } from "@/components/ui/icon-symbol";
-import { Colors } from "@/constants/theme";
-import { useColorScheme } from "@/hooks/use-color-scheme";
-import { formatDisplayDate } from "@/lib/date";
-import { getDay, saveCheckIn } from "@/lib/storage";
-import type { ContextTag, DailyCheckIn, ISODate, StressIndicators } from "@/lib/types";
+import { AffectCanvas } from "@/components/ui/AffectCanvas";
+import { Colors } from "@/constants/Colors";
+import { Spacing, BorderRadius } from "@/constants/Spacing";
+import { Typography } from "@/constants/Typography";
+import { todayISO } from "@/lib/util/todayISO";
+import { getActiveValues, getCheckIn, getEmotion, upsertCheckIn, upsertEmotion } from "@/lib/storage";
+import type { DailyCheckIn, EmotionalDiaryEntry } from "@/lib/types";
+import { useColorScheme } from "react-native";
+import { containsSelfHarmSignals } from "@/lib/privacy";
+import { deriveIntensity } from "@/lib/emotion";
+import { refreshDerivedForDate } from "@/lib/pipeline";
+import { reflectEmotion } from "@/lib/llm";
 
-const TAB_ORDER = ["/", "/checkin", "/insights", "/history", "/profile"] as const;
-
-function todayISO(): ISODate {
-  return new Date().toISOString().slice(0, 10) as ISODate;
-}
-
-type StressKey = keyof StressIndicators;
-
-const STRESS_KEYS: { key: StressKey; label: string }[] = [
-  { key: "muscleTension", label: "Muscle tension" },
-  { key: "racingThoughts", label: "Racing thoughts" },
-  { key: "irritability", label: "Irritability" },
-  { key: "avoidance", label: "Avoidance" },
-  { key: "restlessness", label: "Restlessness" },
+const STRESS_KEYS: Array<keyof NonNullable<DailyCheckIn["stressIndicators"]>> = [
+  "muscleTension",
+  "racingThoughts",
+  "irritability",
+  "avoidance",
+  "restlessness",
 ];
 
-const DEEP_WORK: { value: NonNullable<DailyCheckIn["deepWorkMins"]>; label: string }[] = [
-  { value: 0, label: "0" },
-  { value: 15, label: "15" },
-  { value: 30, label: "30" },
-  { value: 60, label: "60" },
-  { value: 90, label: "90" },
-  { value: 120, label: "120" },
-];
-
-const DEFAULT_STRESS: StressIndicators = {
-  muscleTension: false,
-  racingThoughts: false,
-  irritability: false,
-  avoidance: false,
-  restlessness: false,
-};
-
-function chipTone(label: string) {
-  return label.length <= 3 ? "tight" : "normal";
+function ScaleRow({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: number;
+  onChange: (n: number) => void;
+}) {
+  return (
+    <View style={{ marginTop: Spacing.sm }}>
+      <Text style={{ fontWeight: "700", color: Colors.light.text.primary }}>{label}</Text>
+      <View style={{ flexDirection: "row", gap: 8, marginTop: 6 }}>
+        {[1, 2, 3, 4, 5].map((n) => {
+          const active = value === n;
+          return (
+            <Pressable
+              key={n}
+              onPress={() => onChange(n)}
+              style={[
+                styles.chip,
+                {
+                  backgroundColor: active ? "#7C6FDC33" : "transparent",
+                  borderColor: active ? "#7C6FDC" : "rgba(255,255,255,0.18)",
+                },
+              ]}
+            >
+              <Text style={{ fontWeight: "800" }}>{n}</Text>
+            </Pressable>
+          );
+        })}
+      </View>
+    </View>
+  );
 }
 
-export default function CheckInScreen() {
+export default function DailyCheckInScreen() {
   const scheme = useColorScheme();
-  const c = Colors[scheme ?? "light"];
+  const c = scheme === "dark" ? Colors.dark : Colors.light;
   const date = useMemo(() => todayISO(), []);
 
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [notes, setNotes] = useState("");
-
-  // DailyCheckIn types: mood is 1–4, energy optional 1–4
-  const [mood, setMood] = useState<DailyCheckIn["mood"]>(2);
-  const [energy, setEnergy] = useState<NonNullable<DailyCheckIn["energy"]>>(3);
-
-  const [stressIndicators, setStressIndicators] = useState<StressIndicators>(DEFAULT_STRESS);
-
-  const [caffeineAfter2pm, setCaffeineAfter2pm] = useState<boolean>(false);
-  const [alcohol, setAlcohol] = useState<boolean>(false);
-  const [deepWorkMins, setDeepWorkMins] = useState<DailyCheckIn["deepWorkMins"]>(30);
-
-  const [contextTags, setContextTags] = useState<ContextTag[]>([]);
+  const [checkIn, setCheckIn] = useState<DailyCheckIn>({
+    mood: 3,
+    energy: 3,
+    stressLevel: 3,
+    sleepQuality: 3,
+    stressIndicators: {
+      muscleTension: false,
+      racingThoughts: false,
+      irritability: false,
+      avoidance: false,
+      restlessness: false,
+    },
+    caffeineAfter2pm: false,
+    alcohol: false,
+    exerciseDone: false,
+    deepWorkMins: 0,
+    hydrationLitres: 0,
+    notes: "",
+  });
+  const [emotion, setEmotion] = useState<EmotionalDiaryEntry | null>(null);
+  const [activeValues, setActiveValues] = useState<string[]>([]);
+  const [generatingReflection, setGeneratingReflection] = useState(false);
 
   useEffect(() => {
     (async () => {
-      try {
-        const day = await getDay(date);
-        if (day?.checkIn) {
-          const ci = day.checkIn;
-
-          setMood(ci.mood);
-          if (ci.energy != null) setEnergy(ci.energy);
-
-          setStressIndicators(ci.stressIndicators ?? DEFAULT_STRESS);
-
-          setCaffeineAfter2pm(!!ci.caffeineAfter2pm);
-          setAlcohol(!!ci.alcohol);
-          setDeepWorkMins(ci.deepWorkMins ?? 30);
-
-          setContextTags(ci.contextTags ?? []);
-
-          setNotes(ci.notes ?? "");
+      const existing = await getCheckIn(date as any);
+      if (existing) setCheckIn((prev) => ({ ...prev, ...existing }));
+      const existingEmotion = await getEmotion(date as any);
+      const values = await getActiveValues();
+      setActiveValues(values);
+      setEmotion(
+        existingEmotion ?? {
+          date: date as any,
+          valence: 0,
+          arousal: 0,
+          intensity: 0,
+          contextTags: [],
+          regulation: "manageable",
+          valueChosen: values[0] ?? "Health",
+          reflection: "",
+          source: "user",
         }
-      } finally {
-        setLoading(false);
-      }
+      );
     })();
   }, [date]);
 
-  const toggleTag = (tag: ContextTag) => {
-    setContextTags((prev: ContextTag[]) => {
-      return prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag];
-    });
+  const toggleIndicator = (key: keyof NonNullable<DailyCheckIn["stressIndicators"]>) => {
+    setCheckIn((prev) => ({
+      ...prev,
+      stressIndicators: {
+        ...(prev.stressIndicators ?? {
+          muscleTension: false,
+          racingThoughts: false,
+          irritability: false,
+          avoidance: false,
+          restlessness: false,
+        }),
+        [key]: !(prev.stressIndicators ?? {})[key],
+      },
+    }));
   };
 
-  const toggleStress = (key: StressKey) => {
-    setStressIndicators((prev) => {
-      const safe = prev ?? DEFAULT_STRESS;
-      return { ...safe, [key]: !safe[key] };
-    });
+  const toggleBool = (key: keyof DailyCheckIn) => {
+    setCheckIn((prev) => ({ ...prev, [key]: !(prev as any)[key] }));
   };
 
   const save = async () => {
-    setSaving(true);
     try {
-      const payload: DailyCheckIn = {
-        mood,
-        energy,
-        stressIndicators,
-        caffeineAfter2pm,
-        alcohol,
-        contextTags: contextTags.length ? contextTags : undefined,
-        deepWorkMins: deepWorkMins ?? 30,
-        notes: notes.trim() || undefined,
-      };
-
-      await saveCheckIn(date, payload);
-
-      // Go back to Home and force a refresh so LBI/plan updates.
+      if ((checkIn.deepWorkMins ?? 0) < 0 || (checkIn.deepWorkMins ?? 0) > 960) {
+        Alert.alert("Check-in", "Deep work minutes should be between 0 and 960.");
+        return;
+      }
+      if ((checkIn.hydrationLitres ?? 0) < 0 || (checkIn.hydrationLitres ?? 0) > 10) {
+        Alert.alert("Check-in", "Hydration should be between 0 and 10 litres.");
+        return;
+      }
+      await upsertCheckIn(date as any, checkIn);
+      if (emotion) {
+        await upsertEmotion({
+          ...emotion,
+          date: date as any,
+          intensity: deriveIntensity(emotion.valence, emotion.arousal),
+          reflection: emotion.reflection?.trim() || undefined,
+          contextTags: emotion.contextTags.slice(0, 3),
+        });
+      }
+      await refreshDerivedForDate(date as any);
+      if (containsSelfHarmSignals(`${checkIn.notes ?? ""} ${emotion?.reflection ?? ""}`)) {
+        Alert.alert(
+          "Safety support",
+          "If you are at risk, please use crisis support resources now.",
+          [
+            {
+              text: "Open resources",
+              onPress: () => router.push("/profile/settings/help" as any),
+            },
+            { text: "OK" },
+          ]
+        );
+      }
+      Alert.alert("Saved", "Daily check-in saved.");
       router.replace({ pathname: "/", params: { refresh: "1" } } as any);
-    } finally {
-      setSaving(false);
+    } catch (e: any) {
+      Alert.alert("Could not save", e?.message ?? "Please try again.");
     }
   };
 
   return (
     <TabSwipe order={TAB_ORDER}>
-      <Screen scroll contentStyle={styles.container}>
-        <View style={styles.topBar}>
-          <Pressable
-            onPress={() => router.back()}
-            style={({ pressed }) => [
-              styles.back,
-              {
-                backgroundColor: pressed
-                  ? scheme === "dark"
-                    ? "rgba(255,255,255,0.10)"
-                    : "rgba(0,0,0,0.06)"
-                  : scheme === "dark"
-                  ? "rgba(255,255,255,0.06)"
-                  : "rgba(255,255,255,0.70)",
-              },
-            ]}
-          >
-            <IconSymbol name="chevron.left" size={20} color={c.text} />
+      <Screen scroll padded contentStyle={{ gap: Spacing.md }}>
+        <View style={styles.headerRow}>
+          <Pressable accessibilityLabel="Back" onPress={() => router.back()} style={[styles.backBtn, { borderColor: c.border.medium }]}>
+            <IconSymbol name="chevron.left" size={18} color={c.text.primary} />
           </Pressable>
-
           <View style={{ flex: 1 }}>
-            <Text style={[styles.title, { color: c.text }]}>Log check-in</Text>
-            <Text style={[styles.subtitle, { color: c.muted }]}>{formatDisplayDate(date)}</Text>
+            <Text style={{ color: c.text.secondary, fontSize: Typography.fontSize.sm, fontWeight: Typography.fontWeight.semibold }}>Today</Text>
+            <Text style={{ color: c.text.primary, fontSize: Typography.fontSize.xxxl, fontWeight: Typography.fontWeight.bold }}>Daily check-in</Text>
           </View>
         </View>
 
-        <GlassCard style={styles.card}>
-          <Text style={[styles.sectionTitle, { color: c.text }]}>How do you feel?</Text>
-
-          <Text style={[styles.label, { color: c.muted }]}>Mood</Text>
-          <View style={styles.row}>
-            <Chip label="😖" active={mood === 1} onPress={() => setMood(1)} tone="tight" />
-            <Chip label="😐" active={mood === 2} onPress={() => setMood(2)} tone="tight" />
-            <Chip label="🙂" active={mood === 3} onPress={() => setMood(3)} tone="tight" />
-            <Chip label="😄" active={mood === 4} onPress={() => setMood(4)} tone="tight" />
-          </View>
-
-          <Text style={[styles.label, { color: c.muted }]}>Energy</Text>
-          <View style={styles.row}>
-            <Chip label="1" active={energy === 1} onPress={() => setEnergy(1)} tone="tight" />
-            <Chip label="2" active={energy === 2} onPress={() => setEnergy(2)} tone="tight" />
-            <Chip label="3" active={energy === 3} onPress={() => setEnergy(3)} tone="tight" />
-            <Chip label="4" active={energy === 4} onPress={() => setEnergy(4)} tone="tight" />
-          </View>
+        <GlassCard>
+          <ScaleRow label="Mood" value={checkIn.mood} onChange={(n) => setCheckIn((p) => ({ ...p, mood: n as any }))} />
+          <ScaleRow label="Energy" value={checkIn.energy ?? 3} onChange={(n) => setCheckIn((p) => ({ ...p, energy: n as any }))} />
+          <ScaleRow label="Stress level" value={checkIn.stressLevel ?? 3} onChange={(n) => setCheckIn((p) => ({ ...p, stressLevel: n as any }))} />
+          <ScaleRow label="Sleep quality" value={checkIn.sleepQuality ?? 3} onChange={(n) => setCheckIn((p) => ({ ...p, sleepQuality: n as any }))} />
         </GlassCard>
 
-        <GlassCard style={styles.card}>
-          <Text style={[styles.sectionTitle, { color: c.text }]}>Stress indicators</Text>
-          <Text style={[styles.small, { color: c.muted }]}>Tap all that apply.</Text>
-          <View style={styles.wrap}>
-            {STRESS_KEYS.map((it) => (
-              <Chip
-                key={it.key}
-                label={it.label}
-                active={!!stressIndicators[it.key]}
-                onPress={() => toggleStress(it.key)}
-              />
+        <GlassCard>
+          <Text style={{ fontWeight: "700", color: c.text.primary }}>Stress indicators (select all)</Text>
+          <View style={styles.chipWrap}>
+            {STRESS_KEYS.map((k) => (
+              <Pressable
+                key={k}
+                onPress={() => toggleIndicator(k)}
+                style={[
+                  styles.chip,
+                  {
+                    borderColor: checkIn.stressIndicators?.[k] ? c.accent.primary : c.border.medium,
+                    backgroundColor: checkIn.stressIndicators?.[k] ? c.glass.primary : "transparent",
+                  },
+                ]}
+              >
+                <Text style={{ color: c.text.primary, fontWeight: "700" }}>{k}</Text>
+              </Pressable>
             ))}
           </View>
         </GlassCard>
 
-        <GlassCard style={styles.card}>
-          <Text style={[styles.sectionTitle, { color: c.text }]}>Behaviours</Text>
-          <Text style={[styles.small, { color: c.muted }]}>Low effort, high signal.</Text>
-          <View style={styles.wrap}>
-            <Chip
-              label="Caffeine after 2pm"
-              active={caffeineAfter2pm}
-              onPress={() => setCaffeineAfter2pm((v) => !v)}
-            />
-            <Chip
-              label="Alcohol"
-              active={alcohol}
-              onPress={() => setAlcohol((v) => !v)}
-            />
-          </View>
-        </GlassCard>
-
-        <GlassCard style={styles.card}>
-          <Text style={[styles.sectionTitle, { color: c.text }]}>Deep work</Text>
-          <Text style={[styles.small, { color: c.muted }]}>How much focused work feels realistic today?</Text>
-          <View style={styles.wrap}>
-            {DEEP_WORK.map((it) => (
-              <Chip
-                key={String(it.value)}
-                label={it.label}
-                active={deepWorkMins === it.value}
-                tone={chipTone(it.label)}
-                onPress={() => setDeepWorkMins(it.value)}
-              />
-            ))}
-          </View>
-        </GlassCard>        <GlassCard style={styles.card}>
-          <Text style={{ color: c.text, fontSize: 14, fontWeight: "700" }}>Context (optional)</Text>
-          <Text style={{ color: c.icon, marginTop: 6 }}>
-            These tags help interpret your day without adding lots of questions.
-          </Text>
-
-          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 12 }}>
+        <GlassCard>
+          <Text style={{ fontWeight: "700", color: c.text.primary }}>Behaviours</Text>
+          <View style={styles.toggleRow}>
             {[
-              { key: "illness", label: "Illness" },
-              { key: "travel", label: "Travel" },
-              { key: "late_meal", label: "Late meal" },
-              { key: "alcohol", label: "Alcohol" },
-              { key: "acute_stress", label: "Acute stress" },
-              { key: "menstrual_cycle", label: "Cycle" },
-            ].map((t) => {
-              const active = (contextTags ?? []).includes(t.key as any);
-              return (
-                <Pressable
-                  key={t.key}
-                  onPress={() => toggleTag(t.key as any)}
-                  style={{
-                    paddingVertical: 8,
-                    paddingHorizontal: 12,
-                    borderRadius: 999,
-                    borderWidth: 1,
-                    borderColor: active ? c.tint : "rgba(255,255,255,0.18)",
-                    backgroundColor: active ? "rgba(255,255,255,0.10)" : "transparent",
-                  }}
-                >
-                  <Text style={{ color: active ? c.text : c.icon, fontWeight: "600" }}>{t.label}</Text>
-                </Pressable>
-              );
-            })}
+              ["caffeineAfter2pm", "Caffeine after 2pm"],
+              ["alcohol", "Alcohol"],
+              ["exerciseDone", "Exercise"],
+            ].map(([key, label]) => (
+              <Pressable
+                key={key}
+                onPress={() => toggleBool(key as any)}
+                style={[
+                  styles.toggle,
+                  { borderColor: (checkIn as any)[key] ? c.accent.primary : c.border.medium, backgroundColor: (checkIn as any)[key] ? c.glass.primary : "transparent" },
+                ]}
+              >
+                <Text style={{ color: c.text.primary, fontWeight: "700" }}>{label}</Text>
+              </Pressable>
+            ))}
+          </View>
+
+          <View style={{ marginTop: Spacing.sm, gap: Spacing.sm }}>
+            <Text style={{ color: c.text.secondary }}>Deep work minutes</Text>
+            <TextInput
+              keyboardType="number-pad"
+              value={String(checkIn.deepWorkMins ?? "")}
+              onChangeText={(txt) => setCheckIn((p) => ({ ...p, deepWorkMins: Number(txt) || 0 }))}
+              style={[styles.note, { borderColor: c.border.medium, color: c.text.primary }]}
+            />
+            <Text style={{ color: c.text.secondary }}>Hydration (litres)</Text>
+            <TextInput
+              keyboardType="decimal-pad"
+              value={String(checkIn.hydrationLitres ?? "")}
+              onChangeText={(txt) => setCheckIn((p) => ({ ...p, hydrationLitres: Number(txt) || 0 }))}
+              style={[styles.note, { borderColor: c.border.medium, color: c.text.primary }]}
+            />
           </View>
         </GlassCard>
 
+        <GlassCard>
+          <Text style={{ fontWeight: "700", color: c.text.primary }}>Notes (optional)</Text>
+          <TextInput
+            placeholder="Add anything notable about today"
+            placeholderTextColor={c.text.secondary}
+            value={checkIn.notes ?? ""}
+            onChangeText={(txt) => setCheckIn((p) => ({ ...p, notes: txt }))}
+            style={[styles.note, { borderColor: c.border.medium, color: c.text.primary, minHeight: 80 }]}
+            multiline
+          />
+        </GlassCard>
 
+        {emotion ? (
+          <GlassCard>
+            <Text style={{ fontWeight: "700", color: c.text.primary }}>Emotional snapshot</Text>
+            <Text style={{ color: c.text.secondary, marginTop: 6 }}>
+              Capture today&apos;s affect, regulation, values, and context. This supports weekly reflection and emotional trend analysis.
+            </Text>
 
-        <GlassCard style={styles.card}>
-          <Text style={[styles.sectionTitle, { color: c.text }]}>Notes</Text>
-          <Text style={[styles.small, { color: c.muted }]}>Optional: anything that would help future you.</Text>
-          <View
-            style={[
-              styles.inputWrap,
-              {
-                backgroundColor: scheme === "dark" ? "rgba(0,0,0,0.25)" : "rgba(255,255,255,0.65)",
-                borderColor: scheme === "dark" ? "rgba(255,255,255,0.10)" : "rgba(0,0,0,0.08)",
-              },
-            ]}
-          >
+            <View style={{ marginTop: Spacing.md }}>
+              <AffectCanvas
+                initial={{ x: emotion.valence * 140, y: -emotion.arousal * 140 }}
+                onChange={(valence, arousal) =>
+                  setEmotion((prev) =>
+                    prev
+                      ? {
+                          ...prev,
+                          valence,
+                          arousal,
+                          intensity: deriveIntensity(valence, arousal),
+                        }
+                      : prev
+                  )
+                }
+              />
+            </View>
+
+            <Text style={{ fontWeight: "700", color: c.text.primary, marginTop: Spacing.md }}>Regulation</Text>
+            <View style={styles.chipWrap}>
+              {(["handled", "manageable", "overwhelmed"] as const).map((state) => (
+                <Pressable
+                  key={state}
+                  onPress={() => setEmotion((prev) => (prev ? { ...prev, regulation: state } : prev))}
+                  style={[
+                    styles.chip,
+                    {
+                      borderColor: emotion.regulation === state ? c.accent.primary : c.border.medium,
+                      backgroundColor: emotion.regulation === state ? c.glass.primary : "transparent",
+                    },
+                  ]}
+                >
+                  <Text style={{ color: c.text.primary, fontWeight: "700" }}>{state}</Text>
+                </Pressable>
+              ))}
+            </View>
+
+            <Text style={{ fontWeight: "700", color: c.text.primary, marginTop: Spacing.md }}>Value shown today</Text>
+            <View style={styles.chipWrap}>
+              {activeValues.map((value) => (
+                <Pressable
+                  key={value}
+                  onPress={() => setEmotion((prev) => (prev ? { ...prev, valueChosen: value } : prev))}
+                  style={[
+                    styles.chip,
+                    {
+                      borderColor: emotion.valueChosen === value ? c.accent.primary : c.border.medium,
+                      backgroundColor: emotion.valueChosen === value ? c.glass.primary : "transparent",
+                    },
+                  ]}
+                >
+                  <Text style={{ color: c.text.primary, fontWeight: "700" }}>{value}</Text>
+                </Pressable>
+              ))}
+            </View>
+
+            <Text style={{ color: c.text.secondary, marginTop: Spacing.md }}>Context tags (comma separated, up to 3)</Text>
             <TextInput
-              value={notes}
-              onChangeText={setNotes}
-              placeholder={loading ? "Loading…" : "e.g., meeting-heavy day, felt restless after lunch"}
-              placeholderTextColor={c.muted}
-              style={[styles.input, { color: c.text }]}
+              placeholder="e.g. travel, deadline, social"
+              placeholderTextColor={c.text.secondary}
+              value={emotion.contextTags.join(", ")}
+              onChangeText={(txt) =>
+                setEmotion((prev) =>
+                  prev
+                    ? {
+                        ...prev,
+                        contextTags: txt
+                          .split(",")
+                          .map((tag) => tag.trim())
+                          .filter(Boolean)
+                          .slice(0, 3),
+                      }
+                    : prev
+                )
+              }
+              style={[styles.note, { borderColor: c.border.medium, color: c.text.primary }]}
+            />
+
+            <Text style={{ color: c.text.secondary, marginTop: Spacing.sm }}>Reflection (optional)</Text>
+            <TextInput
+              placeholder="What seems to be shaping today?"
+              placeholderTextColor={c.text.secondary}
+              value={emotion.reflection ?? ""}
+              onChangeText={(txt) => setEmotion((prev) => (prev ? { ...prev, reflection: txt } : prev))}
+              style={[styles.note, { borderColor: c.border.medium, color: c.text.primary, minHeight: 80 }]}
               multiline
             />
-          </View>
-        </GlassCard>
+            <View style={{ marginTop: Spacing.sm }}>
+              <GlassButton
+                title={generatingReflection ? "Generating..." : "Generate reflection summary"}
+                variant="secondary"
+                onPress={async () => {
+                  setGeneratingReflection(true);
+                  try {
+                    const text = await reflectEmotion({
+                      date,
+                      valence: emotion.valence,
+                      arousal: emotion.arousal,
+                      intensity: deriveIntensity(emotion.valence, emotion.arousal),
+                      regulation: emotion.regulation,
+                      contextTags: emotion.contextTags,
+                      valueChosen: emotion.valueChosen,
+                    });
+                    if (text) {
+                      setEmotion((prev) => (prev ? { ...prev, reflection: text } : prev));
+                    } else {
+                      Alert.alert("Reflection unavailable", "No reflection could be generated right now.");
+                    }
+                  } finally {
+                    setGeneratingReflection(false);
+                  }
+                }}
+              />
+            </View>
+          </GlassCard>
+        ) : null}
 
-        <Button
-          title={saving ? "Saving…" : "Save check-in"}
-          onPress={save}
-          disabled={loading || saving}
-          style={{ marginBottom: 18 }}
-        />
+        <GlassButton title="Save check-in" variant="primary" onPress={save} />
       </Screen>
     </TabSwipe>
   );
 }
 
-function Chip({
-  label,
-  active,
-  onPress,
-  tone = "normal",
-}: {
-  label: string;
-  active: boolean;
-  onPress: () => void;
-  tone?: "normal" | "tight";
-}) {
-  const scheme = useColorScheme();
-  const c = Colors[scheme ?? "light"];
-
-  const bg = active
-    ? c.tint
-    : scheme === "dark"
-    ? "rgba(255,255,255,0.08)"
-    : "rgba(255,255,255,0.65)";
-
-  const textColor = active ? "#0B0610" : c.text;
-
-  return (
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => [
-        styles.chip,
-        tone === "tight" && styles.chipTight,
-        {
-          backgroundColor: pressed && !active
-            ? scheme === "dark"
-              ? "rgba(255,255,255,0.12)"
-              : "rgba(0,0,0,0.06)"
-            : bg,
-          borderColor: active
-            ? "rgba(0,0,0,0.10)"
-            : scheme === "dark"
-            ? "rgba(255,255,255,0.10)"
-            : "rgba(0,0,0,0.08)",
-        },
-      ]}
-    >
-      <Text style={[styles.chipText, { color: textColor }]}>{label}</Text>
-    </Pressable>
-  );
-}
-
 const styles = StyleSheet.create({
-  container: {
-    padding: 18,
-    gap: 12,
-  },
-  topBar: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    marginBottom: 6,
-  },
-  back: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  title: {
-    fontSize: 26,
-    fontWeight: "800",
-  },
-  subtitle: {
-    marginTop: 2,
-    fontSize: 13,
-    fontWeight: "600",
-  },
-  card: {
-    padding: 16,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: "800",
-    marginBottom: 10,
-  },
-  label: {
-    fontSize: 13,
-    fontWeight: "700",
-    marginTop: 4,
-    marginBottom: 8,
-  },
-  small: {
-    marginTop: -6,
-    marginBottom: 10,
-    fontSize: 12,
-    fontWeight: "600",
-  },
-  row: {
-    flexDirection: "row",
-    gap: 10,
-    marginBottom: 10,
-  },
-  wrap: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 10,
-  },
-  chip: {
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    borderRadius: 999,
-    borderWidth: 1,
-  },
-  chipTight: {
-    paddingHorizontal: 12,
-  },
-  chipText: {
-    fontSize: 13,
-    fontWeight: "800",
-  },
-  inputWrap: {
-    borderRadius: 16,
-    borderWidth: 1,
-    padding: 12,
-    minHeight: 96,
-  },
-  input: {
-    fontSize: 14,
-    fontWeight: "600",
-    lineHeight: 18,
-  },
+  headerRow: { flexDirection: "row", alignItems: "center", gap: 12 },
+  backBtn: { padding: 10, borderRadius: 12, borderWidth: 1 },
+  chipWrap: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: Spacing.sm },
+  chip: { paddingVertical: 8, paddingHorizontal: 10, borderRadius: BorderRadius.lg, borderWidth: 1 },
+  toggleRow: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginTop: Spacing.sm },
+  toggle: { paddingVertical: 10, paddingHorizontal: 12, borderRadius: BorderRadius.lg, borderWidth: 1 },
+  note: { marginTop: 6, borderWidth: 1, borderRadius: 12, padding: 10 },
 });

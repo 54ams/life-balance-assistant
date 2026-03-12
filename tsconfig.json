@@ -14,7 +14,8 @@
     "backend",
     "build",
     "dist",
-    "node_modules"
+    "node_modules",
+    "review_bundle"
   ],
   "include": [
     "**/*.ts",

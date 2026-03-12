@@ -15,9 +15,7 @@ type AccuracyReason = {
   detail: string;
 };
 
-function clamp(n: number, min: number, max: number) {
-  return Math.max(min, Math.min(max, n));
-}
+import { clamp } from "./util/clamp";
 
 function strengthFromDelta(delta: number): Driver["strength"] {
   const d = Math.abs(delta);
@@ -108,12 +106,13 @@ export function buildDayExplain(args: {
           detail = `Sleep: ${formatHours(wearable.sleepHours)}.`;
         }
         if (d.key === "mood" && checkIn) {
-          const map: Record<number, string> = { 1: "😖", 2: "😐", 3: "🙂", 4: "😄" };
-          detail = `Mood check-in: ${map[checkIn.mood] ?? checkIn.mood}/4.`;
+          const map: Record<number, string> = { 1: "😖", 2: "🙁", 3: "😐", 4: "🙂", 5: "😄" };
+          detail = `Mood check-in: ${map[checkIn.mood] ?? checkIn.mood}/5.`;
         }
         if (d.key === "stress" && checkIn) {
           const count = Object.values(checkIn.stressIndicators ?? {}).filter(Boolean).length;
-          detail = `Stress indicators selected: ${count}.`;
+          const level = checkIn.stressLevel ? `Level ${checkIn.stressLevel}/5` : null;
+          detail = level ? `${level}. Indicators selected: ${count}.` : `Stress indicators selected: ${count}.`;
         }
 
         drivers.push({

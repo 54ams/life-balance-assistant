@@ -1,56 +1,25 @@
-import { BlurView } from "expo-blur";
-import { Tabs } from "expo-router";
-import React from "react";
-import { Platform, StyleSheet, View } from "react-native";
+import { Redirect, Tabs } from "expo-router";
+import React, { useEffect, useState } from "react";
 
-import { HapticTab } from "@/components/haptic-tab";
+import { FloatingTabBar } from "@/components/ui/FloatingTabBar";
 import { IconSymbol } from "@/components/ui/icon-symbol";
-import { Colors } from "@/constants/theme";
-import { useColorScheme } from "@/hooks/use-color-scheme";
+import { getAppConsent } from "@/lib/privacy";
 
 export default function TabLayout() {
-  const scheme = useColorScheme();
-  const c = Colors[scheme ?? "light"];
+  const [hasConsent, setHasConsent] = useState<boolean>(true);
+  useEffect(() => {
+    (async () => {
+      const consent = await getAppConsent();
+      setHasConsent(!!consent);
+    })();
+  }, []);
+
+  if (!hasConsent) {
+    return <Redirect href="/onboarding" />;
+  }
 
   return (
-    <Tabs
-      screenOptions={{
-        headerShown: false,
-        tabBarButton: HapticTab,
-        tabBarActiveTintColor: c.tint,
-        tabBarInactiveTintColor: c.tabIconDefault,
-        tabBarStyle: [
-          styles.tabBar,
-          {
-            borderTopColor: "transparent",
-            backgroundColor: "transparent",
-          },
-        ],
-        tabBarBackground: () => (
-          <View style={StyleSheet.absoluteFill}>
-            <BlurView
-              intensity={scheme === "dark" ? 30 : 22}
-              tint={scheme === "dark" ? "dark" : "light"}
-              style={StyleSheet.absoluteFill}
-            />
-            <View
-              style={[
-                StyleSheet.absoluteFill,
-                {
-                  backgroundColor: scheme === "dark"
-                    ? "rgba(20, 10, 30, 0.35)"
-                    : "rgba(255, 255, 255, 0.35)",
-                  borderTopWidth: StyleSheet.hairlineWidth,
-                  borderTopColor: scheme === "dark"
-                    ? "rgba(255,255,255,0.10)"
-                    : "rgba(0,0,0,0.06)",
-                },
-              ]}
-            />
-          </View>
-        ),
-      }}
-    >
+    <Tabs tabBar={(props) => <FloatingTabBar {...props} />} screenOptions={{ headerShown: false }}>
       <Tabs.Screen
         name="index"
         options={{
@@ -75,6 +44,7 @@ export default function TabLayout() {
         name="insights"
         options={{
           title: "Insights",
+          href: hasConsent ? undefined : null,
           tabBarIcon: ({ color }) => (
             <IconSymbol size={26} name="sparkles" color={color} />
           ),
@@ -82,11 +52,11 @@ export default function TabLayout() {
       />
 
       <Tabs.Screen
-        name="history"
+        name="calendar"
         options={{
-          title: "History",
+          title: "Calendar",
           tabBarIcon: ({ color }) => (
-            <IconSymbol size={26} name="clock.fill" color={color} />
+            <IconSymbol size={26} name="calendar" color={color} />
           ),
         }}
       />
@@ -103,21 +73,3 @@ export default function TabLayout() {
     </Tabs>
   );
 }
-
-const styles = StyleSheet.create({
-  tabBar: {
-    position: "absolute",
-    left: 14,
-    right: 14,
-    bottom: Platform.OS === "ios" ? 18 : 12,
-    height: 72,
-    borderRadius: 22,
-    overflow: "hidden",
-    paddingBottom: Platform.OS === "ios" ? 10 : 8,
-    paddingTop: 8,
-    shadowOpacity: 0.18,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: 10 },
-    elevation: 16,
-  },
-});

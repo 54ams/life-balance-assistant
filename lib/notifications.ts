@@ -2,6 +2,7 @@ import * as Notifications from "expo-notifications";
 import { Platform } from "react-native";
 
 const DAILY_REMINDER_ID = "daily-checkin-reminder";
+const EMOTION_REMINDER_ID = "emotion-quicklog";
 
 Notifications.setNotificationHandler({
   handleNotification: async () =>
@@ -49,6 +50,22 @@ trigger: {
   repeats: true,
 } as Notifications.DailyTriggerInput,
   });
+}
+
+export async function scheduleEveningEmotionNudge(hour = 20, minute = 0) {
+  await Notifications.cancelScheduledNotificationAsync(EMOTION_REMINDER_ID).catch(() => {});
+  await Notifications.scheduleNotificationAsync({
+    identifier: EMOTION_REMINDER_ID,
+    content: {
+      title: "Want to capture today?",
+      body: "A quick 15-second snapshot keeps your story accurate.",
+    },
+    trigger: { type: "daily", hour, minute, repeats: true } as Notifications.DailyTriggerInput,
+  });
+}
+
+export async function cancelEveningEmotionNudge() {
+  await Notifications.cancelScheduledNotificationAsync(EMOTION_REMINDER_ID).catch(() => {});
 }
 
 

@@ -6,8 +6,8 @@ import type { ISODate } from "@/lib/types";
 import { formatDisplayDate } from "@/lib/date";
 import { Button } from "@/components/ui/button";
 import { GlassCard } from "@/components/ui/glass-card";
-import { Colors } from "@/constants/theme";
-import { useColorScheme } from "@/hooks/use-color-scheme";
+import { Colors } from "@/constants/Colors";
+import { useColorScheme } from "react-native";
 
 function todayISO(): ISODate {
   const d = new Date();
@@ -42,12 +42,12 @@ export function InsightsDatePicker({
     <GlassCard style={{ padding: 14, gap: 10 }}>
       <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
         <View style={{ flex: 1, paddingRight: 10 }}>
-          <Text style={{ color: colors.text, fontSize: 14, fontWeight: "700" }}>{title}</Text>
-          <Text style={{ color: colors.icon, fontSize: 12, marginTop: 2 }}>
+          <Text style={{ color: colors.text.primary, fontSize: 14, fontWeight: "700" }}>{title}</Text>
+          <Text style={{ color: colors.text.tertiary, fontSize: 12, marginTop: 2 }}>
             {formatDisplayDate(date)}
           </Text>
           {helperText ? (
-            <Text style={{ color: colors.icon, fontSize: 12, marginTop: 6 }}>{helperText}</Text>
+            <Text style={{ color: colors.text.tertiary, fontSize: 12, marginTop: 6 }}>{helperText}</Text>
           ) : null}
         </View>
 
@@ -76,14 +76,14 @@ export function InsightsDatePicker({
           <Pressable onPress={() => {}} style={{}}>
             <View
               style={{
-                backgroundColor: colors.card,
+                backgroundColor: colors.glass.primary,
                 borderRadius: 18,
                 padding: 12,
                 borderWidth: 1,
-                borderColor: "rgba(255,255,255,0.12)",
+                borderColor: colors.border.medium,
               }}
             >
-              <Text style={{ color: colors.text, fontSize: 14, fontWeight: "700", marginBottom: 8 }}>
+              <Text style={{ color: colors.text.primary, fontSize: 14, fontWeight: "700", marginBottom: 8 }}>
                 Select a past date
               </Text>
 
@@ -98,14 +98,14 @@ export function InsightsDatePicker({
                   setOpen(false);
                 }}
                 theme={{
-                  calendarBackground: colors.card,
-                  dayTextColor: colors.text,
-                  monthTextColor: colors.text,
-                  textSectionTitleColor: colors.icon,
-                  selectedDayBackgroundColor: colors.tint,
+                  calendarBackground: colors.glass.primary,
+                  dayTextColor: colors.text.primary,
+                  monthTextColor: colors.text.primary,
+                  textSectionTitleColor: colors.text.tertiary,
+                  selectedDayBackgroundColor: colors.accent.primary,
                   selectedDayTextColor: colors.background,
-                  todayTextColor: colors.tint,
-                  arrowColor: colors.text,
+                  todayTextColor: colors.accent.primary,
+                  arrowColor: colors.accent.primary,
                 }}
               />
 

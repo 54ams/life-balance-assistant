@@ -1,14 +1,12 @@
-import * as Clipboard from "expo-clipboard";
 import React, { useEffect, useMemo, useState } from "react";
 import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 
 import { Screen } from "@/components/Screen";
 import { GlassCard } from "@/components/ui/glass-card";
-import { Colors } from "@/constants/theme";
-import { useColorScheme } from "@/hooks/use-color-scheme";
+import { Colors } from "@/constants/Colors";
+import { useColorScheme } from "react-native";
 import { SUS_QUESTIONS, computeSusScore, type SusResponse } from "@/lib/evaluation/sus";
 import { addSusSubmission, clearSusSubmissions, getOrCreateParticipantId, listSusSubmissions } from "@/lib/evaluation/storage";
-import { susSubmissionsToCsv } from "@/lib/evaluation/export";
 
 const LABELS = ["Strongly disagree", "Disagree", "Neutral", "Agree", "Strongly agree"] as const;
 
@@ -16,10 +14,12 @@ function Likert({
   value,
   onChange,
   color,
+  textColor,
 }: {
   value: SusResponse | null;
   onChange: (v: SusResponse) => void;
   color: string;
+  textColor: string;
 }) {
   return (
     <View style={styles.likertRow}>
@@ -48,7 +48,7 @@ function Likert({
 export default function UsabilitySusScreen() {
   const scheme = useColorScheme();
   const c = Colors[scheme ?? "light"];
-  const accent = c.tint;
+  const accent = c.accent.primary;
 
   const [participantId, setParticipantId] = useState<string>("");
   const [responses, setResponses] = useState<(SusResponse | null)[]>(Array(10).fill(null));
@@ -94,17 +94,6 @@ export default function UsabilitySusScreen() {
     setFeedback("");
   };
 
-  const onCopyCsv = async () => {
-    const subs = await listSusSubmissions();
-    if (!subs.length) {
-      Alert.alert("No data", "No SUS submissions saved yet.");
-      return;
-    }
-    const csv = susSubmissionsToCsv(subs);
-    await Clipboard.setStringAsync(csv);
-    Alert.alert("Copied", "SUS CSV copied to clipboard.");
-  };
-
   const onClear = async () => {
     Alert.alert("Clear data?", "This removes all stored SUS submissions on this device.", [
       { text: "Cancel", style: "cancel" },
@@ -124,22 +113,22 @@ export default function UsabilitySusScreen() {
   return (
     <Screen title="Usability (SUS)">
       <ScrollView contentContainerStyle={{ paddingBottom: 60 }}>
-        <Text style={[styles.h1, { color: c.text }]}>SUS Survey</Text>
-        <Text style={[styles.sub, { color: c.mutedText }]}>
-          Answer all 10 questions. Responses are stored locally and can be exported as CSV for your evaluation.
+        <Text style={[styles.h1, { color: c.text.primary }]}>SUS Survey</Text>
+        <Text style={[styles.sub, { color: c.text.secondary }]}>
+          Answer all 10 questions. Responses are stored locally and can be exported via JSON in Profile → Export.
         </Text>
 
         <GlassCard style={{ marginTop: 14 }}>
-          <Text style={[styles.meta, { color: c.mutedText }]}>Participant ID</Text>
-          <Text style={[styles.pid, { color: c.text }]}>{participantId}</Text>
-          <Text style={[styles.meta, { color: c.mutedText, marginTop: 8 }]}>
+          <Text style={[styles.meta, { color: c.text.secondary }]}>Participant ID</Text>
+          <Text style={[styles.pid, { color: c.text.primary }]}>{participantId}</Text>
+          <Text style={[styles.meta, { color: c.text.secondary, marginTop: 8 }]}>
             Submissions on this device: {submissionsCount}{lastScore !== null ? ` • Last score: ${lastScore}` : ""}
           </Text>
         </GlassCard>
 
         {SUS_QUESTIONS.map((q, i) => (
           <GlassCard key={i} style={{ marginTop: 12 }}>
-            <Text style={[styles.qTitle, { color: c.text }]}>{i + 1}. {q}</Text>
+            <Text style={[styles.qTitle, { color: c.text.primary }]}>{i + 1}. {q}</Text>
             <Likert
               value={responses[i]}
               onChange={(v) => {
@@ -148,15 +137,16 @@ export default function UsabilitySusScreen() {
                 setResponses(next);
               }}
               color={accent}
+              textColor={c.text.primary}
             />
-            <Text style={[styles.likertLabel, { color: c.mutedText }]}>
+            <Text style={[styles.likertLabel, { color: c.text.secondary }]}>
               {responses[i] ? LABELS[responses[i]! - 1] : "Select 1–5"}
             </Text>
           </GlassCard>
         ))}
 
         <GlassCard style={{ marginTop: 12 }}>
-          <Text style={[styles.qTitle, { color: c.text }]}>Optional feedback</Text>
+          <Text style={[styles.qTitle, { color: c.text.primary }]}>Optional feedback</Text>
           <TextInput
             value={feedback}
             onChangeText={setFeedback}
@@ -166,7 +156,7 @@ export default function UsabilitySusScreen() {
             style={[
               styles.input,
               {
-                color: c.text,
+                color: c.text.primary,
                 borderColor: scheme === "dark" ? "rgba(255,255,255,0.16)" : "rgba(0,0,0,0.10)",
               },
             ]}
@@ -174,26 +164,23 @@ export default function UsabilitySusScreen() {
         </GlassCard>
 
         <GlassCard style={{ marginTop: 12 }}>
-          <Text style={[styles.qTitle, { color: c.text }]}>Score</Text>
-          <Text style={[styles.score, { color: c.text }]}>
+          <Text style={[styles.qTitle, { color: c.text.primary }]}>Score</Text>
+          <Text style={[styles.score, { color: c.text.primary }]}>
             {currentScore === null ? "Answer all questions to preview score" : `${currentScore} / 100`}
           </Text>
 
           <View style={{ flexDirection: "row", gap: 10, marginTop: 10, flexWrap: "wrap" }}>
             <Pressable onPress={onSubmit} style={[styles.btn, { borderColor: accent }]}>
-              <Text style={[styles.btnText, { color: c.text }]}>Save submission</Text>
-            </Pressable>
-            <Pressable onPress={onCopyCsv} style={[styles.btn, { borderColor: "rgba(255,255,255,0.22)" }]}>
-              <Text style={[styles.btnText, { color: c.text }]}>Copy CSV</Text>
+              <Text style={[styles.btnText, { color: c.text.primary }]}>Save submission</Text>
             </Pressable>
             <Pressable onPress={onClear} style={[styles.btn, { borderColor: "rgba(255,80,80,0.55)" }]}>
-              <Text style={[styles.btnText, { color: c.text }]}>Clear local SUS data</Text>
+              <Text style={[styles.btnText, { color: c.text.primary }]}>Clear local SUS data</Text>
             </Pressable>
           </View>
         </GlassCard>
 
-        <Text style={[styles.note, { color: c.mutedText }]}>
-          Tip: for your report, paste the CSV into Excel, calculate mean SUS, median, standard deviation, and summarise themes from feedback.
+        <Text style={[styles.note, { color: c.text.secondary }]}>
+          Tip: export the JSON from Profile → Export, then calculate mean SUS, median, standard deviation, and summarise themes from feedback in your report.
         </Text>
       </ScrollView>
     </Screen>

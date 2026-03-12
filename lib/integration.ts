@@ -19,17 +19,17 @@ export type IntegrationSummary = {
 };
 
 const WEIGHTS: Record<SignalKey, number> = {
-  wearable_recovery: 0.40,
-  wearable_sleep: 0.25,
-  wearable_strain: 0.10,
+  wearable_recovery: 0.35,
+  wearable_sleep: 0.35,
+  wearable_strain: 0,
   checkin_mood: 0.15,
-  checkin_stress: 0.10,
+  checkin_stress: 0.15,
 };
 
 const LABELS: Record<SignalKey, { label: string; source: "wearable" | "check-in" }> = {
   wearable_recovery: { label: "Recovery", source: "wearable" },
   wearable_sleep: { label: "Sleep", source: "wearable" },
-  wearable_strain: { label: "Strain / activity", source: "wearable" },
+  wearable_strain: { label: "Strain (penalty rule)", source: "wearable" },
   checkin_mood: { label: "Mood", source: "check-in" },
   checkin_stress: { label: "Stress indicators", source: "check-in" },
 };
@@ -86,6 +86,7 @@ export function computeIntegrationSummary(input: {
   if (!w) notes.push("No wearable data detected for this day.");
   if (!checkIn) notes.push("No check-in detected for this day.");
   if (lbi?.confidence === "low") notes.push("Low confidence: missing signals reduce interpretation strength.");
+  if (w?.strain != null) notes.push("Strain is used as a mismatch penalty when strain is high and recovery is low.");
 
   return { usedSignals, missingSignals, coveragePct, mentalContributionPct, physiologicalContributionPct, notes };
 }

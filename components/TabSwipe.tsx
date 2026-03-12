@@ -13,10 +13,10 @@ const THRESHOLD = Math.round(width * 0.18);
 type Props = {
   children: React.ReactNode;
   /** Order of the 5 tab roots. Example: ["/", "/checkin", "/insights", "/history", "/profile"] */
-  order: readonly Href[];
+  order: readonly (Href | string)[];
 };
 
-function hrefToPath(href: Href): string {
+function hrefToPath(href: Href | string): string {
   if (typeof href === "string") return href;
   const maybePathname = (href as any)?.pathname;
   return typeof maybePathname === "string" ? maybePathname : "/";

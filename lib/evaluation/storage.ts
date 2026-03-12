@@ -65,5 +65,27 @@ export async function addSusSubmission(args: {
 }
 
 export async function clearSusSubmissions(): Promise<void> {
-  await AsyncStorage.removeItem(KEY_SUS);
+  await AsyncStorage.multiRemove([KEY_SUS, KEY_PID]);
+}
+
+export function filterSusByRetention(
+  list: SusSubmission[],
+  retainDays: number,
+  now = new Date()
+): SusSubmission[] {
+  if (retainDays <= 0) return [];
+  const cutoff = new Date(now);
+  cutoff.setDate(cutoff.getDate() - retainDays + 1);
+  const cutoffTs = cutoff.getTime();
+  return list.filter((s) => {
+    const t = Date.parse(s.createdAt);
+    return Number.isFinite(t) && t >= cutoffTs;
+  });
+}
+
+export async function purgeOldSusSubmissions(retainDays: number): Promise<number> {
+  const all = await listSusSubmissions();
+  const kept = filterSusByRetention(all, retainDays);
+  await save(kept);
+  return Math.max(0, all.length - kept.length);
 }

@@ -7,13 +7,20 @@ export type GeneratedPlan = {
   category: PlanCategory;
   focus: string;
   actions: string[];
+  actionReasons: string[];
   triggers: string[];
   explanation: string;
 };
 
 function stressCount(checkIn: DailyCheckIn | null) {
   if (!checkIn) return 0;
-  return Object.values(checkIn.stressIndicators).filter(Boolean).length;
+  if (checkIn.stressIndicators) {
+    return Object.values(checkIn.stressIndicators).filter(Boolean).length;
+  }
+  if (typeof checkIn.stressLevel === "number") {
+    return checkIn.stressLevel - 1; // map 1..5 to 0..4
+  }
+  return 0;
 }
 
 export function generatePlan(input: {
@@ -48,15 +55,21 @@ const aboveBaseline = deltaFromBaseline != null && deltaFromBaseline >= 10;
 
   // Actions: tight list, practical
   const actions: string[] = [];
+  const actionReasons: string[] = [];
   const triggers: string[] = [];
   const why: string[] = [];
 
   if (category === "RECOVERY") {
     actions.push("10–20 min easy walk (zone 1/2) + sunlight early");
+    actionReasons.push("Low recovery or below-baseline balance suggests reducing physiological load while keeping gentle movement.");
     actions.push("Protein-forward meals + 2L water (aim steady, not perfect)");
+    actionReasons.push("Recovery-support behaviours help when sleep, strain, or stress signals are unfavourable.");
     actions.push("One recovery block: stretch/foam roll 10 min OR hot shower wind-down");
+    actionReasons.push("A short wind-down targets under-recovery without adding cognitive load.");
     actions.push("Cap caffeine by 2pm; no late stimulants");
+    actionReasons.push("Late stimulants can worsen next-day recovery when sleep is already at risk.");
     actions.push("Early night: target +45–90 min vs usual bedtime");
+    actionReasons.push("Sleep extension is the clearest lever when sleep contribution is low.");
 
     if (lowSleep) why.push("Sleep hours are low.");
     if (lowRecovery) why.push("Recovery is low.");
@@ -66,16 +79,25 @@ const aboveBaseline = deltaFromBaseline != null && deltaFromBaseline >= 10;
 
   } else {
     actions.push("Pick 1 priority task and complete a 45–60 min deep work block");
+    actionReasons.push("Stable balance supports one meaningful high-value task rather than scattered effort.");
     actions.push("Movement snack: 2 x 8 min walk breaks or 20 min incline walk");
+    actionReasons.push("Light movement helps sustain energy and routine consistency without overloading the day.");
     actions.push("Keep meals consistent; avoid long gaps (stabilises energy)");
+    actionReasons.push("Regular meals support steady energy when the day does not require a recovery bias.");
     actions.push("End-of-day reset: 10 min tidy + plan tomorrow’s top 1");
+    actionReasons.push("Routine closure supports consistency and easier next-day follow-through.");
     actions.push("Optional: light social connection (message/call 1 person)");
+    actionReasons.push("Connection is a low-cost way to reinforce wellbeing when signals are stable.");
 
     if (aboveBaseline) why.push(`LBI is above your baseline by ${deltaFromBaseline!}.`);
-    if (aboveBaseline) actions.push("Add one extra hard thing: 20 min focused sprint or slightly harder training");
+    if (aboveBaseline) {
+      actions.push("Add one extra hard thing: 20 min focused sprint or slightly harder training");
+      actionReasons.push("Above-baseline balance allows a modest increase in challenge without defaulting to overload.");
+    }
 
     if (sc >= 3) {
       actions.push("Add a 5-min breathing reset between tasks (box breathing 4-4-4-4)");
+      actionReasons.push("Stress indicators are elevated, so a short reset reduces mental overload during an otherwise normal day.");
       why.push("Stress indicators suggest mental load is high.");
     }
   }
@@ -92,6 +114,7 @@ const aboveBaseline = deltaFromBaseline != null && deltaFromBaseline >= 10;
 
   // Guardrails: reduce cognitive load (one focus, max 2 actions, concise triggers)
   const limitedActions = actions.slice(0, 2);
+  const limitedActionReasons = actionReasons.slice(0, 2);
   const limitedTriggers = triggers.slice(0, 3);
 
   const explanation =
@@ -99,5 +122,5 @@ const aboveBaseline = deltaFromBaseline != null && deltaFromBaseline >= 10;
       ? `Plan logic: ${why.join(" ")}${deltaFromBaseline == null ? "" : ` (Δ vs baseline: ${deltaFromBaseline >= 0 ? "+" : ""}${deltaFromBaseline})`}${confidence === "low" ? " Confidence is low due to missing signals." : ""}`
       : `Plan logic: your signals are stable enough to maintain a normal day structure.${confidence === "low" ? " Confidence is low due to missing signals." : ""}`;
 
-  return { category, focus, actions: limitedActions, triggers: limitedTriggers, explanation };
+  return { category, focus, actions: limitedActions, actionReasons: limitedActionReasons, triggers: limitedTriggers, explanation };
 }

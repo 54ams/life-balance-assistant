@@ -1,5 +1,6 @@
 // lib/audit.ts
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import type { DailyRecord } from "./types";
 
 type AuditCounts = {
   checkIns: number;
@@ -32,7 +33,6 @@ export type AuditSnapshot = {
 };
 
 function dateFromKey(prefix: string, key: string) {
-  // expects prefix like "checkin:" and key like "checkin:2026-01-01"
   if (!key.startsWith(prefix)) return null;
   return key.slice(prefix.length);
 }
@@ -54,46 +54,39 @@ async function loadJSON(key?: string) {
 
 export async function getAuditSnapshot(): Promise<AuditSnapshot> {
   const allKeys = await AsyncStorage.getAllKeys();
+  const DAILY_KEY = "life_balance_daily_records_v1";
+  const PLAN_PREFIX = "life_balance_plan_v1:";
 
-  // ⚠️ Adjust these prefixes if your storage.ts uses different ones.
-  // These match the common pattern you’ve been using: checkin:, result:, plan:, wearable:
-  const prefixes = {
-    checkIn: "checkin:",
-    result: "result:",
-    plan: "plan:",
-    wearable: "wearable:",
-  } as const;
-
-  const checkInKeys = allKeys.filter((k) => k.startsWith(prefixes.checkIn));
-  const resultKeys = allKeys.filter((k) => k.startsWith(prefixes.result));
-  const planKeys = allKeys.filter((k) => k.startsWith(prefixes.plan));
-  const wearableKeys = allKeys.filter((k) => k.startsWith(prefixes.wearable));
-
-  const checkInDates = sortDatesDesc(
-    checkInKeys.map((k) => dateFromKey(prefixes.checkIn, k)).filter(Boolean) as string[]
-  );
-  const resultDates = sortDatesDesc(
-    resultKeys.map((k) => dateFromKey(prefixes.result, k)).filter(Boolean) as string[]
-  );
+  const planKeys = allKeys.filter((k) => k.startsWith(PLAN_PREFIX));
+  const dailyRaw = await AsyncStorage.getItem(DAILY_KEY);
+  let store: Record<string, DailyRecord> = {};
+  if (dailyRaw) {
+    try {
+      store = JSON.parse(dailyRaw) as Record<string, DailyRecord>;
+    } catch {
+      store = {};
+    }
+  }
+  const dailyRecords = Object.values(store);
+  const checkInDates = sortDatesDesc(dailyRecords.filter((r) => !!r.checkIn).map((r) => r.date));
+  const resultDates = sortDatesDesc(dailyRecords.filter((r) => typeof r.lbi === "number").map((r) => r.date));
+  const wearableDates = sortDatesDesc(dailyRecords.filter((r) => !!r.wearable).map((r) => r.date));
   const planDates = sortDatesDesc(
-    planKeys.map((k) => dateFromKey(prefixes.plan, k)).filter(Boolean) as string[]
-  );
-  const wearableDates = sortDatesDesc(
-    wearableKeys.map((k) => dateFromKey(prefixes.wearable, k)).filter(Boolean) as string[]
+    planKeys.map((k) => dateFromKey(PLAN_PREFIX, k)).filter(Boolean) as string[]
   );
 
-  const latestCheckInKey = checkInDates[0] ? `${prefixes.checkIn}${checkInDates[0]}` : undefined;
-  const latestResultKey = resultDates[0] ? `${prefixes.result}${resultDates[0]}` : undefined;
-  const latestPlanKey = planDates[0] ? `${prefixes.plan}${planDates[0]}` : undefined;
-  const latestWearableKey = wearableDates[0] ? `${prefixes.wearable}${wearableDates[0]}` : undefined;
+  const latestPlanKey = planDates[0] ? `${PLAN_PREFIX}${planDates[0]}` : undefined;
+  const latestCheckIn = checkInDates[0] ? store[checkInDates[0]]?.checkIn : undefined;
+  const latestResult = resultDates[0] ? store[resultDates[0]] : undefined;
+  const latestWearable = wearableDates[0] ? store[wearableDates[0]]?.wearable : undefined;
 
   return {
     nowISO: new Date().toISOString(),
     counts: {
-      checkIns: checkInKeys.length,
-      results: resultKeys.length,
+      checkIns: checkInDates.length,
+      results: resultDates.length,
       plans: planKeys.length,
-      wearables: wearableKeys.length,
+      wearables: wearableDates.length,
     },
     latest: {
       checkInDate: checkInDates[0],
@@ -102,16 +95,16 @@ export async function getAuditSnapshot(): Promise<AuditSnapshot> {
       wearableDate: wearableDates[0],
     },
     keys: {
-      checkInKeys: checkInKeys.slice(0, 50),
-      resultKeys: resultKeys.slice(0, 50),
+      checkInKeys: checkInDates.slice(0, 50),
+      resultKeys: resultDates.slice(0, 50),
       planKeys: planKeys.slice(0, 50),
-      wearableKeys: wearableKeys.slice(0, 50),
+      wearableKeys: wearableDates.slice(0, 50),
     },
     sample: {
-      latestCheckIn: await loadJSON(latestCheckInKey),
-      latestResult: await loadJSON(latestResultKey),
+      latestCheckIn,
+      latestResult,
       latestPlan: await loadJSON(latestPlanKey),
-      latestWearable: await loadJSON(latestWearableKey),
+      latestWearable,
     },
   };
 }
