@@ -48,7 +48,10 @@ export function computeIntegrationSummary(input: {
     wearable_sleep: typeof w?.sleepHours === "number",
     wearable_strain: typeof w?.strain === "number",
     checkin_mood: !!checkIn?.mood,
-    checkin_stress: !!checkIn && !!checkIn.stressIndicators,
+    checkin_stress:
+      !!checkIn &&
+      (typeof checkIn.stressLevel === "number" ||
+        Object.values(checkIn.stressIndicators ?? {}).some(Boolean)),
   };
 
   const usedSignals: IntegrationSummary["usedSignals"] = [];

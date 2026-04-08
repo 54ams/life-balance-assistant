@@ -18,21 +18,27 @@ import { formatDisplayDate } from "@/lib/date";
 import { todayISO } from "@/lib/util/todayISO";
 
 function prettyVar(k: string) {
-  return k
-    .replaceAll("sleepHours", "sleep hours")
-    .replaceAll("stressCount", "stress indicators")
-    .replaceAll("recovery", "recovery")
-    .replaceAll("lbi", "LBI")
-    .replaceAll("mood", "mood");
+  const map: Record<string, string> = {
+    sleepHours: "sleep hours",
+    stressIndicatorsCount: "stress indicators",
+    stressCount: "stress indicators",
+    recovery: "recovery",
+    lbi: "LBI",
+    mood: "mood",
+    energy: "energy",
+    strain: "strain",
+    adherenceRatio: "adherence ratio",
+    nextDayLbi: "next-day LBI",
+  };
+  return map[k] ?? k;
 }
 
 export default function CorrelationsScreen() {
   const scheme = useColorScheme();
-  const c = Colors[scheme ?? "light"] as any;
+  const c = Colors[scheme ?? "light"];
 
   const [date, setDate] = useState<ISODate>(todayISO());
-  const [loading, setLoading] = useState(true);
-  const [days, setDays] = useState<any[]>([]);
+  const [days, setDays] = useState<import("@/lib/types").DailyRecord[]>([]);
 
   useEffect(() => {
     (async () => {
@@ -48,13 +54,8 @@ export default function CorrelationsScreen() {
   }, [date]);
 
   const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const all = await getAllDays();
-      setDays(all);
-    } finally {
-      setLoading(false);
-    }
+    const all = await getAllDays();
+    setDays(all);
   }, []);
 
   useFocusEffect(
@@ -107,7 +108,7 @@ export default function CorrelationsScreen() {
           <Text style={{ color: c.text.secondary, marginTop: 6 }}>
             Methods shown (Pearson/Spearman), 95% bootstrap CI, FDR adjustment, and lag (0–3d). Correlation ≠ causation; use for reflection, not decisions.
           </Text>
-          <Text style={{ color: c.danger ?? c.text.secondary, marginTop: 6, fontWeight: "700" }}>
+          <Text style={{ color: c.danger, marginTop: 6, fontWeight: "700" }}>
             Small samples or missing data can flip signs; treat “significant” as exploratory only.
           </Text>
         </GlassCard>
@@ -115,7 +116,7 @@ export default function CorrelationsScreen() {
         {windowed.length < 10 ? (
           <GlassCard style={{ padding: 14 }}>
             <Text style={{ color: c.text.primary, fontWeight: "800" }}>Not enough data yet</Text>
-            <Text style={{ color: c.icon, marginTop: 6 }}>
+            <Text style={{ color: c.text.secondary, marginTop: 6 }}>
               You need a few days of wearable + check-in data to produce meaningful correlations. Current window up to {formatDisplayDate(date)} has {windowed.length} days.
             </Text>
           </GlassCard>
@@ -123,10 +124,10 @@ export default function CorrelationsScreen() {
 
         <GlassCard style={{ padding: 14 }}>
           <Text style={{ color: c.text.primary, fontWeight: "800" }}>How to read this</Text>
-          <Text style={{ color: c.icon, marginTop: 6 }}>
+          <Text style={{ color: c.text.secondary, marginTop: 6 }}>
             Correlation shows whether two variables tend to move together in your data. It does not prove causation. Data imported from WHOOP where connected.
           </Text>
-          <Text style={{ color: c.danger ?? c.icon, marginTop: 6, fontWeight: "700" }}>
+          <Text style={{ color: c.danger, marginTop: 6, fontWeight: "700" }}>
             Interpret cautiously: low sample sizes can mislead; this is not medical advice.
           </Text>
         </GlassCard>
@@ -139,11 +140,11 @@ export default function CorrelationsScreen() {
                 <Text style={{ color: c.text.primary, fontWeight: "800" }}>
                   {prettyVar(x.a)} ↔ {prettyVar(x.b)} {x.lag ? `(lag ${x.lag}d)` : ""}
                 </Text>
-                <Text style={{ color: c.icon }}>
+                <Text style={{ color: c.text.secondary }}>
                   {x.method ?? "pearson"} r={typeof x.r === "number" ? x.r.toFixed(2) : "—"} • n={x.n ?? "—"} • CI [{x.ciLower != null ? x.ciLower.toFixed(2) : "—"},{" "}
                   {x.ciUpper != null ? x.ciUpper.toFixed(2) : "—"}] • FDR {x.fdr != null ? x.fdr.toFixed(3) : "—"} {x.significant ? "significant" : "exploratory"}
                 </Text>
-                <Text style={{ color: c.icon }}>
+                <Text style={{ color: c.text.secondary }}>
                   Interpretation: {Math.abs(x.r ?? 0) >= 0.4 ? "moderate/strong pattern" : "weak/noisy pattern"}; correlation ≠ causation.
                 </Text>
               </View>
@@ -152,7 +153,7 @@ export default function CorrelationsScreen() {
         ) : (
           <GlassCard style={{ padding: 14 }}>
             <Text style={{ color: c.text.primary, fontWeight: "800" }}>No guided correlations available</Text>
-            <Text style={{ color: c.icon, marginTop: 6 }}>
+            <Text style={{ color: c.text.secondary, marginTop: 6 }}>
               As you collect more wearable + check-in days, relationships will appear here automatically.
             </Text>
           </GlassCard>

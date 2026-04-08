@@ -42,7 +42,7 @@ export function computeConsistency(records: DailyRecord[]): ConsistencyOutput {
   const recovery = last.map((r) => r.wearable?.recovery).filter((v): v is number => typeof v === "number");
   const mood = last
     .map((r) => r.checkIn?.mood)
-    .filter((v): v is 1 | 2 | 3 | 4 => typeof v === "number");
+    .filter((v): v is 1 | 2 | 3 | 4 | 5 => typeof v === "number");
 
   const sleepSd = sd(sleep);
   const recoverySd = sd(recovery);
@@ -54,7 +54,7 @@ export function computeConsistency(records: DailyRecord[]): ConsistencyOutput {
   const components = {
     sleepConsistency: varianceToScore(sleepSd, 1.5), // ~1.5h sd = low consistency
     recoveryConsistency: varianceToScore(recoverySd, 20), // ~20 points sd = low consistency
-    moodStability: varianceToScore(moodSd, 1.2), // on a 1–4 scale
+    moodStability: varianceToScore(moodSd, 1.5), // on a 1–5 scale
     checkInRegularity: n ? Math.round((checkInCount / n) * 100) : 0,
     wearableRegularity: n ? Math.round((wearableCount / n) * 100) : 0,
   };

@@ -1,6 +1,6 @@
 // lib/analytics.ts
 import type { DailyRecord } from "./types";
-import { DefaultModelConfig } from "./lbi";
+import type { StoredPlan } from "./storage";
 
 /**
  * Simple, report-friendly analytics:
@@ -137,7 +137,6 @@ function bootstrapCI(a: number[], b: number[], method: "pearson" | "spearman", s
 
 function bootstrapP(a: number[], b: number[], method: "pearson" | "spearman", samples = 500) {
   if (a.length < 3 || b.length < 3) return 1;
-  const n = a.length;
   const observed = Math.abs((method === "pearson" ? pearson(a, b) : spearman(a, b)) ?? 0);
   let count = 0;
   for (let s = 0; s < samples; s++) {
@@ -148,22 +147,7 @@ function bootstrapP(a: number[], b: number[], method: "pearson" | "spearman", sa
   return (count + 1) / (samples + 1);
 }
 
-function paired(days: DailyRecord[], getA: (d: DailyRecord) => number | undefined, getB: (d: DailyRecord) => number | undefined) {
-  const xs: number[] = [];
-  const ys: number[] = [];
-  for (const d of days) {
-    const a = getA(d);
-    const b = getB(d);
-    if (isNum(a) && isNum(b)) {
-      xs.push(a);
-      ys.push(b);
-    }
-  }
-  return { xs, ys };
-}
-
-function moodToScore(m: DailyRecord["checkIn"] extends infer CI ? (CI extends { mood: infer M } ? M : never) : never): number | undefined {
-  // In this codebase, mood is typically 1..4. Guard anyway.
+function moodToScore(m: unknown): number | undefined {
   if (typeof m === "number" && Number.isFinite(m)) return m;
   return undefined;
 }
@@ -304,6 +288,60 @@ export function buildAnalyticsSummary(days: DailyRecord[], windowDays = 30): Ana
     descriptives,
     correlations: corrRows,
     highlights,
+  };
+}
+
+/**
+ * H3: Compute Spearman correlation between same-day plan adherence ratio
+ * and the NEXT day's LBI.
+ *
+ * Requires plans with completedActions and daily records with LBI.
+ * Returns null when there are fewer than 3 paired observations.
+ */
+function nextISODate(date: string): string {
+  const d = new Date(date + "T00:00:00");
+  d.setDate(d.getDate() + 1);
+  return d.toISOString().slice(0, 10);
+}
+
+export function computeAdherenceCorrelation(
+  plans: StoredPlan[],
+  records: DailyRecord[]
+): CorrelationRow | null {
+  const lbiByDate = new Map<string, number>();
+  for (const r of records) {
+    if (isNum(r.lbi)) lbiByDate.set(r.date, r.lbi);
+  }
+
+  const adherenceVals: number[] = [];
+  const nextDayLbiVals: number[] = [];
+
+  for (const plan of plans) {
+    if (!plan.actions.length) continue;
+    const completed = (plan.completedActions ?? []).filter(Boolean).length;
+    const adherence = completed / plan.actions.length;
+    const lbi = lbiByDate.get(nextISODate(plan.date));
+    if (lbi == null) continue;
+    adherenceVals.push(adherence);
+    nextDayLbiVals.push(lbi);
+  }
+
+  if (adherenceVals.length < 3) return null;
+
+  const r = spearman(adherenceVals, nextDayLbiVals);
+  const { lower, upper } = bootstrapCI(adherenceVals, nextDayLbiVals, "spearman");
+  const p = bootstrapP(adherenceVals, nextDayLbiVals, "spearman");
+
+  return {
+    a: "adherenceRatio",
+    b: "nextDayLbi",
+    n: adherenceVals.length,
+    r: r != null ? round(r, 3) : undefined,
+    method: "spearman",
+    lag: 1,
+    ciLower: lower != null ? round(lower, 3) : undefined,
+    ciUpper: upper != null ? round(upper, 3) : undefined,
+    p,
   };
 }
 

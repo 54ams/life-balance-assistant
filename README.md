@@ -93,11 +93,10 @@ If you want the installed app to work fully for a supervisor or tester, the simp
 ## Verification
 
 - TypeScript: `npx tsc --noEmit`
-- Unit tests:
-  - `node --import tsx tests/baseline.test.ts`
-  - `node --import tsx tests/analytics.test.ts`
-  - `node --import tsx tests/ml-eval.test.ts`
-  - `node --import tsx tests/whoop-normalize.test.ts`
+- Unit tests (all 11 suites, 22 tests):
+  - `npm test`
+  - Individual: `node --no-warnings --import tsx tests/<name>.test.ts`
+  - Suites: errors, privacy, retention, whoop-normalize, baseline, analytics, ml-eval, plan, report, transparency, counterfactual
 
 ## Ethics and safety features
 
@@ -120,9 +119,61 @@ If you want the installed app to work fully for a supervisor or tester, the simp
 - WHOOP token store encryption-at-rest when `WHOOP_STORE_KEY` is set
 - Health endpoint: `GET /health`
 
+## Examiner quick start
+
+This section is for dissertation examiners and supervisors evaluating the prototype.
+
+### Option A — Installed app (recommended, no setup required)
+
+> An EAS build link and/or TestFlight/APK link will be included in the dissertation appendix.
+
+1. Open the install link on your device (iPhone or Android).
+2. Install and open the app.
+3. On first launch, tap through the consent screen.
+4. The app works fully offline with no WHOOP device:
+   - Go to **Profile → Settings → Demo Tools**.
+   - Tap **Seed 30-day demo dataset** to populate realistic synthetic data.
+   - Navigate Home to see the LBI orb, weekly strip, and plan.
+   - Go to **Insights** to explore correlations, baselines, ML risk, and the H3 adherence analysis.
+   - Go to **Profile → Export** to generate a research JSON bundle.
+
+### Option B — Local development (Expo Go)
+
+Requires: Node 20+, npm, Expo Go app on your phone or an iOS/Android simulator.
+
+```bash
+git clone <repo>
+npm install
+npm start
+```
+
+Scan the QR code with **Expo Go** (Android) or the Camera app (iPhone, when using Expo Go from App Store).
+
+- No backend or WHOOP credentials required — demo mode works standalone.
+- To run the unit test suite: `npm test`
+
+### What to look for
+
+| Area | Where |
+|------|--------|
+| LBI score + explanation | Home tab → tap the orb |
+| Daily check-in | Check-in tab |
+| Rule-based plan + action completion | Home → Today's plan / History tab |
+| Correlations with CI + FDR | Insights → Correlations |
+| H3 adherence vs next-day LBI | Insights → Adherence & LBI (H3) |
+| ML risk outlook | Insights → Risk outlook |
+| Model performance (accuracy, AUC) | Insights → Model performance |
+| Baseline calibration (median/IQR) | Insights → Baselines |
+| Data coverage + transparency | Home → orb long-press OR Insights → Integration |
+| SUS usability questionnaire | Profile → Settings → Usability |
+| Research export (JSON) | Profile → Export |
+| Privacy notice + consent | Profile → Settings → Consent |
+| Ethics + safety resources | Profile → Settings → Help |
+
 ## Dissertation docs
 
-- `docs/Operationalisation.md`
-- `docs/Hypotheses.md`
-- `docs/StudyProtocol.md`
-- `docs/ThreatsToValidity.md`
+- `docs/DataFlow.md` — end-to-end data flow diagram
+- `docs/Operationalisation.md` — variable definitions mapped to code
+- `docs/Hypotheses.md` — H1–H7 (all exploratory)
+- `docs/StudyProtocol.md` — feasibility study design
+- `docs/ThreatsToValidity.md` — validity threats and mitigations

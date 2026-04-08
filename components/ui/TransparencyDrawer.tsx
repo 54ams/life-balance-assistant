@@ -1,5 +1,5 @@
 import React from "react";
-import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
+import { Alert, Modal, Pressable, StyleSheet, Text, View } from "react-native";
 import { useAppTheme } from "@/theme/tokens";
 import { clearAll } from "@/lib/storage";
 
@@ -26,9 +26,26 @@ export function TransparencyDrawer({ visible, onClose }: Props) {
           on device; tokens stay on backend. No raw data sent to LLM—only small summaries.
         </Text>
         <Pressable
-          onPress={async () => {
-            await clearAll();
-            onClose();
+          onPress={() => {
+            Alert.alert(
+              "Delete all data",
+              "This will permanently remove all check-ins, plans, wearable data, and settings. This cannot be undone.",
+              [
+                { text: "Cancel", style: "cancel" },
+                {
+                  text: "Delete everything",
+                  style: "destructive",
+                  onPress: async () => {
+                    try {
+                      await clearAll();
+                      onClose();
+                    } catch {
+                      Alert.alert("Error", "Could not delete data. Please try again.");
+                    }
+                  },
+                },
+              ]
+            );
           }}
           style={[styles.delete, { borderColor: t.glassBorder, backgroundColor: t.glassOverlay }]}
           accessibilityLabel="Delete all local data"
@@ -64,6 +81,6 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.3)",
   },
   body: { marginTop: 4, lineHeight: 18 },
-  delete: { marginTop: 12, borderWidth: 1, borderRadius: 14, padding: 12 },
+  delete: { marginTop: 12, borderWidth: 1, borderRadius: 14, padding: 12, alignItems: "center" },
   close: { marginTop: 10, padding: 12, borderWidth: 1, borderRadius: 14, alignItems: "center" },
 });

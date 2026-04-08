@@ -7,9 +7,6 @@ import { Screen } from "@/components/Screen";
 import { Colors } from "@/constants/Colors";
 import { useColorScheme } from "react-native";
 import { getAuditSnapshot, type AuditSnapshot } from "../lib/audit";
-import { GlassCard } from "@/components/ui/GlassCard";
-import { Spacing, BorderRadius } from "@/constants/Spacing";
-import { Typography } from "@/constants/Typography";
 
 export default function AuditScreen() {
   const scheme = useColorScheme();

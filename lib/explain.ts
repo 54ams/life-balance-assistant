@@ -189,11 +189,11 @@ export function buildPatterns(days: DailyRecord[]) {
 
   const avg = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length;
 
-  // Mood vs LBI
-  const byMood: Record<number, number[]> = { 1: [], 2: [], 3: [], 4: [] };
+  // Mood vs LBI — include all 5 mood levels
+  const byMood: Record<number, number[]> = { 1: [], 2: [], 3: [], 4: [], 5: [] };
   for (const d of usable) {
     const m = d.checkIn?.mood;
-    if (m) byMood[m].push(d.lbi);
+    if (m && byMood[m]) byMood[m].push(d.lbi);
   }
   const moodAvgs = Object.entries(byMood)
     .filter(([, v]) => v.length >= 2)
@@ -205,10 +205,10 @@ export function buildPatterns(days: DailyRecord[]) {
     const high = moodAvgs[moodAvgs.length - 1];
     const diff = high.mean - low.mean;
     if (Math.abs(diff) >= 6) {
-      const map: Record<number, string> = { 1: "😖", 2: "😐", 3: "🙂", 4: "😄" };
+      const map: Record<number, string> = { 1: "😖", 2: "🙁", 3: "😐", 4: "🙂", 5: "😄" };
       items.push({
         title: "Mood is linked with your LBI",
-        detail: `On mood ${map[high.mood]} days your average LBI was ${high.mean} (n=${high.n}). On mood ${map[low.mood]} days it was ${low.mean} (n=${low.n}). Difference: ${diff > 0 ? "+" : ""}${diff}.`,
+        detail: `On mood ${map[high.mood] ?? high.mood} days your average LBI was ${high.mean} (n=${high.n}). On mood ${map[low.mood] ?? low.mood} days it was ${low.mean} (n=${low.n}). Difference: ${diff > 0 ? "+" : ""}${diff}.`,
       });
     }
   }
@@ -217,7 +217,8 @@ export function buildPatterns(days: DailyRecord[]) {
   const withSleep = usable.filter((d) => typeof d.wearable?.sleepHours === "number");
   if (withSleep.length >= 6) {
     const sleeps = withSleep.map((d) => d.wearable!.sleepHours).sort((a, b) => a - b);
-    const median = sleeps[Math.floor(sleeps.length / 2)];
+    const mid = Math.floor((sleeps.length - 1) / 2);
+    const median = sleeps.length % 2 === 0 ? (sleeps[mid] + sleeps[mid + 1]) / 2 : sleeps[mid];
     const low = withSleep.filter((d) => d.wearable!.sleepHours <= median).map((d) => d.lbi);
     const high = withSleep.filter((d) => d.wearable!.sleepHours > median).map((d) => d.lbi);
     if (low.length >= 2 && high.length >= 2) {
@@ -233,7 +234,8 @@ export function buildPatterns(days: DailyRecord[]) {
   const withRec = usable.filter((d) => typeof d.wearable?.recovery === "number");
   if (withRec.length >= 6) {
     const recs = withRec.map((d) => d.wearable!.recovery).sort((a, b) => a - b);
-    const median = recs[Math.floor(recs.length / 2)];
+    const mid = Math.floor((recs.length - 1) / 2);
+    const median = recs.length % 2 === 0 ? (recs[mid] + recs[mid + 1]) / 2 : recs[mid];
     const low = withRec.filter((d) => d.wearable!.recovery <= median).map((d) => d.lbi);
     const high = withRec.filter((d) => d.wearable!.recovery > median).map((d) => d.lbi);
     if (low.length >= 2 && high.length >= 2) {

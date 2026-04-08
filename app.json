@@ -13,7 +13,10 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.lifebalanceassistant.app"
+      "bundleIdentifier": "com.lifebalanceassistant.app",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "package": "com.lifebalanceassistant.app",
@@ -51,6 +54,12 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "93aa0dcb-06e9-41c2-a325-63be7f6bf4f8"
+      }
     }
   }
 }

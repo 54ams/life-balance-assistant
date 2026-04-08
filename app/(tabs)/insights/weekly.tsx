@@ -15,7 +15,6 @@ export default function WeeklyInsights() {
   const [quadrantSummary, setQuadrantSummary] = useState<string>("");
   const [adherenceLine, setAdherenceLine] = useState<string>("");
   const [adherenceVsLbi, setAdherenceVsLbi] = useState<string>("");
-  const [showStreaks, setShowStreaks] = useState(true);
   const [nudgeEnabled, setNudgeEnabled] = useState(true);
   const [weeklyMeaning, setWeeklyMeaning] = useState<string>("");
 
@@ -23,7 +22,6 @@ export default function WeeklyInsights() {
     (async () => {
       const streakToggle = await getBooleanSetting(STREAKS_ENABLED_KEY, true);
       const nudgeToggle = await getBooleanSetting(NUDGE_ENABLED_KEY, true);
-      setShowStreaks(streakToggle);
       setNudgeEnabled(nudgeToggle);
       const emos = await listEmotions(30);
       if (emos.length) {

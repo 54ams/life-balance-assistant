@@ -1,4 +1,4 @@
-import type { EmotionalDiaryEntry, RegulationState, EmotionValue, ISODate } from "./types";
+import type { RegulationState, EmotionValue, ISODate } from "./types";
 import { listEmotions, getEmotion } from "./storage";
 import { todayISO } from "./util/todayISO";
 

@@ -1,7 +1,7 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { SafeAreaView, ScrollView, StyleSheet, Text, View, useColorScheme } from "react-native";
 import { router, useFocusEffect } from "expo-router";
-import { BlurView } from "expo-blur";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { WeeklyStrip } from "@/components/ui/WeeklyStrip";
 import { LBIOrb } from "@/components/ui/LBIOrb";
@@ -20,10 +20,8 @@ import type { ISODate } from "@/lib/types";
 import { Colors } from "@/constants/Colors";
 import { Spacing, BorderRadius } from "@/constants/Spacing";
 import { Typography } from "@/constants/Typography";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { refreshDerivedForDate } from "@/lib/pipeline";
 import { predictTomorrowRisk } from "@/lib/ml";
-import { useCallback } from "react";
 import { buildMissingnessSummary } from "@/lib/transparency";
 
 function greetingForHour(h: number) {

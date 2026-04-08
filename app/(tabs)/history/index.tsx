@@ -7,8 +7,6 @@ import { GlassCard } from "@/components/ui/GlassCard";
 import { Colors } from "@/constants/Colors";
 import { TAB_ORDER } from "@/constants/navigation";
 import { useColorScheme } from "react-native";
-import { Typography } from "@/constants/Typography";
-import { Spacing } from "@/constants/Spacing";
 import { loadPlan, type StoredPlan } from "@/lib/storage";
 import { TabSwipe } from "@/components/TabSwipe";
 

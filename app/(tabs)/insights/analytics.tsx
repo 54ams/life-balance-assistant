@@ -23,7 +23,6 @@ export default function AnalyticsScreen() {
   const [loading, setLoading] = useState(true);
   const [date, setDate] = useState<ISODate>(todayISO());
   const [md, setMd] = useState<string>("");
-  const [csv, setCsv] = useState<string>("");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -31,8 +30,6 @@ export default function AnalyticsScreen() {
       const days = (await getAllDays()).filter((d) => d.date <= date);
       const summary = buildAnalyticsSummary(days, 30);
       setMd(analyticsToMarkdown(summary));
-      // CSV path retained for research export but not surfaced in UI anymore
-      setCsv("");
     } finally {
       setLoading(false);
     }

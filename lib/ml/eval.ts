@@ -1,5 +1,4 @@
 import { getAllDays } from "@/lib/storage";
-import type { DailyRecord } from "@/lib/types";
 import { buildDataset } from "./dataset";
 
 export type ModelEvalSummary = {

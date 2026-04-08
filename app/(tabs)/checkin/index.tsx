@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Alert, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { router } from "expo-router";
 
 import { Screen } from "@/components/Screen";
@@ -21,26 +21,28 @@ import { deriveIntensity } from "@/lib/emotion";
 import { refreshDerivedForDate } from "@/lib/pipeline";
 import { reflectEmotion } from "@/lib/llm";
 
-const STRESS_KEYS: Array<keyof NonNullable<DailyCheckIn["stressIndicators"]>> = [
-  "muscleTension",
-  "racingThoughts",
-  "irritability",
-  "avoidance",
-  "restlessness",
+const STRESS_INDICATORS: Array<{ key: keyof NonNullable<DailyCheckIn["stressIndicators"]>; label: string }> = [
+  { key: "muscleTension", label: "Muscle tension" },
+  { key: "racingThoughts", label: "Racing thoughts" },
+  { key: "irritability", label: "Irritability" },
+  { key: "avoidance", label: "Avoidance" },
+  { key: "restlessness", label: "Restlessness" },
 ];
 
 function ScaleRow({
   label,
   value,
   onChange,
+  colors,
 }: {
   label: string;
   value: number;
   onChange: (n: number) => void;
+  colors: typeof Colors.light;
 }) {
   return (
     <View style={{ marginTop: Spacing.sm }}>
-      <Text style={{ fontWeight: "700", color: Colors.light.text.primary }}>{label}</Text>
+      <Text style={{ fontWeight: "700", color: colors.text.primary }}>{label}</Text>
       <View style={{ flexDirection: "row", gap: 8, marginTop: 6 }}>
         {[1, 2, 3, 4, 5].map((n) => {
           const active = value === n;
@@ -48,15 +50,18 @@ function ScaleRow({
             <Pressable
               key={n}
               onPress={() => onChange(n)}
+              accessibilityRole="button"
+              accessibilityLabel={`${label} ${n}`}
+              accessibilityState={{ selected: active }}
               style={[
                 styles.chip,
                 {
-                  backgroundColor: active ? "#7C6FDC33" : "transparent",
-                  borderColor: active ? "#7C6FDC" : "rgba(255,255,255,0.18)",
+                  backgroundColor: active ? colors.accent.primaryLight : "transparent",
+                  borderColor: active ? colors.accent.primary : colors.border.medium,
                 },
               ]}
             >
-              <Text style={{ fontWeight: "800" }}>{n}</Text>
+              <Text style={{ fontWeight: "800", color: colors.text.primary }}>{n}</Text>
             </Pressable>
           );
         })}
@@ -191,30 +196,36 @@ export default function DailyCheckInScreen() {
         </View>
 
         <GlassCard>
-          <ScaleRow label="Mood" value={checkIn.mood} onChange={(n) => setCheckIn((p) => ({ ...p, mood: n as any }))} />
-          <ScaleRow label="Energy" value={checkIn.energy ?? 3} onChange={(n) => setCheckIn((p) => ({ ...p, energy: n as any }))} />
-          <ScaleRow label="Stress level" value={checkIn.stressLevel ?? 3} onChange={(n) => setCheckIn((p) => ({ ...p, stressLevel: n as any }))} />
-          <ScaleRow label="Sleep quality" value={checkIn.sleepQuality ?? 3} onChange={(n) => setCheckIn((p) => ({ ...p, sleepQuality: n as any }))} />
+          <ScaleRow label="Mood" value={checkIn.mood} onChange={(n) => setCheckIn((p) => ({ ...p, mood: n as any }))} colors={c} />
+          <ScaleRow label="Energy" value={checkIn.energy ?? 3} onChange={(n) => setCheckIn((p) => ({ ...p, energy: n as any }))} colors={c} />
+          <ScaleRow label="Stress level" value={checkIn.stressLevel ?? 3} onChange={(n) => setCheckIn((p) => ({ ...p, stressLevel: n as any }))} colors={c} />
+          <ScaleRow label="Sleep quality" value={checkIn.sleepQuality ?? 3} onChange={(n) => setCheckIn((p) => ({ ...p, sleepQuality: n as any }))} colors={c} />
         </GlassCard>
 
         <GlassCard>
-          <Text style={{ fontWeight: "700", color: c.text.primary }}>Stress indicators (select all)</Text>
+          <Text style={{ fontWeight: "700", color: c.text.primary }}>Stress indicators (select all that apply)</Text>
           <View style={styles.chipWrap}>
-            {STRESS_KEYS.map((k) => (
-              <Pressable
-                key={k}
-                onPress={() => toggleIndicator(k)}
-                style={[
-                  styles.chip,
-                  {
-                    borderColor: checkIn.stressIndicators?.[k] ? c.accent.primary : c.border.medium,
-                    backgroundColor: checkIn.stressIndicators?.[k] ? c.glass.primary : "transparent",
-                  },
-                ]}
-              >
-                <Text style={{ color: c.text.primary, fontWeight: "700" }}>{k}</Text>
-              </Pressable>
-            ))}
+            {STRESS_INDICATORS.map(({ key, label }) => {
+              const active = !!checkIn.stressIndicators?.[key];
+              return (
+                <Pressable
+                  key={key}
+                  onPress={() => toggleIndicator(key)}
+                  accessibilityRole="button"
+                  accessibilityLabel={label}
+                  accessibilityState={{ selected: active }}
+                  style={[
+                    styles.chip,
+                    {
+                      borderColor: active ? c.accent.primary : c.border.medium,
+                      backgroundColor: active ? c.glass.primary : "transparent",
+                    },
+                  ]}
+                >
+                  <Text style={{ color: c.text.primary, fontWeight: "700" }}>{label}</Text>
+                </Pressable>
+              );
+            })}
           </View>
         </GlassCard>
 

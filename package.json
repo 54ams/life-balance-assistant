@@ -13,7 +13,7 @@
     "build:ios-simulator": "eas build -p ios --profile ios-simulator",
     "lint": "expo lint",
     "test": "npm run test:unit",
-    "test:unit": "node --no-warnings --import tsx tests/errors.test.ts && node --no-warnings --import tsx tests/privacy.test.ts && node --no-warnings --import tsx tests/retention.test.ts && node --no-warnings --import tsx tests/whoop-normalize.test.ts && node --no-warnings --import tsx tests/baseline.test.ts && node --no-warnings --import tsx tests/analytics.test.ts && node --no-warnings --import tsx tests/ml-eval.test.ts && node --no-warnings --import tsx tests/plan.test.ts && node --no-warnings --import tsx tests/report.test.ts && node --no-warnings --import tsx tests/transparency.test.ts"
+    "test:unit": "node --no-warnings --import tsx tests/errors.test.ts && node --no-warnings --import tsx tests/privacy.test.ts && node --no-warnings --import tsx tests/retention.test.ts && node --no-warnings --import tsx tests/whoop-normalize.test.ts && node --no-warnings --import tsx tests/baseline.test.ts && node --no-warnings --import tsx tests/analytics.test.ts && node --no-warnings --import tsx tests/ml-eval.test.ts && node --no-warnings --import tsx tests/plan.test.ts && node --no-warnings --import tsx tests/report.test.ts && node --no-warnings --import tsx tests/transparency.test.ts && node --no-warnings --import tsx tests/counterfactual.test.ts"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",

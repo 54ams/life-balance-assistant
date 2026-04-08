@@ -17,14 +17,14 @@ import { InsightsDatePicker } from "@/components/InsightsDatePicker";
 import { formatDisplayDate } from "@/lib/date";
 import { todayISO } from "@/lib/util/todayISO";
 
-function Bar({ label, value, c }: { label: string; value: number; c: any }) {
+function Bar({ label, value, c }: { label: string; value: number; c: typeof import("@/constants/Colors").Colors.light }) {
   return (
     <View style={{ gap: 6 }}>
       <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
         <Text style={{ color: c.text.primary, fontWeight: "700" }}>{label}</Text>
         <Text style={{ color: c.text.tertiary }}>{value}%</Text>
       </View>
-      <View style={{ height: 10, borderRadius: 999, backgroundColor: c.glass }}>
+      <View style={{ height: 10, borderRadius: 999, backgroundColor: c.border.medium }}>
         <View style={{ width: `${value}%`, height: 10, borderRadius: 999, backgroundColor: c.accent.primary }} />
       </View>
     </View>
@@ -33,11 +33,10 @@ function Bar({ label, value, c }: { label: string; value: number; c: any }) {
 
 export default function ConsistencyScreen() {
   const scheme = useColorScheme();
-  const c = Colors[scheme ?? "light"] as any;
+  const c = Colors[scheme ?? "light"];
 
   const [date, setDate] = useState<ISODate>(todayISO());
-  const [loading, setLoading] = useState(true);
-  const [days, setDays] = useState<any[]>([]);
+  const [days, setDays] = useState<import("@/lib/types").DailyRecord[]>([]);
 
   useEffect(() => {
     (async () => {
@@ -53,13 +52,8 @@ export default function ConsistencyScreen() {
   }, [date]);
 
   const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const all = await getAllDays();
-      setDays(all);
-    } finally {
-      setLoading(false);
-    }
+    const all = await getAllDays();
+    setDays(all);
   }, []);
 
   useFocusEffect(
@@ -88,7 +82,7 @@ export default function ConsistencyScreen() {
         {!hasAny ? (
           <GlassCard style={{ padding: 14 }}>
             <Text style={{ color: c.text.primary, fontWeight: "800" }}>No data in this window</Text>
-            <Text style={{ color: c.icon, marginTop: 6 }}>
+            <Text style={{ color: c.text.secondary, marginTop: 6 }}>
               There are no saved records in the 14 days up to {formatDisplayDate(date)}.
             </Text>
           </GlassCard>
@@ -98,14 +92,14 @@ export default function ConsistencyScreen() {
               <Text style={{ color: c.text.primary, fontWeight: "900", fontSize: 18 }}>
                 Consistency score: {out.score} / 100
               </Text>
-              <Text style={{ color: c.icon, marginTop: 6 }}>
+              <Text style={{ color: c.text.secondary, marginTop: 6 }}>
                 Higher = more stable sleep/recovery + more regular tracking (not “better mood”).
               </Text>
 
               {out.notes.length ? (
                 <View style={{ marginTop: 10, gap: 6 }}>
                   {out.notes.map((n, i) => (
-                    <Text key={i} style={{ color: c.icon }}>
+                    <Text key={i} style={{ color: c.text.secondary }}>
                       • {n}
                     </Text>
                   ))}

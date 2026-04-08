@@ -17,11 +17,6 @@ import { getInsightsSelectedDate, setInsightsSelectedDate } from "@/lib/insights
 import { getDay, loadPlan, type StoredPlan } from "@/lib/storage";
 import type { ISODate } from "@/lib/types";
 
-function toDateParam(p: string | string[] | undefined) {
-  if (!p) return undefined;
-  return Array.isArray(p) ? p[0] : p;
-}
-
 function ProgressRow({
   label,
   value,

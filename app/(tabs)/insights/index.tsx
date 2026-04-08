@@ -32,6 +32,7 @@ const slides: Slide[] = [
   { title: "Model performance", desc: "Validation + calibration summary.", cta: "Open performance", route: "/insights/performance" },
   { title: "Risk outlook", desc: "Tomorrow risk from your personal model.", cta: "Open risk outlook", route: "/insights/risk" },
   { title: "Weekly reflection", desc: "Identity, regulation, affect patterns.", cta: "Open weekly", route: "/insights/weekly" },
+  { title: "Adherence & LBI (H3)", desc: "Does completing actions associate with a better next-day score?", cta: "Open adherence", route: "/insights/adherence" },
 ];
 
 export default function InsightsHome() {

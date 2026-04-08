@@ -21,8 +21,6 @@ export const FEATURE_NAMES = [
   "lbi_z",
 ] as const;
 
-type FeatureName = (typeof FEATURE_NAMES)[number];
-
 function mean(xs: number[]) {
   return xs.reduce((s, v) => s + v, 0) / xs.length;
 }

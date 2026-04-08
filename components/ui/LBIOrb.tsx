@@ -20,13 +20,15 @@ export function LBIOrb({
   const spin = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    Animated.loop(
+    const anim = Animated.loop(
       Animated.timing(spin, {
         toValue: 1,
         duration: 25000,
         useNativeDriver: true,
       })
-    ).start();
+    );
+    anim.start();
+    return () => anim.stop();
   }, [spin]);
 
   const rotate = spin.interpolate({

@@ -1,7 +1,7 @@
 import { getPlanAdherenceSummary, listPlans, listDailyRecords } from "./storage";
 import { listSusSubmissions } from "./evaluation/storage";
 import { computeBaselineMeta } from "./baseline";
-import { buildAnalyticsSummary } from "./analytics";
+import { buildAnalyticsSummary, computeAdherenceCorrelation } from "./analytics";
 import { runModelEvaluation } from "./ml/eval";
 import { DefaultModelConfig } from "./lbi";
 import { runSensitivity, stabilityScore } from "./lbiSensitivity";
@@ -46,6 +46,11 @@ export async function exportPlans(days: number): Promise<string> {
   let analytics: any = null;
   try {
     analytics = buildAnalyticsSummary(records, 30);
+  } catch {}
+
+  let adherenceCorrelation: any = null;
+  try {
+    adherenceCorrelation = computeAdherenceCorrelation(plans, records);
   } catch {}
 
   let ml: any = null;
@@ -123,6 +128,7 @@ export async function exportPlans(days: number): Promise<string> {
       sensitivity,
     },
     modelEvaluation: ml,
+    adherenceCorrelation,
   };
   return JSON.stringify(payload, null, 2);
 }

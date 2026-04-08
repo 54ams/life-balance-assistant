@@ -1,19 +1,13 @@
 import { useFocusEffect } from "expo-router";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { useCallback, useMemo, useState } from "react";
+import { StyleSheet, Text, View, useColorScheme } from "react-native";
 
 import { Screen } from "@/components/Screen";
-import { InsightsDatePicker } from "@/components/InsightsDatePicker";
 import { GlassCard } from "@/components/ui/glass-card";
 import { Colors } from "@/constants/Colors";
-import { TAB_ORDER } from "@/constants/navigation";
-import { useColorScheme } from "react-native";
-import { getInsightsSelectedDate, setInsightsSelectedDate } from "@/lib/insightsDate";
 import { listPlans } from "@/lib/storage";
 import type { PlanCategory } from "@/lib/types";
 import type { StoredPlan } from "@/lib/storage";
-import type { ISODate } from "@/lib/types";
-import { todayISO } from "@/lib/util/todayISO";
 
 function categoryLabel(cat: PlanCategory) {
   switch (cat) {
@@ -27,30 +21,21 @@ function categoryLabel(cat: PlanCategory) {
 }
 
 export default function TrendsScreen() {
-  const [date, setDate] = useState<ISODate>(todayISO());
-
-  useEffect(() => {
-    (async () => {
-      const saved = await getInsightsSelectedDate();
-      setDate(saved);
-    })();
-  }, []);
-
-  useEffect(() => {
-    (async () => {
-      await setInsightsSelectedDate(date);
-    })();
-  }, [date]);
-
   const scheme = useColorScheme();
   const c = Colors[scheme ?? "light"];
 
   // listPlans() returns StoredPlan where baseline can be null until enough history exists.
   const [days, setDays] = useState<StoredPlan[]>([]);
+  const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
-    const d = await listPlans(7);
-    setDays(d);
+    setLoading(true);
+    try {
+      const d = await listPlans(30);
+      setDays(d);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useFocusEffect(
@@ -108,13 +93,17 @@ export default function TrendsScreen() {
 
   return (
     <Screen scroll contentStyle={{ paddingBottom: 28 }}>
-      <Text style={[styles.title, { color: c.text.primary }]}>Trends (7 days)</Text>
-      <Text style={[styles.subtitle, { color: c.text.secondary }]}>Visual summary of your Life Balance Index and recommended day type.</Text>
+      <Text style={[styles.title, { color: c.text.primary }]}>Trends</Text>
+      <Text style={[styles.subtitle, { color: c.text.secondary }]}>
+        Last {Math.min(days.length, 30) || 30} days of Life Balance Index and recommended day type.
+      </Text>
 
       <GlassCard>
         <Text style={[styles.cardTitle, { color: c.text.primary }]}>Life Balance Index</Text>
 
-        {!summary ? (
+        {loading ? (
+          <Text style={[styles.empty, { color: c.text.secondary }]}>Loading…</Text>
+        ) : !summary ? (
           <Text style={[styles.empty, { color: c.text.secondary }]}>No saved results yet. Open Home to generate a plan and save it.</Text>
         ) : (
           <>
@@ -132,21 +121,27 @@ export default function TrendsScreen() {
             </View>
 
             <View style={styles.barWrap}>
-              {bars.map((b) => (
-                <View key={b.date} style={styles.barCol}>
-                  <View
-                    style={[
-                      styles.bar,
-                      {
-                        height: 10 + b.t * 56,
+              {bars.map((b, i) => {
+                const step = Math.max(1, Math.ceil(bars.length / 6));
+                const showLabel = i % step === 0 || i === bars.length - 1;
+                return (
+                  <View key={b.date} style={styles.barCol}>
+                    <View
+                      style={[
+                        styles.bar,
+                        {
+                          height: 10 + b.t * 56,
                           backgroundColor: c.accent.primary,
-                        opacity: 0.25 + b.t * 0.75,
-                      },
-                    ]}
-                  />
-                  <Text style={[styles.barLabel, { color: c.text.secondary }]}>{b.date.slice(5)}</Text>
-                </View>
-              ))}
+                          opacity: 0.25 + b.t * 0.75,
+                        },
+                      ]}
+                    />
+                    <Text style={[styles.barLabel, { color: c.text.secondary }]}>
+                      {showLabel ? b.date.slice(5) : " "}
+                    </Text>
+                  </View>
+                );
+              })}
             </View>
           </>
         )}
@@ -192,10 +187,10 @@ const styles = StyleSheet.create({
   reco: { fontSize: 14, fontWeight: "800", marginTop: 2 },
   range: { fontSize: 12, marginTop: 6 },
 
-  barWrap: { marginTop: 16, flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between" },
-  barCol: { width: "13%", alignItems: "center" },
-  bar: { width: "100%", borderRadius: 10 },
-  barLabel: { marginTop: 8, fontSize: 11 },
+  barWrap: { marginTop: 16, flexDirection: "row", alignItems: "flex-end", gap: 2, height: 90 },
+  barCol: { flex: 1, alignItems: "center", justifyContent: "flex-end" },
+  bar: { width: "100%", borderRadius: 4 },
+  barLabel: { marginTop: 6, fontSize: 9 },
 
   body: { marginTop: 10, fontSize: 13, lineHeight: 18 },
 });
