@@ -17,3 +17,19 @@ services:
         sync: false
       - key: OPENAI_MODEL
         value: gpt-4o-mini
+
+  - type: web
+    name: life-balance-web
+    runtime: static
+    buildCommand: npm install --legacy-peer-deps && npx expo export --platform web
+    staticPublishPath: ./dist
+    pullRequestPreviewsEnabled: false
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: EXPO_PUBLIC_BACKEND_URL
+        sync: false
+      - key: EXPO_PUBLIC_WHOOP_CLIENT_ID
+        sync: false
