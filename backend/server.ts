@@ -129,13 +129,21 @@ const server = createServer(async (req, res) => {
   }
 
   try {
-    if (req.method === "GET" && req.url === "/health") {
+    if (req.method === "GET" && (req.url === "/" || req.url === "/health")) {
       return sendJson(res, 200, {
         ok: true,
         service: "lba-backend",
         at: new Date().toISOString(),
         whoopConfigured: !!(WHOOP_CLIENT_ID && WHOOP_CLIENT_SECRET),
         llmConfigured: !!process.env.OPENAI_API_KEY,
+        routes: [
+          "GET  /health",
+          "POST /whoop/exchange",
+          "GET  /whoop/day?date=YYYY-MM-DD",
+          "POST /whoop/refresh",
+          "DELETE /whoop/session",
+          "POST /explain",
+        ],
       });
     }
 
