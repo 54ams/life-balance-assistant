@@ -29,21 +29,32 @@ const STRESS_INDICATORS: Array<{ key: keyof NonNullable<DailyCheckIn["stressIndi
   { key: "restlessness", label: "Restlessness" },
 ];
 
+const SCALE_LABELS: Record<string, string[]> = {
+  Mood: ["Very low", "Low", "Neutral", "Good", "Great"],
+  Energy: ["Exhausted", "Low", "Moderate", "High", "Energised"],
+  "Stress level": ["None", "Mild", "Moderate", "High", "Severe"],
+  "Sleep quality": ["Terrible", "Poor", "Fair", "Good", "Excellent"],
+};
+
 function ScaleRow({
   label,
   value,
   onChange,
-  colors,
+  c,
 }: {
   label: string;
   value: number;
   onChange: (n: number) => void;
-  colors: typeof Colors.light;
+  c: typeof Colors.light;
 }) {
+  const labels = SCALE_LABELS[label] ?? [];
   return (
-    <View style={{ marginTop: Spacing.sm }}>
-      <Text style={{ fontWeight: "700", color: colors.text.primary }}>{label}</Text>
-      <View style={{ flexDirection: "row", gap: 8, marginTop: 6 }}>
+    <View style={{ marginTop: Spacing.md }}>
+      <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+        <Text style={{ fontWeight: "700", color: c.text.primary, fontSize: 15 }}>{label}</Text>
+        <Text style={{ color: c.text.secondary, fontSize: 12 }}>{labels[value - 1] ?? ""}</Text>
+      </View>
+      <View style={{ flexDirection: "row", gap: 8, marginTop: 8 }}>
         {[1, 2, 3, 4, 5].map((n) => {
           const active = value === n;
           return (
@@ -54,14 +65,14 @@ function ScaleRow({
               accessibilityLabel={`${label} ${n}`}
               accessibilityState={{ selected: active }}
               style={[
-                styles.chip,
+                styles.scaleBtn,
                 {
-                  backgroundColor: active ? colors.accent.primaryLight : "transparent",
-                  borderColor: active ? colors.accent.primary : colors.border.medium,
+                  backgroundColor: active ? c.accent.primary : "transparent",
+                  borderColor: active ? c.accent.primary : c.border.medium,
                 },
               ]}
             >
-              <Text style={{ fontWeight: "800", color: colors.text.primary }}>{n}</Text>
+              <Text style={{ fontWeight: "800", color: active ? "#fff" : c.text.primary, fontSize: 15 }}>{n}</Text>
             </Pressable>
           );
         })}
@@ -167,10 +178,7 @@ export default function DailyCheckInScreen() {
           "Safety support",
           "If you are at risk, please use crisis support resources now.",
           [
-            {
-              text: "Open resources",
-              onPress: () => router.push("/profile/settings/help" as any),
-            },
+            { text: "Open resources", onPress: () => router.push("/profile/settings/help" as any) },
             { text: "OK" },
           ]
         );
@@ -184,26 +192,39 @@ export default function DailyCheckInScreen() {
 
   return (
     <TabSwipe order={TAB_ORDER}>
-      <Screen scroll padded contentStyle={{ gap: Spacing.md }}>
+      <Screen scroll padded contentStyle={{ gap: Spacing.md, paddingBottom: 120 }}>
+        {/* Header */}
         <View style={styles.headerRow}>
-          <Pressable accessibilityLabel="Back" onPress={() => router.back()} style={[styles.backBtn, { borderColor: c.border.medium }]}>
+          <Pressable
+            accessibilityLabel="Back"
+            onPress={() => router.back()}
+            style={[styles.backBtn, { borderColor: c.border.medium, backgroundColor: c.glass.primary }]}
+          >
             <IconSymbol name="chevron.left" size={18} color={c.text.primary} />
           </Pressable>
           <View style={{ flex: 1 }}>
-            <Text style={{ color: c.text.secondary, fontSize: Typography.fontSize.sm, fontWeight: Typography.fontWeight.semibold }}>Today</Text>
-            <Text style={{ color: c.text.primary, fontSize: Typography.fontSize.xxxl, fontWeight: Typography.fontWeight.bold }}>Daily check-in</Text>
+            <Text style={{ color: c.text.secondary, fontSize: 13, fontWeight: "600" }}>
+              {new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })}
+            </Text>
+            <Text style={{ color: c.text.primary, fontSize: 28, fontWeight: "900", letterSpacing: -0.3 }}>
+              Check-in
+            </Text>
           </View>
         </View>
 
+        {/* Scales */}
         <GlassCard>
-          <ScaleRow label="Mood" value={checkIn.mood} onChange={(n) => setCheckIn((p) => ({ ...p, mood: n as any }))} colors={c} />
-          <ScaleRow label="Energy" value={checkIn.energy ?? 3} onChange={(n) => setCheckIn((p) => ({ ...p, energy: n as any }))} colors={c} />
-          <ScaleRow label="Stress level" value={checkIn.stressLevel ?? 3} onChange={(n) => setCheckIn((p) => ({ ...p, stressLevel: n as any }))} colors={c} />
-          <ScaleRow label="Sleep quality" value={checkIn.sleepQuality ?? 3} onChange={(n) => setCheckIn((p) => ({ ...p, sleepQuality: n as any }))} colors={c} />
+          <Text style={[styles.sectionTitle, { color: c.text.primary }]}>How are you feeling?</Text>
+          <ScaleRow label="Mood" value={checkIn.mood} onChange={(n) => setCheckIn((p) => ({ ...p, mood: n as any }))} c={c} />
+          <ScaleRow label="Energy" value={checkIn.energy ?? 3} onChange={(n) => setCheckIn((p) => ({ ...p, energy: n as any }))} c={c} />
+          <ScaleRow label="Stress level" value={checkIn.stressLevel ?? 3} onChange={(n) => setCheckIn((p) => ({ ...p, stressLevel: n as any }))} c={c} />
+          <ScaleRow label="Sleep quality" value={checkIn.sleepQuality ?? 3} onChange={(n) => setCheckIn((p) => ({ ...p, sleepQuality: n as any }))} c={c} />
         </GlassCard>
 
+        {/* Stress indicators */}
         <GlassCard>
-          <Text style={{ fontWeight: "700", color: c.text.primary }}>Stress indicators (select all that apply)</Text>
+          <Text style={[styles.sectionTitle, { color: c.text.primary }]}>Stress indicators</Text>
+          <Text style={{ color: c.text.secondary, fontSize: 13, marginTop: 4 }}>Select any that apply today</Text>
           <View style={styles.chipWrap}>
             {STRESS_INDICATORS.map(({ key, label }) => {
               const active = !!checkIn.stressIndicators?.[key];
@@ -218,73 +239,91 @@ export default function DailyCheckInScreen() {
                     styles.chip,
                     {
                       borderColor: active ? c.accent.primary : c.border.medium,
-                      backgroundColor: active ? c.glass.primary : "transparent",
+                      backgroundColor: active ? c.accent.primary : "transparent",
                     },
                   ]}
                 >
-                  <Text style={{ color: c.text.primary, fontWeight: "700" }}>{label}</Text>
+                  <Text style={{ color: active ? "#fff" : c.text.primary, fontWeight: "700", fontSize: 14 }}>{label}</Text>
                 </Pressable>
               );
             })}
           </View>
         </GlassCard>
 
+        {/* Behaviours */}
         <GlassCard>
-          <Text style={{ fontWeight: "700", color: c.text.primary }}>Behaviours</Text>
-          <View style={styles.toggleRow}>
-            {[
+          <Text style={[styles.sectionTitle, { color: c.text.primary }]}>Today's behaviours</Text>
+          <View style={styles.chipWrap}>
+            {([
               ["caffeineAfter2pm", "Caffeine after 2pm"],
               ["alcohol", "Alcohol"],
               ["exerciseDone", "Exercise"],
-            ].map(([key, label]) => (
-              <Pressable
-                key={key}
-                onPress={() => toggleBool(key as any)}
-                style={[
-                  styles.toggle,
-                  { borderColor: (checkIn as any)[key] ? c.accent.primary : c.border.medium, backgroundColor: (checkIn as any)[key] ? c.glass.primary : "transparent" },
-                ]}
-              >
-                <Text style={{ color: c.text.primary, fontWeight: "700" }}>{label}</Text>
-              </Pressable>
-            ))}
+            ] as const).map(([key, label]) => {
+              const active = !!(checkIn as any)[key];
+              return (
+                <Pressable
+                  key={key}
+                  onPress={() => toggleBool(key as any)}
+                  style={[
+                    styles.chip,
+                    {
+                      borderColor: active ? c.accent.primary : c.border.medium,
+                      backgroundColor: active ? c.accent.primary : "transparent",
+                    },
+                  ]}
+                >
+                  <Text style={{ color: active ? "#fff" : c.text.primary, fontWeight: "700", fontSize: 14 }}>{label}</Text>
+                </Pressable>
+              );
+            })}
           </View>
 
-          <View style={{ marginTop: Spacing.sm, gap: Spacing.sm }}>
-            <Text style={{ color: c.text.secondary }}>Deep work minutes</Text>
-            <TextInput
-              keyboardType="number-pad"
-              value={String(checkIn.deepWorkMins ?? "")}
-              onChangeText={(txt) => setCheckIn((p) => ({ ...p, deepWorkMins: Number(txt) || 0 }))}
-              style={[styles.note, { borderColor: c.border.medium, color: c.text.primary }]}
-            />
-            <Text style={{ color: c.text.secondary }}>Hydration (litres)</Text>
-            <TextInput
-              keyboardType="decimal-pad"
-              value={String(checkIn.hydrationLitres ?? "")}
-              onChangeText={(txt) => setCheckIn((p) => ({ ...p, hydrationLitres: Number(txt) || 0 }))}
-              style={[styles.note, { borderColor: c.border.medium, color: c.text.primary }]}
-            />
+          <View style={{ marginTop: Spacing.md, gap: Spacing.md }}>
+            <View>
+              <Text style={{ color: c.text.primary, fontWeight: "600", fontSize: 14 }}>Deep work minutes</Text>
+              <TextInput
+                keyboardType="number-pad"
+                value={String(checkIn.deepWorkMins ?? "")}
+                onChangeText={(txt) => setCheckIn((p) => ({ ...p, deepWorkMins: Number(txt) || 0 }))}
+                style={[styles.input, { borderColor: c.border.medium, color: c.text.primary }]}
+                placeholder="0"
+                placeholderTextColor={c.text.tertiary}
+              />
+            </View>
+            <View>
+              <Text style={{ color: c.text.primary, fontWeight: "600", fontSize: 14 }}>Hydration (litres)</Text>
+              <TextInput
+                keyboardType="decimal-pad"
+                value={String(checkIn.hydrationLitres ?? "")}
+                onChangeText={(txt) => setCheckIn((p) => ({ ...p, hydrationLitres: Number(txt) || 0 }))}
+                style={[styles.input, { borderColor: c.border.medium, color: c.text.primary }]}
+                placeholder="0"
+                placeholderTextColor={c.text.tertiary}
+              />
+            </View>
           </View>
         </GlassCard>
 
+        {/* Notes */}
         <GlassCard>
-          <Text style={{ fontWeight: "700", color: c.text.primary }}>Notes (optional)</Text>
+          <Text style={[styles.sectionTitle, { color: c.text.primary }]}>Notes</Text>
+          <Text style={{ color: c.text.secondary, fontSize: 13, marginTop: 2 }}>Anything notable about today (optional)</Text>
           <TextInput
-            placeholder="Add anything notable about today"
-            placeholderTextColor={c.text.secondary}
+            placeholder="e.g. Slept poorly, long commute, felt focused..."
+            placeholderTextColor={c.text.tertiary}
             value={checkIn.notes ?? ""}
             onChangeText={(txt) => setCheckIn((p) => ({ ...p, notes: txt }))}
-            style={[styles.note, { borderColor: c.border.medium, color: c.text.primary, minHeight: 80 }]}
+            style={[styles.input, { borderColor: c.border.medium, color: c.text.primary, minHeight: 80, textAlignVertical: "top" }]}
             multiline
           />
         </GlassCard>
 
+        {/* Emotional snapshot */}
         {emotion ? (
           <GlassCard>
-            <Text style={{ fontWeight: "700", color: c.text.primary }}>Emotional snapshot</Text>
-            <Text style={{ color: c.text.secondary, marginTop: 6 }}>
-              Capture today&apos;s affect, regulation, values, and context. This supports weekly reflection and emotional trend analysis.
+            <Text style={[styles.sectionTitle, { color: c.text.primary }]}>Emotional snapshot</Text>
+            <Text style={{ color: c.text.secondary, fontSize: 13, marginTop: 4 }}>
+              Map today's affect, regulation, and values alignment.
             </Text>
 
             <View style={{ marginTop: Spacing.md }}>
@@ -292,91 +331,86 @@ export default function DailyCheckInScreen() {
                 initial={{ x: emotion.valence * 140, y: -emotion.arousal * 140 }}
                 onChange={(valence, arousal) =>
                   setEmotion((prev) =>
-                    prev
-                      ? {
-                          ...prev,
-                          valence,
-                          arousal,
-                          intensity: deriveIntensity(valence, arousal),
-                        }
-                      : prev
+                    prev ? { ...prev, valence, arousal, intensity: deriveIntensity(valence, arousal) } : prev
                   )
                 }
               />
             </View>
 
-            <Text style={{ fontWeight: "700", color: c.text.primary, marginTop: Spacing.md }}>Regulation</Text>
+            <Text style={[styles.fieldLabel, { color: c.text.primary }]}>Regulation</Text>
             <View style={styles.chipWrap}>
-              {(["handled", "manageable", "overwhelmed"] as const).map((state) => (
-                <Pressable
-                  key={state}
-                  onPress={() => setEmotion((prev) => (prev ? { ...prev, regulation: state } : prev))}
-                  style={[
-                    styles.chip,
-                    {
-                      borderColor: emotion.regulation === state ? c.accent.primary : c.border.medium,
-                      backgroundColor: emotion.regulation === state ? c.glass.primary : "transparent",
-                    },
-                  ]}
-                >
-                  <Text style={{ color: c.text.primary, fontWeight: "700" }}>{state}</Text>
-                </Pressable>
-              ))}
+              {(["handled", "manageable", "overwhelmed"] as const).map((state) => {
+                const active = emotion.regulation === state;
+                return (
+                  <Pressable
+                    key={state}
+                    onPress={() => setEmotion((prev) => (prev ? { ...prev, regulation: state } : prev))}
+                    style={[
+                      styles.chip,
+                      {
+                        borderColor: active ? c.accent.primary : c.border.medium,
+                        backgroundColor: active ? c.accent.primary : "transparent",
+                      },
+                    ]}
+                  >
+                    <Text style={{ color: active ? "#fff" : c.text.primary, fontWeight: "700", fontSize: 14 }}>
+                      {state.charAt(0).toUpperCase() + state.slice(1)}
+                    </Text>
+                  </Pressable>
+                );
+              })}
             </View>
 
-            <Text style={{ fontWeight: "700", color: c.text.primary, marginTop: Spacing.md }}>Value shown today</Text>
+            <Text style={[styles.fieldLabel, { color: c.text.primary }]}>Value shown today</Text>
             <View style={styles.chipWrap}>
-              {activeValues.map((value) => (
-                <Pressable
-                  key={value}
-                  onPress={() => setEmotion((prev) => (prev ? { ...prev, valueChosen: value } : prev))}
-                  style={[
-                    styles.chip,
-                    {
-                      borderColor: emotion.valueChosen === value ? c.accent.primary : c.border.medium,
-                      backgroundColor: emotion.valueChosen === value ? c.glass.primary : "transparent",
-                    },
-                  ]}
-                >
-                  <Text style={{ color: c.text.primary, fontWeight: "700" }}>{value}</Text>
-                </Pressable>
-              ))}
+              {activeValues.map((value) => {
+                const active = emotion.valueChosen === value;
+                return (
+                  <Pressable
+                    key={value}
+                    onPress={() => setEmotion((prev) => (prev ? { ...prev, valueChosen: value } : prev))}
+                    style={[
+                      styles.chip,
+                      {
+                        borderColor: active ? c.accent.primary : c.border.medium,
+                        backgroundColor: active ? c.accent.primary : "transparent",
+                      },
+                    ]}
+                  >
+                    <Text style={{ color: active ? "#fff" : c.text.primary, fontWeight: "700", fontSize: 14 }}>{value}</Text>
+                  </Pressable>
+                );
+              })}
             </View>
 
-            <Text style={{ color: c.text.secondary, marginTop: Spacing.md }}>Context tags (comma separated, up to 3)</Text>
+            <Text style={[styles.fieldLabel, { color: c.text.primary }]}>Context tags</Text>
+            <Text style={{ color: c.text.secondary, fontSize: 12 }}>Comma separated, up to 3</Text>
             <TextInput
               placeholder="e.g. travel, deadline, social"
-              placeholderTextColor={c.text.secondary}
+              placeholderTextColor={c.text.tertiary}
               value={emotion.contextTags.join(", ")}
               onChangeText={(txt) =>
                 setEmotion((prev) =>
                   prev
-                    ? {
-                        ...prev,
-                        contextTags: txt
-                          .split(",")
-                          .map((tag) => tag.trim())
-                          .filter(Boolean)
-                          .slice(0, 3),
-                      }
+                    ? { ...prev, contextTags: txt.split(",").map((tag) => tag.trim()).filter(Boolean).slice(0, 3) }
                     : prev
                 )
               }
-              style={[styles.note, { borderColor: c.border.medium, color: c.text.primary }]}
+              style={[styles.input, { borderColor: c.border.medium, color: c.text.primary }]}
             />
 
-            <Text style={{ color: c.text.secondary, marginTop: Spacing.sm }}>Reflection (optional)</Text>
+            <Text style={[styles.fieldLabel, { color: c.text.primary }]}>Reflection</Text>
             <TextInput
               placeholder="What seems to be shaping today?"
-              placeholderTextColor={c.text.secondary}
+              placeholderTextColor={c.text.tertiary}
               value={emotion.reflection ?? ""}
               onChangeText={(txt) => setEmotion((prev) => (prev ? { ...prev, reflection: txt } : prev))}
-              style={[styles.note, { borderColor: c.border.medium, color: c.text.primary, minHeight: 80 }]}
+              style={[styles.input, { borderColor: c.border.medium, color: c.text.primary, minHeight: 80, textAlignVertical: "top" }]}
               multiline
             />
             <View style={{ marginTop: Spacing.sm }}>
               <GlassButton
-                title={generatingReflection ? "Generating..." : "Generate reflection summary"}
+                title={generatingReflection ? "Generating..." : "Generate AI reflection"}
                 variant="secondary"
                 onPress={async () => {
                   setGeneratingReflection(true);
@@ -393,7 +427,7 @@ export default function DailyCheckInScreen() {
                     if (text) {
                       setEmotion((prev) => (prev ? { ...prev, reflection: text } : prev));
                     } else {
-                      Alert.alert("Reflection unavailable", "No reflection could be generated right now.");
+                      Alert.alert("Unavailable", "Could not generate a reflection right now.");
                     }
                   } finally {
                     setGeneratingReflection(false);
@@ -411,11 +445,12 @@ export default function DailyCheckInScreen() {
 }
 
 const styles = StyleSheet.create({
-  headerRow: { flexDirection: "row", alignItems: "center", gap: 12 },
-  backBtn: { padding: 10, borderRadius: 12, borderWidth: 1 },
+  headerRow: { flexDirection: "row", alignItems: "center", gap: 14 },
+  backBtn: { padding: 10, borderRadius: BorderRadius.md, borderWidth: 1 },
+  sectionTitle: { fontSize: 17, fontWeight: "800" },
+  fieldLabel: { fontWeight: "700", fontSize: 15, marginTop: Spacing.md },
   chipWrap: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: Spacing.sm },
-  chip: { paddingVertical: 8, paddingHorizontal: 10, borderRadius: BorderRadius.lg, borderWidth: 1 },
-  toggleRow: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginTop: Spacing.sm },
-  toggle: { paddingVertical: 10, paddingHorizontal: 12, borderRadius: BorderRadius.lg, borderWidth: 1 },
-  note: { marginTop: 6, borderWidth: 1, borderRadius: 12, padding: 10 },
+  chip: { paddingVertical: 10, paddingHorizontal: 14, borderRadius: BorderRadius.full, borderWidth: 1.5 },
+  scaleBtn: { flex: 1, alignItems: "center", paddingVertical: 10, borderRadius: BorderRadius.md, borderWidth: 1.5 },
+  input: { marginTop: 8, borderWidth: 1, borderRadius: BorderRadius.lg, padding: 14, fontSize: 15 },
 });

@@ -18,40 +18,63 @@ export function LBIOrb({
 }) {
   const t = useAppTheme();
   const spin = useRef(new Animated.Value(0)).current;
+  const pulse = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
-    const anim = Animated.loop(
-      Animated.timing(spin, {
-        toValue: 1,
-        duration: 25000,
-        useNativeDriver: true,
-      })
-    );
-    anim.start();
-    return () => anim.stop();
-  }, [spin]);
+    Animated.loop(
+      Animated.timing(spin, { toValue: 1, duration: 25000, useNativeDriver: true })
+    ).start();
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulse, { toValue: 1.04, duration: 2000, useNativeDriver: true }),
+        Animated.timing(pulse, { toValue: 1, duration: 2000, useNativeDriver: true }),
+      ])
+    ).start();
+  }, [spin, pulse]);
 
   const rotate = spin.interpolate({
     inputRange: [0, 1],
     outputRange: ["0deg", "360deg"],
   });
 
+  const score = Math.round(lbi);
+  const hasData = score > 0;
+
   return (
-    <Pressable onPress={onPress} onLongPress={onLongPress} style={({ pressed }) => [styles.wrap, pressed && { opacity: 0.9 }]}>
+    <Pressable
+      onPress={onPress}
+      onLongPress={onLongPress}
+      style={({ pressed }) => [styles.wrap, pressed && { opacity: 0.9 }]}
+    >
+      {/* Outer glow */}
+      <Animated.View
+        style={[
+          styles.glow,
+          {
+            backgroundColor: t.glowPrimary,
+            transform: [{ scale: pulse }],
+          },
+        ]}
+      />
+      {/* Rotating ring */}
       <Animated.View
         style={[
           styles.ring,
           {
             borderColor: t.glassBorder,
-            shadowColor: t.glowPrimary,
             transform: [{ rotate }],
           },
         ]}
       />
+      {/* Inner circle */}
       <View style={[styles.inner, { backgroundColor: t.glassBackground, borderColor: t.glassBorder }]}>
-        <Text style={{ color: t.textPrimary, fontSize: 40, fontWeight: "900" }}>{Math.round(lbi)}</Text>
-        <Text style={{ color: t.textMuted, marginTop: 4 }}>{interpretation}</Text>
-        <View style={{ marginTop: 10 }}>
+        <Text style={[styles.score, { color: t.textPrimary }]}>
+          {hasData ? score : "—"}
+        </Text>
+        <Text style={[styles.label, { color: t.textMuted }]}>
+          {hasData ? interpretation : "Tap to learn more"}
+        </Text>
+        <View style={{ marginTop: 8 }}>
           <ConfidenceBadge level={confidence} />
         </View>
       </View>
@@ -62,15 +85,25 @@ export function LBIOrb({
 const styles = StyleSheet.create({
   wrap: {
     alignSelf: "center",
-    marginTop: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    width: 200,
+    height: 200,
+  },
+  glow: {
+    position: "absolute",
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+    opacity: 0.5,
   },
   ring: {
     position: "absolute",
-    width: 180,
-    height: 180,
-    borderRadius: 90,
+    width: 190,
+    height: 190,
+    borderRadius: 95,
     borderWidth: 2,
-    opacity: 0.8,
+    opacity: 0.6,
   },
   inner: {
     width: 170,
@@ -79,5 +112,15 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
+  },
+  score: {
+    fontSize: 44,
+    fontWeight: "900",
+    letterSpacing: -1,
+  },
+  label: {
+    fontSize: 13,
+    marginTop: 2,
+    fontWeight: "600",
   },
 });
