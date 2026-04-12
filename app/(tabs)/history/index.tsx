@@ -5,6 +5,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Screen } from "@/components/Screen";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { Colors } from "@/constants/Colors";
+import { Spacing, BorderRadius } from "@/constants/Spacing";
 import { TAB_ORDER } from "@/constants/navigation";
 import { useColorScheme } from "react-native";
 import { loadPlan, type StoredPlan } from "@/lib/storage";
@@ -28,12 +29,17 @@ function lastNDates(n: number) {
 }
 
 function categoryLabel(cat: StoredPlan["category"]) {
-  return cat === "RECOVERY" ? "Recovery day" : "Normal day";
+  return cat === "RECOVERY" ? "Recovery" : "Normal";
+}
+
+function formatDate(iso: string) {
+  const d = new Date(iso + "T00:00:00");
+  return d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
 }
 
 export default function HistoryScreen() {
   const scheme = useColorScheme();
-  const C = scheme === "dark" ? Colors.dark : Colors.light;
+  const c = scheme === "dark" ? Colors.dark : Colors.light;
 
   const [rows, setRows] = useState<StoredPlan[]>([]);
   const [missingCount, setMissingCount] = useState<number>(0);
@@ -41,127 +47,123 @@ export default function HistoryScreen() {
   useFocusEffect(
     useCallback(() => {
       let alive = true;
-
       (async () => {
         const dates = lastNDates(7);
         const plans: StoredPlan[] = [];
         let missing = 0;
-
         for (const date of dates) {
           const p = await loadPlan(date);
           if (p) plans.push(p);
           else missing += 1;
         }
-
         if (!alive) return;
-
         plans.sort((a, b) => (a.date < b.date ? 1 : -1));
         setRows(plans);
         setMissingCount(missing);
       })();
-
-      return () => {
-        alive = false;
-      };
+      return () => { alive = false; };
     }, [])
   );
 
   return (
     <TabSwipe order={TAB_ORDER}>
       <Screen scroll>
-      <Text style={[styles.title, { color: C.text.primary }]}>History (7 days)</Text>
-      <Text style={[styles.subtitle, { color: C.text.secondary }]}>Saved daily outputs and triggers.</Text>
+        <Text style={[styles.title, { color: c.text.primary }]}>History</Text>
+        <Text style={[styles.subtitle, { color: c.text.secondary }]}>
+          Your last 7 days of plans and outcomes.
+        </Text>
 
-      {missingCount > 0 && (
-        <GlassCard style={styles.note}>
-          <Text style={[styles.noteText, { color: C.text.secondary }]}>
-            Missing days: {missingCount}. Open Home to generate plans.
-          </Text>
-        </GlassCard>
-      )}
+        {missingCount > 0 && (
+          <GlassCard style={{ marginTop: Spacing.sm }}>
+            <Text style={{ color: c.text.secondary, fontSize: 13 }}>
+              {missingCount} day{missingCount > 1 ? "s" : ""} without data. Complete check-ins to fill gaps.
+            </Text>
+          </GlassCard>
+        )}
 
-      {rows.length === 0 ? (
-        <GlassCard>
-          <Text style={[styles.empty, { color: C.text.secondary }]}>
-            No saved plans yet — open Home for a few days.
-          </Text>
-        </GlassCard>
-      ) : (
-        <View style={{ gap: 12 }}>
-          {rows.map((r) => (
-            <Pressable
-              key={r.date}
-              onPress={() =>
-                router.push({ pathname: "/day/[date]", params: { date: r.date } } as any)
-              }
-              accessibilityLabel={`Open day details for ${r.date}`}
-              accessibilityRole="button"
-              style={({ pressed }) => [pressed && { opacity: 0.9 }]}
-            >
-              <GlassCard>
-                <Text style={[styles.date, { color: C.text.secondary }]}>{r.date}</Text>
+        {rows.length === 0 ? (
+          <GlassCard style={{ marginTop: Spacing.md }}>
+            <Text style={{ color: c.text.secondary, fontSize: 14 }}>
+              No saved plans yet. Complete a check-in to get started.
+            </Text>
+          </GlassCard>
+        ) : (
+          <View style={{ gap: Spacing.sm, marginTop: Spacing.md }}>
+            {rows.map((r) => {
+              const adherence = r.actions.length
+                ? Math.round(((r.completedActions ?? []).filter(Boolean).length / r.actions.length) * 100)
+                : 0;
 
-                <View style={styles.rowLine}>
-                  <Text style={[styles.metric, { color: C.text.primary }]}>LBI</Text>
-                  <Text style={[styles.metricValue, { color: C.text.primary }]}>{r.lbi}</Text>
-                </View>
+              return (
+                <Pressable
+                  key={r.date}
+                  onPress={() => router.push({ pathname: "/day/[date]", params: { date: r.date } } as any)}
+                  accessibilityLabel={`View ${r.date}`}
+                  accessibilityRole="button"
+                  style={({ pressed }) => [pressed && { opacity: 0.9 }]}
+                >
+                  <GlassCard>
+                    <View style={styles.cardHeader}>
+                      <Text style={{ color: c.text.primary, fontWeight: "700", fontSize: 15 }}>
+                        {formatDate(r.date)}
+                      </Text>
+                      <View style={[styles.categoryBadge, { backgroundColor: c.glass.secondary, borderColor: c.border.light }]}>
+                        <Text style={{ color: c.text.primary, fontSize: 12, fontWeight: "700" }}>
+                          {categoryLabel(r.category)}
+                        </Text>
+                      </View>
+                    </View>
 
-                <View style={styles.rowLine}>
-                  <Text style={[styles.metric, { color: C.text.secondary }]}>Baseline</Text>
-                  <Text style={[styles.metricValue, { color: C.text.secondary }]}>
-                    {r.baseline !== null ? r.baseline : "—"}
-                  </Text>
-                </View>
+                    <View style={styles.metricsRow}>
+                      <MetricBlock label="LBI" value={String(r.lbi)} c={c} />
+                      <MetricBlock label="Baseline" value={r.baseline !== null ? String(r.baseline) : "—"} c={c} />
+                      <MetricBlock label="Adherence" value={`${adherence}%`} c={c} />
+                    </View>
 
-                <View style={styles.badgeRow}>
-                  <View
-                    style={[
-                      styles.badge,
-                      { borderColor: C.border.medium, backgroundColor: C.glass.primary },
-                    ]}
-                  >
-                    <Text style={[styles.badgeText, { color: C.text.primary }]}>
-                      {categoryLabel(r.category)}
-                    </Text>
-                  </View>
-                </View>
-
-                <Text style={[styles.triggers, { color: C.text.secondary }]}>
-                  Adherence: {r.actions.length ? Math.round((((r.completedActions ?? []).filter(Boolean).length / r.actions.length) * 100)) : 0}%
-                </Text>
-
-                {r.triggers.length > 0 && (
-                  <Text style={[styles.triggers, { color: C.text.secondary }]} numberOfLines={3}>
-                    Triggers: {r.triggers.join(" • ")}
-                  </Text>
-                )}
-              </GlassCard>
-            </Pressable>
-          ))}
-        </View>
-      )}
-    </Screen>
+                    {r.triggers.length > 0 && (
+                      <Text style={{ color: c.text.secondary, fontSize: 12, marginTop: 8 }} numberOfLines={2}>
+                        {r.triggers.join(" · ")}
+                      </Text>
+                    )}
+                  </GlassCard>
+                </Pressable>
+              );
+            })}
+          </View>
+        )}
+      </Screen>
     </TabSwipe>
   );
 }
 
+function MetricBlock({ label, value, c }: { label: string; value: string; c: typeof Colors.light }) {
+  return (
+    <View style={{ flex: 1, alignItems: "center" }}>
+      <Text style={{ color: c.text.secondary, fontSize: 11, fontWeight: "600" }}>{label}</Text>
+      <Text style={{ color: c.text.primary, fontSize: 20, fontWeight: "800", marginTop: 2 }}>{value}</Text>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
-  title: { fontSize: 28, fontWeight: "800", marginTop: 4 },
-  subtitle: { marginTop: 6, marginBottom: 16, fontSize: 14 },
-
-  note: { marginBottom: 12 },
-  noteText: { fontSize: 13 },
-
-  empty: { fontSize: 14 },
-
-  date: { fontSize: 12, marginBottom: 10 },
-  rowLine: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 6 },
-  metric: { fontSize: 13, fontWeight: "700" },
-  metricValue: { fontSize: 13, fontWeight: "800" },
-
-  badgeRow: { marginTop: 6, marginBottom: 6, flexDirection: "row" },
-  badge: { paddingVertical: 8, paddingHorizontal: 12, borderRadius: 999, borderWidth: 1 },
-  badgeText: { fontSize: 12, fontWeight: "800" },
-
-  triggers: { marginTop: 4, fontSize: 12, lineHeight: 16 },
+  title: { fontSize: 28, fontWeight: "900", letterSpacing: -0.3 },
+  subtitle: { marginTop: 4, fontSize: 14, marginBottom: 4 },
+  cardHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: Spacing.sm,
+  },
+  categoryBadge: {
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    borderRadius: BorderRadius.full,
+    borderWidth: 1,
+  },
+  metricsRow: {
+    flexDirection: "row",
+    paddingVertical: Spacing.sm,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderColor: "rgba(128,128,128,0.15)",
+  },
 });

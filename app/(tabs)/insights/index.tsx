@@ -1,11 +1,13 @@
 import { router } from "expo-router";
 import React from "react";
-import { ScrollView, Text, View, Dimensions } from "react-native";
+import { Pressable, ScrollView, Text, View, Dimensions } from "react-native";
 
 import { Screen } from "@/components/Screen";
-import { Button } from "@/components/ui/button";
 import { GlassCard } from "@/components/ui/GlassCard";
+import { GlassButton } from "@/components/ui/GlassButton";
+import { IconSymbol } from "@/components/ui/icon-symbol";
 import { Colors } from "@/constants/Colors";
+import { Spacing } from "@/constants/Spacing";
 import { TAB_ORDER } from "@/constants/navigation";
 import { useColorScheme } from "react-native";
 import { todayISO } from "@/lib/util/todayISO";
@@ -13,113 +15,125 @@ import { TabSwipe } from "@/components/TabSwipe";
 
 const WIDTH = Dimensions.get("window").width;
 
-type Slide = {
+type Section = {
   title: string;
   desc: string;
-  cta: string;
   route: string;
-  variant?: "primary" | "secondary";
+  icon: string;
 };
 
-const slides: Slide[] = [
-  { title: "Why this score", desc: "Top drivers and uncertainty for today.", cta: "Open explain", route: "/insights/explain", variant: "primary" },
-  { title: "Trends", desc: "Trajectory vs baseline over time.", cta: "View trends", route: "/insights/trends" },
-  { title: "Correlations", desc: "Exploratory relationships with safeguards.", cta: "Explore correlations", route: "/insights/correlations" },
-  { title: "Patterns", desc: "Transparent 30-day comparisons.", cta: "Open patterns", route: "/insights/patterns" },
-  { title: "Consistency", desc: "Routine stability and tracking regularity.", cta: "Open consistency", route: "/insights/consistency" },
-  { title: "Integration", desc: "Which signals were used and confidence.", cta: "Open integration", route: "/insights/integration" },
-  { title: "Baselines", desc: "Median + IQR personal ranges.", cta: "View baselines", route: "/insights/baseline" },
-  { title: "Model performance", desc: "Validation + calibration summary.", cta: "Open performance", route: "/insights/performance" },
-  { title: "Risk outlook", desc: "Tomorrow risk from your personal model.", cta: "Open risk outlook", route: "/insights/risk" },
-  { title: "Weekly reflection", desc: "Identity, regulation, affect patterns.", cta: "Open weekly", route: "/insights/weekly" },
-  { title: "Adherence & LBI (H3)", desc: "Does completing actions associate with a better next-day score?", cta: "Open adherence", route: "/insights/adherence" },
+const FEATURED: Section[] = [
+  { title: "Why this score", desc: "Top drivers and uncertainty", route: "/insights/explain", icon: "lightbulb.fill" },
+  { title: "Trends", desc: "Trajectory vs baseline", route: "/insights/trends", icon: "chart.line.uptrend.xyaxis" },
+  { title: "Correlations", desc: "Exploratory relationships", route: "/insights/correlations", icon: "arrow.triangle.branch" },
+];
+
+const MORE: Section[] = [
+  { title: "Patterns", desc: "30-day comparisons", route: "/insights/patterns", icon: "square.grid.2x2" },
+  { title: "Consistency", desc: "Routine stability", route: "/insights/consistency", icon: "checkmark.circle" },
+  { title: "Integration", desc: "Signal weights & confidence", route: "/insights/integration", icon: "slider.horizontal.3" },
+  { title: "Baselines", desc: "Personal median + IQR", route: "/insights/baseline", icon: "chart.bar" },
+  { title: "Model performance", desc: "Validation & calibration", route: "/insights/performance", icon: "cpu" },
+  { title: "Risk outlook", desc: "Next-day personal model", route: "/insights/risk", icon: "exclamationmark.triangle" },
+  { title: "Weekly reflection", desc: "Identity & affect patterns", route: "/insights/weekly", icon: "text.book.closed" },
+  { title: "Adherence & LBI", desc: "Plan completion vs score", route: "/insights/adherence", icon: "checklist" },
 ];
 
 export default function InsightsHome() {
   const scheme = useColorScheme();
-  const c = Colors[scheme ?? "light"] as any;
+  const c = Colors[scheme ?? "light"];
   const today = todayISO();
 
   return (
     <TabSwipe order={TAB_ORDER}>
       <Screen scroll>
-        <Text style={{ fontSize: 26, fontWeight: "800", color: c.text.primary }}>Insights</Text>
-        <Text style={{ marginTop: 6, color: c.text.secondary }}>Swipe between focus areas. Correlation ≠ causation.</Text>
+        <Text style={{ fontSize: 28, fontWeight: "900", color: c.text.primary, letterSpacing: -0.3 }}>
+          Insights
+        </Text>
+        <Text style={{ marginTop: 4, color: c.text.secondary, fontSize: 14 }}>
+          Explore your data. Correlation ≠ causation.
+        </Text>
 
-        <View style={{ flexDirection: "row", gap: 12, marginTop: 12, flexWrap: "wrap" }}>
-          <GlassCard style={{ flexBasis: "48%", flexGrow: 1, padding: 12 }}>
-            <Text style={{ color: c.text.primary, fontWeight: "800" }}>Baselines</Text>
-            <Text style={{ color: c.text.secondary, marginTop: 4 }}>Median/IQR + coverage</Text>
-            <View style={{ marginTop: 8 }}>
-              <Button title="Open" variant="secondary" onPress={() => router.push("/insights/baseline" as any)} />
-            </View>
-          </GlassCard>
-          <GlassCard style={{ flexBasis: "48%", flexGrow: 1, padding: 12 }}>
-            <Text style={{ color: c.text.primary, fontWeight: "800" }}>Model performance</Text>
-            <Text style={{ color: c.text.secondary, marginTop: 4 }}>Validation & calibration</Text>
-            <View style={{ marginTop: 8 }}>
-              <Button title="Open" variant="secondary" onPress={() => router.push("/insights/performance" as any)} />
-            </View>
-          </GlassCard>
-          <GlassCard style={{ flexBasis: "48%", flexGrow: 1, padding: 12 }}>
-            <Text style={{ color: c.text.primary, fontWeight: "800" }}>Risk outlook</Text>
-            <Text style={{ color: c.text.secondary, marginTop: 4 }}>Personal next-day model</Text>
-            <View style={{ marginTop: 8 }}>
-              <Button title="Open" variant="secondary" onPress={() => router.push("/insights/risk" as any)} />
-            </View>
-          </GlassCard>
-        </View>
-
-        <ScrollView
-          horizontal
-          pagingEnabled
-          showsHorizontalScrollIndicator={false}
-          style={{ marginTop: 14 }}
-        >
-          {slides.map((s, idx) => (
-            <View key={s.title} style={{ width: WIDTH - 36, marginRight: idx === slides.length - 1 ? 0 : 12 }}>
-              <GlassCard>
-                <Text style={{ fontSize: 18, fontWeight: "800", color: c.text.primary }}>{s.title}</Text>
-                <Text style={{ marginTop: 8, color: c.text.secondary }}>{s.desc}</Text>
-                <View style={{ marginTop: 12 }}>
-                  <Button
-                    title={s.cta}
-                    variant={s.variant ?? "secondary"}
-                    onPress={() => router.push({ pathname: s.route, params: { date: today } } as any)}
-                  />
+        {/* Featured cards */}
+        <View style={{ gap: Spacing.sm, marginTop: Spacing.base }}>
+          {FEATURED.map((s) => (
+            <Pressable
+              key={s.route}
+              onPress={() => router.push({ pathname: s.route, params: { date: today } } as any)}
+              style={({ pressed }) => [pressed && { opacity: 0.85 }]}
+            >
+              <GlassCard padding="base">
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 14 }}>
+                  <View style={{
+                    width: 42, height: 42, borderRadius: 14,
+                    backgroundColor: c.glass.secondary, alignItems: "center", justifyContent: "center",
+                  }}>
+                    <IconSymbol name={s.icon as any} size={20} color={c.accent.primary} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ color: c.text.primary, fontWeight: "800", fontSize: 16 }}>{s.title}</Text>
+                    <Text style={{ color: c.text.secondary, fontSize: 13, marginTop: 2 }}>{s.desc}</Text>
+                  </View>
+                  <IconSymbol name="chevron.right" size={14} color={c.text.tertiary} />
                 </View>
               </GlassCard>
-            </View>
+            </Pressable>
+          ))}
+        </View>
+
+        {/* Horizontal carousel */}
+        <Text style={{ fontSize: 17, fontWeight: "800", color: c.text.primary, marginTop: Spacing.lg }}>
+          More insights
+        </Text>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={{ marginTop: Spacing.sm, marginHorizontal: -Spacing.base }}
+          contentContainerStyle={{ paddingHorizontal: Spacing.base, gap: Spacing.sm }}
+        >
+          {MORE.map((s) => (
+            <Pressable
+              key={s.route}
+              onPress={() => router.push({ pathname: s.route, params: { date: today } } as any)}
+              style={({ pressed }) => [pressed && { opacity: 0.85 }]}
+            >
+              <GlassCard style={{ width: WIDTH * 0.42, minHeight: 120 }} padding="base">
+                <View style={{
+                  width: 34, height: 34, borderRadius: 10,
+                  backgroundColor: c.glass.secondary, alignItems: "center", justifyContent: "center",
+                  marginBottom: 10,
+                }}>
+                  <IconSymbol name={s.icon as any} size={16} color={c.accent.primary} />
+                </View>
+                <Text style={{ color: c.text.primary, fontWeight: "700", fontSize: 14 }}>{s.title}</Text>
+                <Text style={{ color: c.text.secondary, fontSize: 12, marginTop: 4 }}>{s.desc}</Text>
+              </GlassCard>
+            </Pressable>
           ))}
         </ScrollView>
 
-        <View style={{ marginTop: 16, gap: 12 }}>
-          <GlassCard>
-            <Text style={{ fontSize: 16, fontWeight: "800", color: c.text.primary }}>
-              Analytics
-            </Text>
-            <Text style={{ marginTop: 6, color: c.text.secondary }}>
-              Report-friendly stats for pilot evaluation.
-            </Text>
+        {/* Analytics */}
+        <GlassCard style={{ marginTop: Spacing.lg }}>
+          <Text style={{ fontSize: 17, fontWeight: "800", color: c.text.primary }}>Analytics</Text>
+          <Text style={{ marginTop: 4, color: c.text.secondary, fontSize: 13 }}>
+            Report-friendly stats for pilot evaluation.
+          </Text>
+          <View style={{ marginTop: Spacing.sm }}>
+            <GlassButton
+              title="View analytics"
+              variant="secondary"
+              onPress={() => router.push("/insights/analytics" as any)}
+            />
+          </View>
+        </GlassCard>
 
-            <View style={{ marginTop: 12 }}>
-              <Button
-                title="View analytics"
-                variant="secondary"
-                onPress={() => router.push("/insights/analytics" as any)}
-                accessibilityLabel="View analytics"
-              />
-            </View>
-          </GlassCard>
-          <GlassCard padding="base">
-            <Text style={{ fontSize: 14, fontWeight: "800", color: c.text.primary }}>
-              Transparency
-            </Text>
-            <Text style={{ marginTop: 6, color: c.text.secondary }}>
-              Patterns are observational. Confidence reflects missing signals. No diagnoses are made.
-            </Text>
-          </GlassCard>
-        </View>
+        {/* Transparency */}
+        <GlassCard style={{ marginTop: Spacing.sm }}>
+          <Text style={{ fontSize: 14, fontWeight: "700", color: c.text.primary }}>Transparency</Text>
+          <Text style={{ marginTop: 4, color: c.text.secondary, fontSize: 13, lineHeight: 18 }}>
+            Patterns are observational. Confidence reflects missing signals. No diagnoses are made.
+          </Text>
+        </GlassCard>
       </Screen>
     </TabSwipe>
   );

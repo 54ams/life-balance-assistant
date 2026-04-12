@@ -7,17 +7,21 @@ import { Screen } from "@/components/Screen";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { useColorScheme } from "react-native";
 import { Colors } from "@/constants/Colors";
-import { Typography } from "@/constants/Typography";
-import { Spacing } from "@/constants/Spacing";
+import { Spacing, BorderRadius } from "@/constants/Spacing";
 import { listDailyRecords, listFutureEventsByDate, listUpcomingEvents } from "@/lib/storage";
 import type { ISODate } from "@/lib/types";
 import { todayISO } from "@/lib/util/todayISO";
 
 type Marked = Record<string, any>;
 
+function formatSelected(iso: string) {
+  const d = new Date(iso + "T00:00:00");
+  return d.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" });
+}
+
 export default function CalendarScreen() {
   const scheme = useColorScheme();
-  const t = scheme === "dark" ? Colors.dark : Colors.light;
+  const c = scheme === "dark" ? Colors.dark : Colors.light;
   const [selected, setSelected] = useState<ISODate>(todayISO());
   const [dataDates, setDataDates] = useState<ISODate[]>([]);
   const [eventsForDay, setEventsForDay] = useState<any[]>([]);
@@ -40,14 +44,14 @@ export default function CalendarScreen() {
   const marked: Marked = useMemo(() => {
     const m: Marked = {};
     dataDates.forEach((d) => {
-      m[d] = { ...(m[d] || {}), marked: true, dotColor: t.accent.primary };
+      m[d] = { ...(m[d] || {}), marked: true, dotColor: c.accent.primary };
     });
     upcoming.forEach((e) => {
-      m[e.dateISO] = { ...(m[e.dateISO] || {}), selectedColor: t.accent.primaryLight, selected: true };
+      m[e.dateISO] = { ...(m[e.dateISO] || {}), selectedColor: c.accent.primaryLight, selected: true };
     });
-    m[selected] = { ...(m[selected] || {}), selected: true, selectedColor: t.accent.primary };
+    m[selected] = { ...(m[selected] || {}), selected: true, selectedColor: c.accent.primary };
     return m;
-  }, [dataDates, upcoming, selected, t]);
+  }, [dataDates, upcoming, selected, c]);
 
   const onDayPress = (d: DateData) => {
     const iso = d.dateString as ISODate;
@@ -58,38 +62,49 @@ export default function CalendarScreen() {
   };
 
   return (
-    <Screen scroll title="Calendar" subtitle="Review past days, plan future context">
-      <GlassCard padding="base" style={{ borderRadius: 20 }}>
+    <Screen scroll>
+      <Text style={[styles.title, { color: c.text.primary }]}>Calendar</Text>
+      <Text style={[styles.subtitle, { color: c.text.secondary }]}>Review past days and plan ahead.</Text>
+
+      <GlassCard padding="base" style={{ marginTop: Spacing.md, borderRadius: BorderRadius.xxl }}>
         <Calendar
           onDayPress={onDayPress}
           markedDates={marked}
           theme={{
             backgroundColor: "transparent",
             calendarBackground: "transparent",
-            monthTextColor: t.text.primary,
-            textSectionTitleColor: t.text.secondary,
-            dayTextColor: t.text.primary,
-            todayTextColor: t.accent.primaryLight,
-            selectedDayBackgroundColor: t.accent.primary,
-            selectedDayTextColor: t.text.inverse,
+            monthTextColor: c.text.primary,
+            textSectionTitleColor: c.text.secondary,
+            dayTextColor: c.text.primary,
+            todayTextColor: c.accent.primaryLight,
+            selectedDayBackgroundColor: c.accent.primary,
+            selectedDayTextColor: c.text.inverse,
+            textDisabledColor: c.text.tertiary,
+            arrowColor: c.accent.primary,
           }}
         />
       </GlassCard>
 
-      <View style={{ height: Spacing.sm }} />
-
-      <GlassCard>
-        <Text style={{ color: t.text.primary, fontWeight: Typography.fontWeight.bold, fontSize: Typography.fontSize.lg }}>Selected day</Text>
-        <Text style={{ color: t.text.secondary, marginTop: Spacing.xs }}>{selected}</Text>
+      <GlassCard style={{ marginTop: Spacing.md }}>
+        <Text style={{ color: c.text.primary, fontWeight: "800", fontSize: 17 }}>
+          {formatSelected(selected)}
+        </Text>
 
         <View style={{ marginTop: Spacing.sm, gap: Spacing.sm }}>
           {eventsForDay.length === 0 ? (
-            <Text style={{ color: t.text.secondary }}>No future events tagged.</Text>
+            <Text style={{ color: c.text.secondary, fontSize: 14 }}>
+              {selected === todayISO() ? "Tap a day to view details." : "No events for this day."}
+            </Text>
           ) : (
             eventsForDay.map((e) => (
-              <View key={e.id} style={styles.eventRow}>
-                <Text style={{ color: t.text.primary, fontWeight: Typography.fontWeight.bold }}>{e.title}</Text>
-                <Text style={{ color: t.text.secondary }}>{e.impactLevel} impact</Text>
+              <View key={e.id} style={[styles.eventRow, { borderColor: c.border.light }]}>
+                <View style={[styles.impactDot, {
+                  backgroundColor: e.impactLevel === "high" ? c.danger : e.impactLevel === "medium" ? c.warning : c.success,
+                }]} />
+                <View style={{ flex: 1 }}>
+                  <Text style={{ color: c.text.primary, fontWeight: "700", fontSize: 14 }}>{e.title}</Text>
+                  <Text style={{ color: c.text.secondary, fontSize: 12 }}>{e.impactLevel} impact</Text>
+                </View>
               </View>
             ))
           )}
@@ -100,9 +115,18 @@ export default function CalendarScreen() {
 }
 
 const styles = StyleSheet.create({
+  title: { fontSize: 28, fontWeight: "900", letterSpacing: -0.3 },
+  subtitle: { marginTop: 4, fontSize: 14, marginBottom: 4 },
   eventRow: {
-    paddingVertical: 6,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingVertical: 8,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderColor: "rgba(255,255,255,0.08)",
+  },
+  impactDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
   },
 });
