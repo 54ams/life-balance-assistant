@@ -15,6 +15,8 @@ import { defaultValuesSet } from "./emotion";
 const KEY = "life_balance_daily_records_v1";
 const PLAN_KEY_PREFIX = "life_balance_plan_v1:";
 const VALUES_KEY = "life_balance_values_v1";
+const CONTEXT_KEY = "life_balance_context_v1";
+const USER_NAME_KEY = "life_balance_user_name_v1";
 
 type Store = Record<string, DailyRecord>;
 const FUTURE_KEY = "life_balance_future_events_v1";
@@ -530,4 +532,27 @@ export async function saveActiveValues(values: string[]): Promise<void> {
   const unique = Array.from(new Set(values)).slice(0, 6);
   if (unique.length < 3) throw new Error("Select at least 3 values.");
   await AsyncStorage.setItem(VALUES_KEY, JSON.stringify(unique));
+}
+
+export async function getLifeContexts(): Promise<string[]> {
+  const raw = await AsyncStorage.getItem(CONTEXT_KEY);
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+export async function saveLifeContexts(contexts: string[]): Promise<void> {
+  await AsyncStorage.setItem(CONTEXT_KEY, JSON.stringify(contexts));
+}
+
+export async function getUserName(): Promise<string> {
+  return (await AsyncStorage.getItem(USER_NAME_KEY)) ?? "";
+}
+
+export async function saveUserName(name: string): Promise<void> {
+  await AsyncStorage.setItem(USER_NAME_KEY, name.trim());
 }

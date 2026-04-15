@@ -2,7 +2,7 @@ import { computeBaseline } from "./baseline";
 import { calculateLBI, type LbiOutput } from "./lbi";
 import { trainIfReady } from "./ml/models";
 import { generatePlan, type GeneratedPlan } from "./plan";
-import { getDay, loadPlan, savePlan, upsertLBI } from "./storage";
+import { getActiveValues, getDay, getLifeContexts, loadPlan, savePlan, upsertLBI } from "./storage";
 import type { ISODate } from "./types";
 
 export type DerivedRefreshResult = {
@@ -32,6 +32,8 @@ export async function refreshDerivedForDate(date: ISODate): Promise<DerivedRefre
   });
 
   const baseline = await computeBaseline(7);
+  const values = await getActiveValues();
+  const lifeContexts = await getLifeContexts();
   const generated = generatePlan({
     lbi: lbi.lbi,
     baseline,
@@ -39,6 +41,8 @@ export async function refreshDerivedForDate(date: ISODate): Promise<DerivedRefre
     confidence: lbi.confidence,
     wearable: day.wearable,
     checkIn: day.checkIn ?? null,
+    values,
+    lifeContexts,
   });
 
   const existing = await loadPlan(date);

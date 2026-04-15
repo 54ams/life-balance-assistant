@@ -25,7 +25,7 @@ export default function TabLayout() {
         options={{
           title: "Home",
           tabBarIcon: ({ color }) => (
-            <IconSymbol size={26} name="house.fill" color={color} />
+            <IconSymbol size={24} name="house.fill" color={color} />
           ),
         }}
       />
@@ -35,7 +35,7 @@ export default function TabLayout() {
         options={{
           title: "Check-in",
           tabBarIcon: ({ color }) => (
-            <IconSymbol size={26} name="paperplane.fill" color={color} />
+            <IconSymbol size={24} name="pencil.circle.fill" color={color} />
           ),
         }}
       />
@@ -44,9 +44,8 @@ export default function TabLayout() {
         name="insights"
         options={{
           title: "Insights",
-          href: hasConsent ? undefined : null,
           tabBarIcon: ({ color }) => (
-            <IconSymbol size={26} name="sparkles" color={color} />
+            <IconSymbol size={24} name="sparkles" color={color} />
           ),
         }}
       />
@@ -56,19 +55,19 @@ export default function TabLayout() {
         options={{
           title: "Calendar",
           tabBarIcon: ({ color }) => (
-            <IconSymbol size={26} name="calendar" color={color} />
+            <IconSymbol size={24} name="calendar" color={color} />
           ),
         }}
       />
 
+      {/* Profile is accessed from home screen avatar, not the tab bar */}
       <Tabs.Screen
         name="profile"
-        options={{
-          title: "Profile",
-          tabBarIcon: ({ color }) => (
-            <IconSymbol size={26} name="person.fill" color={color} />
-          ),
-        }}
+        options={{ href: null }}
+      />
+      <Tabs.Screen
+        name="history"
+        options={{ href: null }}
       />
     </Tabs>
   );

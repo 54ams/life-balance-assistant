@@ -10,7 +10,7 @@ import { Colors } from "@/constants/Colors";
 import { Spacing, BorderRadius } from "@/constants/Spacing";
 import { Typography } from "@/constants/Typography";
 import { saveAppConsent, type AppConsent } from "@/lib/privacy";
-import { saveActiveValues } from "@/lib/storage";
+import { saveActiveValues, saveLifeContexts, saveUserName } from "@/lib/storage";
 import { defaultValuesSet } from "@/lib/emotion";
 
 const VERSION = "2026-03-12";
@@ -88,6 +88,8 @@ export default function OnboardingScreen() {
       return;
     }
     await saveActiveValues(selectedValues);
+    await saveLifeContexts(selectedContexts);
+    if (name.trim()) await saveUserName(name);
     await saveAppConsent({
       consentedAt: new Date().toISOString(),
       privacyVersion: VERSION,

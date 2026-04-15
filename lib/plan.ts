@@ -18,9 +18,63 @@ function stressCount(checkIn: DailyCheckIn | null) {
     return Object.values(checkIn.stressIndicators).filter(Boolean).length;
   }
   if (typeof checkIn.stressLevel === "number") {
-    return checkIn.stressLevel - 1; // map 1..5 to 0..4
+    return checkIn.stressLevel - 1;
   }
   return 0;
+}
+
+/** Map a user value to a concrete, actionable suggestion */
+function valueAction(value: string, category: PlanCategory): { action: string; reason: string } | null {
+  const v = value.toLowerCase();
+  if (category === "RECOVERY") {
+    if (v === "connection") return { action: "Reach out to one person you care about — a short message counts", reason: "Connection supports recovery without adding physical load." };
+    if (v === "peace") return { action: "Take 10 minutes of quiet time — no screens, just breathing", reason: "Stillness aligns with your value of peace and supports recovery." };
+    if (v === "gratitude") return { action: "Write down one thing you're grateful for today", reason: "Gratitude reflection can shift perspective on difficult recovery days." };
+    if (v === "health") return { action: "Prepare one nourishing meal mindfully today", reason: "Intentional nutrition connects your health value to recovery." };
+    if (v === "growth") return { action: "Read or listen to something inspiring for 15 minutes", reason: "Low-effort learning honours your growth value without draining energy." };
+    if (v === "creativity") return { action: "Sketch, doodle, or write freely for 10 minutes", reason: "Creative expression can be restorative on recovery days." };
+    if (v === "kindness") return { action: "Do one small act of kindness — for yourself or someone else", reason: "Kindness actions support emotional recovery." };
+    if (v === "courage") return { action: "Acknowledge one thing that was hard today — that takes courage", reason: "Self-honesty on tough days aligns with your courage value." };
+    if (v === "resilience") return { action: "Remind yourself: rest is part of resilience, not a break from it", reason: "Recovery days build the resilience you value." };
+    if (v === "discipline") return { action: "Stick to your sleep routine tonight — discipline includes rest", reason: "Disciplined recovery is just as valuable as disciplined work." };
+    if (v === "purpose") return { action: "Reflect for 5 minutes on what gives your days meaning", reason: "Purpose reflection grounds recovery days." };
+    if (v === "joy") return { action: "Do one thing purely for enjoyment today — no productivity required", reason: "Joy is part of recovery and aligns with what you value." };
+  } else {
+    if (v === "connection") return { action: "Have a real conversation with someone today — not just messages", reason: "Meaningful connection reinforces your value when energy allows it." };
+    if (v === "peace") return { action: "Build in a 10-minute buffer between tasks — protect your calm", reason: "Transitions support the inner peace you value." };
+    if (v === "gratitude") return { action: "Share one specific thank you with someone today", reason: "Expressing gratitude strengthens relationships and your own wellbeing." };
+    if (v === "health") return { action: "Move your body in a way that feels good for 20+ minutes", reason: "Active health choices match your energy today." };
+    if (v === "growth") return { action: "Learn one new thing or push slightly outside your comfort zone", reason: "Normal-energy days are ideal for growth-oriented challenges." };
+    if (v === "creativity") return { action: "Make time for a creative project or try a new approach to something", reason: "Stable energy supports creative exploration." };
+    if (v === "kindness") return { action: "Go out of your way for someone today — even something small", reason: "Kindness thrives when you have energy to give." };
+    if (v === "courage") return { action: "Do one thing today that slightly scares you", reason: "Courage grows through small, regular acts." };
+    if (v === "resilience") return { action: "If something goes wrong today, practise responding calmly", reason: "Resilience is built in ordinary moments, not just crises." };
+    if (v === "discipline") return { action: "Complete your most important task before checking your phone", reason: "Discipline in small moments compounds over time." };
+    if (v === "purpose") return { action: "Align your biggest task today with your longer-term goals", reason: "Purpose-driven work is more sustainable and fulfilling." };
+    if (v === "joy") return { action: "Schedule something fun today — you've earned it", reason: "Joy isn't a reward; it's fuel." };
+  }
+  return null;
+}
+
+/** Map life contexts to relevant plan tweaks */
+function contextTweak(contexts: string[], category: PlanCategory): { action: string; reason: string } | null {
+  if (contexts.includes("Student")) {
+    return category === "RECOVERY"
+      ? { action: "Review notes lightly instead of heavy study — protect your brain", reason: "Students benefit from spaced, low-load revision on recovery days." }
+      : { action: "Use a 25/5 study timer for focused blocks today", reason: "Structured study sessions suit your student routine." };
+  }
+  if (contexts.includes("Shift worker")) {
+    return { action: "Prioritise consistent meal times even if your shift pattern varies", reason: "Shift workers benefit from anchoring routines around meals." };
+  }
+  if (contexts.includes("Carer / parent")) {
+    return { action: "Carve out 15 minutes that are just for you today", reason: "Carers need micro-recovery to sustain the care they give." };
+  }
+  if (contexts.includes("Athlete")) {
+    return category === "RECOVERY"
+      ? { action: "Active recovery only — mobility work, no intensity", reason: "Your body needs adaptation time, not more load." }
+      : { action: "Train with intent today — quality over volume", reason: "Stable recovery supports purposeful training." };
+  }
+  return null;
 }
 
 export function generatePlan(input: {
@@ -30,97 +84,99 @@ export function generatePlan(input: {
   confidence: "high" | "medium" | "low";
   wearable: WearableMetrics;
   checkIn: DailyCheckIn | null;
+  values?: string[];
+  lifeContexts?: string[];
 }): GeneratedPlan {
-
-const { lbi, baseline, classification, wearable, checkIn, confidence } = input;
+  const { lbi, baseline, classification, wearable, checkIn, confidence, values, lifeContexts } = input;
 
   const sc = stressCount(checkIn);
   const lowSleep = wearable.sleepHours < 6.5;
   const lowRecovery = wearable.recovery < 45;
   const highStrain = (wearable.strain ?? 0) >= 15;
   const deltaFromBaseline = baseline == null ? null : lbi - baseline;
-const belowBaseline = deltaFromBaseline != null && deltaFromBaseline <= -10;
-const aboveBaseline = deltaFromBaseline != null && deltaFromBaseline >= 10;
+  const belowBaseline = deltaFromBaseline != null && deltaFromBaseline <= -10;
+  const aboveBaseline = deltaFromBaseline != null && deltaFromBaseline >= 10;
 
+  const category: PlanCategory =
+    classification === "under-recovered" || lbi <= 45 || belowBaseline ? "RECOVERY" : "NORMAL";
 
-  // Base: deterministic categories
- const category: PlanCategory =
-  classification === "under-recovered" || lbi <= 45 || belowBaseline ? "RECOVERY" : "NORMAL";
-
-  // Focus line (one sentence)
   const focus =
     category === "RECOVERY"
-      ? "Reduce load and prioritise recovery to stabilise energy and mood."
-      : "Maintain momentum with structured work blocks and movement.";
+      ? "Take it easy today — your body and mind need some recovery time."
+      : "You're in a good place. Make the most of today with structured focus and movement.";
 
-  // Actions: tight list, practical
   const actions: string[] = [];
   const actionReasons: string[] = [];
   const triggers: string[] = [];
   const why: string[] = [];
 
   if (category === "RECOVERY") {
-    actions.push("10–20 min easy walk (zone 1/2) + sunlight early");
-    actionReasons.push("Low recovery or below-baseline balance suggests reducing physiological load while keeping gentle movement.");
-    actions.push("Protein-forward meals + 2L water (aim steady, not perfect)");
-    actionReasons.push("Recovery-support behaviours help when sleep, strain, or stress signals are unfavourable.");
-    actions.push("One recovery block: stretch/foam roll 10 min OR hot shower wind-down");
-    actionReasons.push("A short wind-down targets under-recovery without adding cognitive load.");
-    actions.push("Cap caffeine by 2pm; no late stimulants");
-    actionReasons.push("Late stimulants can worsen next-day recovery when sleep is already at risk.");
-    actions.push("Early night: target +45–90 min vs usual bedtime");
-    actionReasons.push("Sleep extension is the clearest lever when sleep contribution is low.");
+    actions.push("Go for a gentle 10–20 minute walk, ideally in the morning");
+    actionReasons.push("Light movement helps recovery without adding strain.");
+    actions.push("Focus on eating well and staying hydrated today");
+    actionReasons.push("Good nutrition supports your body when it's recovering.");
+    actions.push("Try to get to bed 45–90 minutes earlier than usual");
+    actionReasons.push("Extra sleep is the single best thing for recovery.");
 
-    if (lowSleep) why.push("Sleep hours are low.");
-    if (lowRecovery) why.push("Recovery is low.");
-    if (highStrain) why.push("Strain is high relative to recovery.");
-    if (sc >= 3) why.push("Multiple stress indicators were selected.");
-    if (belowBaseline) why.push(`LBI is below your baseline by ${Math.abs(deltaFromBaseline!)}.`);
-
+    if (lowSleep) why.push("Your sleep was shorter than ideal.");
+    if (lowRecovery) why.push("Your recovery score is low.");
+    if (highStrain) why.push("Yesterday's strain was high.");
+    if (sc >= 3) why.push("You flagged several stress indicators.");
+    if (belowBaseline) why.push(`Your balance is ${Math.abs(deltaFromBaseline!)} points below your personal baseline.`);
   } else {
-    actions.push("Pick 1 priority task and complete a 45–60 min deep work block");
-    actionReasons.push("Stable balance supports one meaningful high-value task rather than scattered effort.");
-    actions.push("Movement snack: 2 x 8 min walk breaks or 20 min incline walk");
-    actionReasons.push("Light movement helps sustain energy and routine consistency without overloading the day.");
-    actions.push("Keep meals consistent; avoid long gaps (stabilises energy)");
-    actionReasons.push("Regular meals support steady energy when the day does not require a recovery bias.");
-    actions.push("End-of-day reset: 10 min tidy + plan tomorrow’s top 1");
-    actionReasons.push("Routine closure supports consistency and easier next-day follow-through.");
-    actions.push("Optional: light social connection (message/call 1 person)");
-    actionReasons.push("Connection is a low-cost way to reinforce wellbeing when signals are stable.");
+    actions.push("Pick your most important task and give it a focused 45–60 minute block");
+    actionReasons.push("Your energy supports deep work today — use it wisely.");
+    actions.push("Get some movement in — a 20 minute walk or light exercise");
+    actionReasons.push("Movement keeps your energy steady throughout the day.");
+    actions.push("Wind down tonight with a quick plan for tomorrow");
+    actionReasons.push("A simple end-of-day review helps build consistency.");
 
-    if (aboveBaseline) why.push(`LBI is above your baseline by ${deltaFromBaseline!}.`);
     if (aboveBaseline) {
-      actions.push("Add one extra hard thing: 20 min focused sprint or slightly harder training");
-      actionReasons.push("Above-baseline balance allows a modest increase in challenge without defaulting to overload.");
+      why.push(`Your balance is ${deltaFromBaseline!} points above baseline — nice work.`);
     }
-
     if (sc >= 3) {
-      actions.push("Add a 5-min breathing reset between tasks (box breathing 4-4-4-4)");
-      actionReasons.push("Stress indicators are elevated, so a short reset reduces mental overload during an otherwise normal day.");
-      why.push("Stress indicators suggest mental load is high.");
+      actions.push("Take a few deep breaths between tasks (4 counts in, 4 out)");
+      actionReasons.push("Your stress indicators are up — short breathing resets help.");
+      why.push("Stress indicators are elevated despite good overall balance.");
     }
   }
 
-  // Triggers: “if X then Y”
-  triggers.push("If you feel wired/anxious → 90 seconds slow exhale breathing");
-  triggers.push("If you procrastinate 10+ mins → start with a 5-min timer");
-  triggers.push("If afternoon crash hits → water + 10-min walk before caffeine");
-
-  // Confidence note
-  if (confidence === "low") {
-    triggers.unshift("Low confidence today: complete check-in to improve accuracy");
+  // Wire in the user's top value
+  if (values?.length) {
+    const va = valueAction(values[0], category);
+    if (va) {
+      actions.push(va.action);
+      actionReasons.push(va.reason);
+    }
   }
 
-  // Guardrails: reduce cognitive load (one focus, max 2 actions, concise triggers)
-  const limitedActions = actions.slice(0, 2);
-  const limitedActionReasons = actionReasons.slice(0, 2);
+  // Wire in life context
+  if (lifeContexts?.length) {
+    const ct = contextTweak(lifeContexts, category);
+    if (ct) {
+      actions.push(ct.action);
+      actionReasons.push(ct.reason);
+    }
+  }
+
+  // Triggers
+  triggers.push("Feeling anxious? → 90 seconds of slow exhale breathing");
+  triggers.push("Can't start a task? → Set a 5-minute timer and just begin");
+  triggers.push("Afternoon slump? → Water + a short walk before reaching for caffeine");
+
+  if (confidence === "low") {
+    triggers.unshift("Data is limited today — complete your check-in to improve accuracy");
+  }
+
+  // Cap actions to keep it digestible
+  const limitedActions = actions.slice(0, 4);
+  const limitedActionReasons = actionReasons.slice(0, 4);
   const limitedTriggers = triggers.slice(0, 3);
 
   const explanation =
     why.length > 0
-      ? `Plan logic: ${why.join(" ")}${deltaFromBaseline == null ? "" : ` (Δ vs baseline: ${deltaFromBaseline >= 0 ? "+" : ""}${deltaFromBaseline})`}${confidence === "low" ? " Confidence is low due to missing signals." : ""}`
-      : `Plan logic: your signals are stable enough to maintain a normal day structure.${confidence === "low" ? " Confidence is low due to missing signals." : ""}`;
+      ? `${why.join(" ")}${confidence === "low" ? " Some data was missing, so confidence is lower." : ""}`
+      : `Your signals look stable today.${confidence === "low" ? " Some data was missing, so confidence is lower." : ""}`;
 
   return { category, focus, actions: limitedActions, actionReasons: limitedActionReasons, triggers: limitedTriggers, explanation };
 }

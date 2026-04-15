@@ -429,6 +429,8 @@ export default function DailyCheckInScreen() {
                     } else {
                       Alert.alert("Unavailable", "Could not generate a reflection right now.");
                     }
+                  } catch {
+                    Alert.alert("Connection error", "Could not reach the server. Check your internet connection and try again.");
                   } finally {
                     setGeneratingReflection(false);
                   }

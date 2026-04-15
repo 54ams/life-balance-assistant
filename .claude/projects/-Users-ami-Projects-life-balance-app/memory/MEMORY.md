@@ -1,0 +1,3 @@
+- [User profile](user_profile.md) — London-based BCS student, everyday-user focus, professional UI standards
+- [UI design principles](feedback_ui_principles.md) — Layman's English, story-driven insights, no jargon, dd/mm/yyyy dates
+- [Dissertation project](project_dissertation.md) — BCS synoptic project, LBI app, Render + EAS deployment, 5-8 participant study

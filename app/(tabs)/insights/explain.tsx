@@ -4,10 +4,10 @@ import { Pressable, Text, View } from "react-native";
 
 import { Screen } from "@/components/Screen";
 import { InsightsDatePicker } from "@/components/InsightsDatePicker";
-import { Button } from "@/components/ui/button";
 import { GlassCard } from "@/components/ui/glass-card";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { Colors } from "@/constants/Colors";
+import { Spacing, BorderRadius } from "@/constants/Spacing";
 import { useColorScheme } from "react-native";
 import { computeBaseline } from "@/lib/baseline";
 import { calculateLBI } from "@/lib/lbi";
@@ -15,114 +15,47 @@ import { buildDayExplain } from "@/lib/explain";
 import { buildCounterfactuals } from "@/lib/counterfactual";
 import { getInsightsSelectedDate, setInsightsSelectedDate } from "@/lib/insightsDate";
 import { getDay, loadPlan, type StoredPlan } from "@/lib/storage";
+import { formatDateLong } from "@/lib/util/formatDate";
 import type { ISODate } from "@/lib/types";
 
-function ProgressRow({
-  label,
-  value,
-  color,
-  trackColor,
-  fillColor,
-}: {
-  label: string;
-  value: number;
-  color: string;
-  trackColor: string;
-  fillColor: string;
-}) {
+function ScoreBar({ label, value, c }: { label: string; value: number; c: typeof Colors.light }) {
   const pct = Math.max(0, Math.min(100, Math.round(value)));
+  const isGood = pct >= 60;
   return (
-    <View style={{ marginTop: 12 }}>
-      <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
-        <Text style={{ fontWeight: "700", color }}>{label}</Text>
-        <Text style={{ fontWeight: "800", color }}>{pct}</Text>
+    <View style={{ marginTop: 14 }}>
+      <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+        <Text style={{ fontWeight: "700", color: c.text.primary, fontSize: 14 }}>{label}</Text>
+        <Text style={{ fontWeight: "800", color: c.text.primary, fontSize: 14 }}>{pct}/100</Text>
       </View>
-      <View
-        style={{
-          marginTop: 8,
-          height: 10,
-          borderRadius: 999,
-          backgroundColor: trackColor,
-          overflow: "hidden",
-        }}
-      >
-        <View
-          style={{
-            height: 10,
-            width: `${pct}%`,
-            borderRadius: 999,
-            backgroundColor: fillColor,
-          }}
-        />
+      <View style={{ marginTop: 6, height: 8, borderRadius: 4, backgroundColor: c.glass.secondary, overflow: "hidden" }}>
+        <View style={{ height: 8, width: `${pct}%`, borderRadius: 4, backgroundColor: isGood ? c.success : c.accent.primary }} />
       </View>
     </View>
   );
 }
 
+function driverEmoji(direction: "up" | "down", strength: string) {
+  if (direction === "up") return strength === "strong" ? "Helping a lot" : strength === "moderate" ? "Helping" : "Slight boost";
+  return strength === "strong" ? "Pulling down" : strength === "moderate" ? "Dragging" : "Slight dip";
+}
+
 export default function ExplainScoreScreen() {
   const [date, setDate] = useState<ISODate | undefined>(undefined);
-
   const scheme = useColorScheme();
+  const c = Colors[scheme ?? "light"];
 
-  // Load persisted selected date once
   useEffect(() => {
-    (async () => {
-      const saved = await getInsightsSelectedDate();
-      setDate(saved);
-    })();
+    (async () => setDate(await getInsightsSelectedDate()))();
   }, []);
 
-  // Persist when user changes date
   useEffect(() => {
-    (async () => {
-      if (!date) return;
-      await setInsightsSelectedDate(date);
-    })();
+    if (date) setInsightsSelectedDate(date);
   }, [date]);
-  const c = Colors[scheme ?? "light"] as any;
 
   const [plan, setPlan] = useState<StoredPlan | null>(null);
   const [subscores, setSubscores] = useState<{ recovery: number; sleep: number; mood: number; stress: number } | null>(null);
   const [baseline, setBaseline] = useState<number | null>(null);
   const [lbi, setLbi] = useState<number | null>(null);
-
-  useFocusEffect(
-    useCallback(() => {
-      let alive = true;
-      (async () => {
-        if (!date) return;
-
-        const day = await getDay(date);
-        setCounterfactuals(buildCounterfactuals({ date, wearable: day?.wearable ?? null, checkIn: day?.checkIn ?? null }));
-        const b = await computeBaseline(7);
-        const p = await loadPlan(date);
-
-        let computedLbi = p?.lbi;
-        let computedSub = null as any;
-
-        if (day?.wearable) {
-          const out = calculateLBI({
-            recovery: day.wearable.recovery,
-            sleepHours: day.wearable.sleepHours,
-            strain: day.wearable.strain,
-            checkIn: day.checkIn,
-          });
-          computedLbi = out.lbi;
-          computedSub = out.subscores;
-        }
-
-        if (!alive) return;
-        setPlan(p);
-        setBaseline(b);
-        setLbi(computedLbi ?? null);
-        setSubscores(computedSub);
-      })();
-      return () => {
-        alive = false;
-      };
-    }, [date])
-  );
-
   const [dayExplain, setDayExplain] = useState<ReturnType<typeof buildDayExplain> | null>(null);
   const [counterfactuals, setCounterfactuals] = useState<any[]>([]);
 
@@ -131,210 +64,175 @@ export default function ExplainScoreScreen() {
       let alive = true;
       (async () => {
         if (!date) return;
-        const record = await getDay(date);
-        // Prefer recomputed lbi, fallback to saved plan lbi
-        const value = (lbi ?? plan?.lbi ?? 0) as number;
-        const b = baseline ?? null;
-        const ex = buildDayExplain({ date, lbi: value, baseline: b, record });
+        const day = await getDay(date);
+        setCounterfactuals(buildCounterfactuals({ date, wearable: day?.wearable ?? null, checkIn: day?.checkIn ?? null }));
+        const b = await computeBaseline(7);
+        const p = await loadPlan(date);
+        let computedLbi = p?.lbi;
+        let computedSub = null as any;
+        if (day?.wearable) {
+          const out = calculateLBI({ recovery: day.wearable.recovery, sleepHours: day.wearable.sleepHours, strain: day.wearable.strain, checkIn: day.checkIn });
+          computedLbi = out.lbi;
+          computedSub = out.subscores;
+        }
         if (!alive) return;
-        setDayExplain(ex);
+        setPlan(p);
+        setBaseline(b);
+        setLbi(computedLbi ?? null);
+        setSubscores(computedSub);
+
+        const value = (computedLbi ?? p?.lbi ?? 0) as number;
+        setDayExplain(buildDayExplain({ date, lbi: value, baseline: b ?? null, record: day }));
       })();
-      return () => {
-        alive = false;
-      };
-    }, [date, lbi, baseline, plan?.lbi])
+      return () => { alive = false; };
+    }, [date])
   );
 
-  const titleDelta = dayExplain?.delta;
-  const deltaText = titleDelta == null ? "—" : `${titleDelta > 0 ? "+" : ""}${titleDelta}`;
+  const delta = dayExplain?.delta;
+  const score = dayExplain?.lbi ?? plan?.lbi;
 
   return (
     <Screen scroll>
       <Stack.Screen options={{ title: "Why this score", headerShown: false }} />
 
-      <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-        <View>
-          <Text style={{ fontSize: 26, fontWeight: "900", color: c.text.primary }}>Why this score</Text>
-          <Text style={{ marginTop: 6, color: c.text.secondary }}>{date ?? "No date"}</Text>
-        </View>
+      {/* Header */}
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 14 }}>
         <Pressable
           onPress={() => router.back()}
-          style={({ pressed }) => [
-            {
-              paddingHorizontal: 12,
-              paddingVertical: 10,
-              borderRadius: 999,
-              backgroundColor: c.glass.primary,
-              borderWidth: 1,
-              borderColor: c.border.medium,
-              opacity: pressed ? 0.9 : 1,
-            },
-          ]}
+          style={{ padding: 10, borderRadius: BorderRadius.md, borderWidth: 1, borderColor: c.border.medium, backgroundColor: c.glass.primary }}
         >
           <IconSymbol name="chevron.left" size={18} color={c.text.primary} />
         </Pressable>
+        <View style={{ flex: 1 }}>
+          <Text style={{ fontSize: 28, fontWeight: "900", color: c.text.primary, letterSpacing: -0.3 }}>Your score explained</Text>
+          <Text style={{ color: c.text.secondary, fontSize: 13, marginTop: 2 }}>
+            {date ? formatDateLong(date) : ""}
+          </Text>
+        </View>
       </View>
 
-      <GlassCard style={{ marginTop: 14 }}>
-        <Text style={{ color: c.text.primary, fontWeight: "900" }}>Today</Text>
-        <View style={{ flexDirection: "row", alignItems: "flex-end", gap: 10, marginTop: 10 }}>
-          <Text style={{ fontSize: 44, fontWeight: "900", color: c.text.primary }}>{dayExplain?.lbi ?? plan?.lbi ?? "—"}</Text>
-          <Text style={{ fontSize: 16, fontWeight: "800", color: c.text.secondary }}>Δ {deltaText} vs baseline</Text>
-        </View>
-        <Text style={{ marginTop: 10, color: c.text.secondary }}>
-          This is explainable by design: it uses baseline comparison + observable inputs. No black-box model is required to justify decisions.
+      {/* Hero score */}
+      <GlassCard style={{ marginTop: Spacing.base, alignItems: "center" as any }}>
+        <Text style={{ fontSize: 56, fontWeight: "900", color: c.text.primary, letterSpacing: -2 }}>
+          {score ?? "—"}
         </Text>
+        {delta != null && delta !== 0 ? (
+          <Text style={{ color: delta > 0 ? c.success : c.danger, fontWeight: "700", fontSize: 15, marginTop: 4 }}>
+            {delta > 0 ? "+" : ""}{delta} compared to your baseline
+          </Text>
+        ) : delta === 0 ? (
+          <Text style={{ color: c.text.secondary, fontSize: 14, marginTop: 4 }}>Right on your baseline</Text>
+        ) : (
+          <Text style={{ color: c.text.secondary, fontSize: 14, marginTop: 4 }}>Baseline not yet available</Text>
+        )}
       </GlassCard>
 
-      {date ? (
-        <View style={{ marginTop: 14 }}>
-          <InsightsDatePicker
-            date={date}
-            onChange={setDate}
-            title="As of"
-            helperText="Explainability is shown for the selected day. Pick Today or any past date."
-          />
+      {date && (
+        <View style={{ marginTop: Spacing.sm }}>
+          <InsightsDatePicker date={date} onChange={setDate} title="Change date" helperText="See the breakdown for any past day." />
         </View>
-      ) : null}
+      )}
 
-      {/* Subscores */}
-      <GlassCard style={{ marginTop: 12 }}>
-        <Text style={{ color: c.text.primary, fontWeight: "900" }}>What contributed</Text>
-        <Text style={{ marginTop: 6, color: c.text.secondary }}>
-          Subscores are scaled 0–100. These are the inputs the index is based on.
+      {/* What made up your score */}
+      <GlassCard style={{ marginTop: Spacing.md }}>
+        <Text style={{ color: c.text.primary, fontWeight: "800", fontSize: 17 }}>What made up your score</Text>
+        <Text style={{ color: c.text.secondary, fontSize: 13, marginTop: 4 }}>
+          Your score combines how your body recovered and how you said you're feeling.
         </Text>
-
         {subscores ? (
           <>
-            <ProgressRow
-              label="Recovery"
-              value={subscores.recovery}
-              color={c.text.primary}
-              trackColor={scheme === "dark" ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.08)"}
-              fillColor={scheme === "dark" ? "rgba(255,255,255,0.36)" : "rgba(0,0,0,0.22)"}
-            />
-            <ProgressRow
-              label="Sleep"
-              value={subscores.sleep}
-              color={c.text.primary}
-              trackColor={scheme === "dark" ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.08)"}
-              fillColor={scheme === "dark" ? "rgba(255,255,255,0.36)" : "rgba(0,0,0,0.22)"}
-            />
-            <ProgressRow
-              label="Mood"
-              value={subscores.mood}
-              color={c.text.primary}
-              trackColor={scheme === "dark" ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.08)"}
-              fillColor={scheme === "dark" ? "rgba(255,255,255,0.36)" : "rgba(0,0,0,0.22)"}
-            />
-            <ProgressRow
-              label="Stress"
-              value={subscores.stress}
-              color={c.text.primary}
-              trackColor={scheme === "dark" ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.08)"}
-              fillColor={scheme === "dark" ? "rgba(255,255,255,0.36)" : "rgba(0,0,0,0.22)"}
-            />
+            <ScoreBar label="Recovery" value={subscores.recovery} c={c} />
+            <ScoreBar label="Sleep" value={subscores.sleep} c={c} />
+            <ScoreBar label="Mood" value={subscores.mood} c={c} />
+            <ScoreBar label="Stress" value={subscores.stress} c={c} />
           </>
         ) : (
-          <Text style={{ marginTop: 10, color: c.text.secondary }}>
-            Subscores are unavailable (wearables missing). Import wearables to unlock this breakdown.
+          <Text style={{ marginTop: Spacing.sm, color: c.text.secondary }}>
+            Connect your wearable to see the full breakdown.
           </Text>
         )}
       </GlassCard>
 
-      {/* Drivers */}
-      <GlassCard style={{ marginTop: 12 }}>
-        <Text style={{ color: c.text.primary, fontWeight: "900" }}>Top drivers</Text>
-        <Text style={{ marginTop: 6, color: c.text.secondary }}>
-          The app highlights the strongest contributors so recommendations feel justified.
-        </Text>
-
-        <View style={{ marginTop: 10, gap: 10 }}>
-          {(dayExplain?.drivers ?? []).map((d, i) => (
-            <View key={i} style={{ flexDirection: "row", justifyContent: "space-between", gap: 10 }}>
-              <View style={{ flex: 1 }}>
-                <Text style={{ color: c.text.primary, fontWeight: "800" }}>{d.label}</Text>
-                {d.detail ? <Text style={{ marginTop: 2, color: c.text.secondary }}>{d.detail}</Text> : null}
-              </View>
-              <Text style={{ color: c.text.secondary, fontWeight: "800" }}>{d.direction === "up" ? "↑" : "↓"} {d.strength}</Text>
-            </View>
-          ))}
-        </View>
-
-        {plan?.explanation ? (
-          <Text style={{ marginTop: 12, color: c.text.secondary }}>
-            Saved plan rationale: {plan.explanation}
+      {/* What's influencing things */}
+      {(dayExplain?.drivers ?? []).length > 0 && (
+        <GlassCard style={{ marginTop: Spacing.md }}>
+          <Text style={{ color: c.text.primary, fontWeight: "800", fontSize: 17 }}>What's influencing things</Text>
+          <Text style={{ color: c.text.secondary, fontSize: 13, marginTop: 4 }}>
+            These are the biggest factors shaping your score today.
           </Text>
-        ) : null}
-      </GlassCard>
-
-      {/* Uncertainty */}
-      <GlassCard style={{ marginTop: 12 }}>
-        <Text style={{ color: c.text.primary, fontWeight: "900" }}>Accuracy and uncertainty</Text>
-        <Text style={{ marginTop: 6, color: c.text.secondary }}>
-          Rather than pretending to be perfect, the system communicates what data is missing.
-        </Text>
-
-        <View style={{ marginTop: 10, gap: 10 }}>
-          {(dayExplain?.accuracyReasons ?? []).map((r, i) => (
-            <View key={i} style={{ gap: 2 }}>
-              <Text style={{ color: c.text.primary, fontWeight: "800" }}>
-                {r.ok ? "✅" : "⚠️"} {r.label}
-              </Text>
-              <Text style={{ color: c.text.secondary }}>{r.detail}</Text>
-            </View>
-          ))}
-        </View>
-      </GlassCard>
-
-{(dayExplain?.contextTags ?? []).length ? (
-  <GlassCard style={{ marginTop: 12 }}>
-    <Text style={{ color: c.text.primary, fontSize: 14, fontWeight: "800" }}>Context tags</Text>
-    <Text style={{ color: c.text.secondary, marginTop: 6 }}>
-      These help avoid misattributing physiological changes to “stress” when there’s a clear confound.
-    </Text>
-
-    <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 12 }}>
-      {(dayExplain?.contextTags ?? []).map((t: string) => (
-        <View
-          key={t}
-          style={{
-            paddingVertical: 6,
-            paddingHorizontal: 10,
-            borderRadius: 999,
-            borderWidth: 1,
-            borderColor: "rgba(255,255,255,0.18)",
-          }}
-        >
-          <Text style={{ color: c.text.primary, fontWeight: "700" }}>{t.replaceAll("_", " ")}</Text>
-        </View>
-      ))}
-    </View>
-  </GlassCard>
-) : null}
-
-      {counterfactuals.length ? (
-        <GlassCard style={{ marginTop: 12 }}>
-          <Text style={{ color: c.text.primary, fontSize: 14, fontWeight: "800" }}>What might shift the score</Text>
-          <Text style={{ color: c.text.secondary, marginTop: 6 }}>
-            These are rule-based counterfactuals, not predictions or guarantees.
-          </Text>
-          <View style={{ marginTop: 10, gap: 10 }}>
-            {counterfactuals.map((item, index) => (
-              <View key={`${item.label}-${index}`}>
-                <Text style={{ color: c.text.primary, fontWeight: "800" }}>
-                  {item.label}: {item.delta > 0 ? "+" : ""}{item.delta}
-                </Text>
-                <Text style={{ color: c.text.secondary, marginTop: 2 }}>{item.detail}</Text>
+          <View style={{ marginTop: Spacing.sm, gap: Spacing.sm }}>
+            {(dayExplain?.drivers ?? []).map((d, i) => (
+              <View key={i} style={{ flexDirection: "row", alignItems: "flex-start", gap: 10 }}>
+                <View style={{ width: 8, height: 8, borderRadius: 4, marginTop: 6, backgroundColor: d.direction === "up" ? c.success : c.danger }} />
+                <View style={{ flex: 1 }}>
+                  <Text style={{ color: c.text.primary, fontWeight: "700", fontSize: 14 }}>
+                    {d.label} — {driverEmoji(d.direction, d.strength)}
+                  </Text>
+                  {d.detail && <Text style={{ color: c.text.secondary, fontSize: 13, marginTop: 2 }}>{d.detail}</Text>}
+                </View>
               </View>
             ))}
           </View>
         </GlassCard>
-      ) : null}
+      )}
 
-      <View style={{ marginTop: 14 }}>
-        <Button title="Back" variant="secondary" onPress={() => router.back()} />
-      </View>
+      {/* Data quality */}
+      <GlassCard style={{ marginTop: Spacing.md }}>
+        <Text style={{ color: c.text.primary, fontWeight: "800", fontSize: 17 }}>How confident is this?</Text>
+        <Text style={{ color: c.text.secondary, fontSize: 13, marginTop: 4 }}>
+          The more data you provide, the more accurate your score becomes.
+        </Text>
+        <View style={{ marginTop: Spacing.sm, gap: 8 }}>
+          {(dayExplain?.accuracyReasons ?? []).map((r, i) => (
+            <View key={i} style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+              <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: r.ok ? c.success : c.warning }} />
+              <Text style={{ color: c.text.primary, fontSize: 14, flex: 1 }}>{r.detail}</Text>
+            </View>
+          ))}
+        </View>
+      </GlassCard>
+
+      {/* Context tags */}
+      {(dayExplain?.contextTags ?? []).length > 0 && (
+        <GlassCard style={{ marginTop: Spacing.md }}>
+          <Text style={{ color: c.text.primary, fontWeight: "800", fontSize: 17 }}>Context you tagged</Text>
+          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: Spacing.sm }}>
+            {(dayExplain?.contextTags ?? []).map((t: string) => (
+              <View key={t} style={{ paddingVertical: 6, paddingHorizontal: 12, borderRadius: BorderRadius.full, borderWidth: 1, borderColor: c.border.medium }}>
+                <Text style={{ color: c.text.primary, fontWeight: "600", fontSize: 13 }}>{t}</Text>
+              </View>
+            ))}
+          </View>
+        </GlassCard>
+      )}
+
+      {/* What could help */}
+      {counterfactuals.length > 0 && (
+        <GlassCard style={{ marginTop: Spacing.md }}>
+          <Text style={{ color: c.text.primary, fontWeight: "800", fontSize: 17 }}>What could help</Text>
+          <Text style={{ color: c.text.secondary, fontSize: 13, marginTop: 4 }}>
+            Small changes that might shift your score, based on today's inputs.
+          </Text>
+          <View style={{ marginTop: Spacing.sm, gap: Spacing.sm }}>
+            {counterfactuals.map((item, i) => (
+              <View key={i} style={{ flexDirection: "row", alignItems: "flex-start", gap: 10 }}>
+                <Text style={{ color: item.delta > 0 ? c.success : c.text.secondary, fontWeight: "800", fontSize: 15 }}>
+                  {item.delta > 0 ? "+" : ""}{item.delta}
+                </Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ color: c.text.primary, fontWeight: "600", fontSize: 14 }}>{item.label}</Text>
+                  <Text style={{ color: c.text.secondary, fontSize: 13, marginTop: 2 }}>{item.detail}</Text>
+                </View>
+              </View>
+            ))}
+          </View>
+        </GlassCard>
+      )}
+
+      {/* Disclaimer */}
+      <Text style={{ color: c.text.tertiary, fontSize: 12, textAlign: "center", marginTop: Spacing.lg, lineHeight: 16 }}>
+        This is observational, not diagnostic. Your score reflects the data you provide — it's a mirror, not a judgement.
+      </Text>
     </Screen>
   );
 }

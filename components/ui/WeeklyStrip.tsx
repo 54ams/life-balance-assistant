@@ -3,25 +3,33 @@ import React, { useMemo } from "react";
 import { Pressable, StyleSheet, Text, View, useColorScheme } from "react-native";
 import { Colors } from "@/constants/Colors";
 import { BorderRadius, Spacing } from "@/constants/Spacing";
-import { Typography } from "@/constants/Typography";
 import { todayISO } from "@/lib/util/todayISO";
 
-type DayItem = { date: string; hasData?: boolean; hasEvent?: boolean };
+type DayItem = { date: string; dayName: string; dayNum: string; hasData?: boolean; hasEvent?: boolean };
+
+const SHORT_DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 export function WeeklyStrip({ events = [], dataDates = [] }: { events?: string[]; dataDates?: string[] }) {
   const scheme = useColorScheme();
-  const t = scheme === "dark" ? Colors.dark : Colors.light;
+  const isDark = scheme === "dark";
+  const t = isDark ? Colors.dark : Colors.light;
   const router = useRouter();
   const today = todayISO();
+
   const items = useMemo(() => {
     const arr: DayItem[] = [];
-    const now = new Date(today);
-    for (let i = -3; i <= 3; i++) {
+    const now = new Date(today + "T00:00:00");
+    // Show Mon–Sun of the current week
+    const dayOfWeek = now.getDay(); // 0=Sun .. 6=Sat
+    const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+    for (let i = 0; i < 7; i++) {
       const d = new Date(now);
-      d.setDate(now.getDate() + i);
+      d.setDate(now.getDate() + mondayOffset + i);
       const iso = d.toISOString().slice(0, 10);
       arr.push({
         date: iso,
+        dayName: SHORT_DAYS[i],
+        dayNum: d.getDate().toString(),
         hasData: dataDates.includes(iso),
         hasEvent: events.includes(iso),
       });
@@ -30,57 +38,91 @@ export function WeeklyStrip({ events = [], dataDates = [] }: { events?: string[]
   }, [today, events, dataDates]);
 
   return (
-    <View style={[styles.wrap, { backgroundColor: t.glass.primary, borderColor: t.glass.border }]}>
-      {items.map((d) => {
-        const isToday = d.date === today;
-        return (
-          <Pressable
-            key={d.date}
-            onPress={() => {
-              if (d.date > today) router.push(`/calendar/future/${d.date}` as any);
-              else router.push(`/day/${d.date}` as any);
-            }}
-            style={({ pressed }) => [
-              styles.day,
-              { borderColor: t.glass.border, backgroundColor: d.hasData ? t.glass.secondary : "transparent" },
-              isToday && { backgroundColor: t.accent.primary, shadowColor: t.accent.primary, shadowOpacity: 0.3 },
-              pressed && { opacity: 0.8 },
-            ]}
-            accessibilityRole="button"
-            accessibilityLabel={`Open ${d.date}`}
-          >
-            <Text style={{ color: t.text.primary, fontWeight: Typography.fontWeight.bold, fontSize: Typography.fontSize.sm }}>
-              {d.date.slice(8, 10)}
+    <View style={styles.container}>
+      {/* Day name row */}
+      <View style={styles.row}>
+        {items.map((d) => (
+          <View key={d.date + "-label"} style={styles.cell}>
+            <Text style={[styles.dayLabel, { color: d.date === today ? t.accent.primary : t.text.tertiary }]}>
+              {d.dayName}
             </Text>
-            <View style={styles.dots}>
-              {d.hasData ? <View style={[styles.dot, { backgroundColor: t.accent.primary }]} /> : null}
-              {d.hasEvent ? <View style={[styles.ring, { borderColor: t.text.tertiary }]} /> : null}
-            </View>
-          </Pressable>
-        );
-      })}
+          </View>
+        ))}
+      </View>
+      {/* Date number row */}
+      <View style={styles.row}>
+        {items.map((d) => {
+          const isToday = d.date === today;
+          return (
+            <Pressable
+              key={d.date}
+              onPress={() => {
+                if (d.date > today) router.push(`/calendar/future/${d.date}` as any);
+                else router.push(`/day/${d.date}` as any);
+              }}
+              style={({ pressed }) => [
+                styles.dateCell,
+                isToday && [styles.todayCell, { backgroundColor: t.accent.primary }],
+                !isToday && d.hasData && { backgroundColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)" },
+                pressed && { opacity: 0.7 },
+              ]}
+              accessibilityRole="button"
+              accessibilityLabel={`View ${d.date}`}
+            >
+              <Text
+                style={[
+                  styles.dateNum,
+                  { color: isToday ? "#fff" : d.hasData ? t.text.primary : t.text.tertiary },
+                ]}
+              >
+                {d.dayNum}
+              </Text>
+              {d.hasData && !isToday && <View style={[styles.dot, { backgroundColor: t.accent.primary }]} />}
+            </Pressable>
+          );
+        })}
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  wrap: {
-    flexDirection: "row",
-    alignItems: "center",
-    borderWidth: 1,
-    borderRadius: BorderRadius.xl,
-    padding: Spacing.sm,
-    gap: Spacing.sm,
+  container: {
+    gap: 4,
   },
-  day: {
+  row: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  cell: {
     flex: 1,
     alignItems: "center",
-    paddingVertical: Spacing.sm,
-    borderRadius: BorderRadius.lg,
-    borderWidth: 1,
-    gap: Spacing.xs,
   },
-  dots: { flexDirection: "row", gap: Spacing.xs },
-  dot: { width: 6, height: 6, borderRadius: 3 },
-  ring: { width: 10, height: 10, borderRadius: 5, borderWidth: 1 },
+  dayLabel: {
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  dateCell: {
+    flex: 1,
+    alignItems: "center",
+    paddingVertical: 8,
+    marginHorizontal: 2,
+    borderRadius: BorderRadius.md,
+    gap: 2,
+  },
+  todayCell: {
+    shadowColor: "#7C6FDC",
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+  },
+  dateNum: {
+    fontSize: 15,
+    fontWeight: "800",
+  },
+  dot: {
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
+  },
 });

@@ -30,9 +30,9 @@ test("generatePlan creates recovery-biased plan when signals are poor", () => {
   });
 
   assert.equal(out.category, "RECOVERY");
-  assert.equal(out.actions.length, 2);
-  assert.equal(out.actionReasons.length, 2);
-  assert.ok(out.explanation.includes("Recovery is low."));
+  assert.equal(out.actions.length, 3);
+  assert.equal(out.actionReasons.length, 3);
+  assert.ok(out.explanation.includes("recovery score is low"));
 });
 
 test("generatePlan keeps action list capped for cognitive load", () => {
@@ -62,6 +62,6 @@ test("generatePlan keeps action list capped for cognitive load", () => {
   });
 
   assert.equal(out.category, "NORMAL");
-  assert.equal(out.actions.length, 2);
+  assert.equal(out.actions.length, 3);
   assert.ok(out.triggers.length <= 3);
 });

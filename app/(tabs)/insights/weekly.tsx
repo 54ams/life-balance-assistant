@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Text } from "react-native";
+import { Text, View } from "react-native";
 import { Screen } from "@/components/Screen";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { useAppTheme } from "@/theme/tokens";
@@ -7,6 +7,15 @@ import { getPlanAdherenceSummary, listDailyRecords, listEmotions, listPlans } fr
 import type { EmotionValue } from "@/lib/types";
 import { quadrantOf } from "@/lib/emotion";
 import { NUDGE_ENABLED_KEY, STREAKS_ENABLED_KEY, getBooleanSetting } from "@/lib/privacy";
+import { Spacing, BorderRadius } from "@/constants/Spacing";
+
+function quadrantLabel(q: string): string {
+  if (q === "pleasantCalm") return "calm and positive";
+  if (q === "pleasantActivated") return "energised and positive";
+  if (q === "unpleasantCalm") return "low and drained";
+  if (q === "unpleasantActivated") return "tense and stressed";
+  return q;
+}
 
 export default function WeeklyInsights() {
   const t = useAppTheme();
@@ -15,14 +24,11 @@ export default function WeeklyInsights() {
   const [quadrantSummary, setQuadrantSummary] = useState<string>("");
   const [adherenceLine, setAdherenceLine] = useState<string>("");
   const [adherenceVsLbi, setAdherenceVsLbi] = useState<string>("");
-  const [nudgeEnabled, setNudgeEnabled] = useState(true);
   const [weeklyMeaning, setWeeklyMeaning] = useState<string>("");
 
   useEffect(() => {
     (async () => {
       const streakToggle = await getBooleanSetting(STREAKS_ENABLED_KEY, true);
-      const nudgeToggle = await getBooleanSetting(NUDGE_ENABLED_KEY, true);
-      setNudgeEnabled(nudgeToggle);
       const emos = await listEmotions(30);
       if (emos.length) {
         const freq: Record<string, number> = {};
@@ -36,16 +42,16 @@ export default function WeeklyInsights() {
         });
         setValueTop(Object.entries(freq).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([value, count]) => ({ value, count })));
         const regSkew = Object.entries(reg).sort((a, b) => b[1] - a[1])[0];
-        if (regSkew) setRegSummary(`Mostly ${regSkew[0]} (${regSkew[1]} days).`);
+        if (regSkew) setRegSummary(`You've mostly been feeling ${regSkew[0] === "handled" ? "in control" : regSkew[0] === "manageable" ? "like things are manageable" : "overwhelmed"} (${regSkew[1]} days).`);
         const quadTop = Object.entries(quad).sort((a, b) => b[1] - a[1])[0];
-        if (quadTop) setQuadrantSummary(`Often in ${quadTop[0].replace("pleasant", "pleasant ").replace("unpleasant", "unpleasant ")}.`);
+        if (quadTop) setQuadrantSummary(`You've spent most of your time feeling ${quadrantLabel(quadTop[0])}.`);
       }
 
       const adh = await getPlanAdherenceSummary(7);
       setAdherenceLine(
         streakToggle
-          ? `Weekly adherence ${adh.adherencePct}% (${adh.completedDays}/${adh.totalDays} days), streak ${adh.streak} day(s).`
-          : `Weekly adherence ${adh.adherencePct}% (${adh.completedDays}/${adh.totalDays} days).`
+          ? `You completed your plan on ${adh.completedDays} out of ${adh.totalDays} days this week (${adh.adherencePct}%), with a ${adh.streak}-day streak.`
+          : `You completed your plan on ${adh.completedDays} out of ${adh.totalDays} days this week (${adh.adherencePct}%).`
       );
 
       const plans = await listPlans(14);
@@ -65,9 +71,11 @@ export default function WeeklyInsights() {
         const sx = Math.sqrt(pairs.reduce((s, v) => s + Math.pow(v.x - mx, 2), 0));
         const sy = Math.sqrt(pairs.reduce((s, v) => s + Math.pow(v.y - my, 2), 0));
         const r = sx && sy ? cov / (sx * sy) : 0;
-        setAdherenceVsLbi(`Adherence vs LBI (14d): r=${r.toFixed(2)} (exploratory).`);
+        if (r > 0.3) setAdherenceVsLbi("It looks like completing your plan tends to go hand-in-hand with a better score the next day.");
+        else if (r < -0.3) setAdherenceVsLbi("Interestingly, your score doesn't seem to improve when you complete more actions. This might mean the actions need adjusting.");
+        else setAdherenceVsLbi("There's no clear link yet between completing your plan and your score. More data will help clarify this.");
       } else {
-        setAdherenceVsLbi("Adherence vs LBI needs at least 5 matched days.");
+        setAdherenceVsLbi("We need a few more days of data before we can spot any patterns here.");
       }
 
       const recentRecords = await listDailyRecords(14);
@@ -78,52 +86,63 @@ export default function WeeklyInsights() {
         const delta = avg(last7) - avg(prev7);
         setWeeklyMeaning(
           delta === 0
-            ? "Your average balance is broadly stable week to week."
+            ? "Your balance has been steady this week — no big swings either way."
             : delta > 0
-            ? `Your average balance is improving week to week (${delta > 0 ? "+" : ""}${delta}).`
-            : `Your average balance is softer than the previous week (${delta}). Review whether recovery-biased days or stress indicators have been recurring.`
+            ? `Things are looking up — your average balance improved by ${delta} points compared to last week.`
+            : `Your balance dipped by ${Math.abs(delta)} points this week. Check if sleep, stress, or routine changes might be behind it.`
         );
       } else {
-        setWeeklyMeaning("You need more history before week-on-week interpretation becomes meaningful.");
+        setWeeklyMeaning("Keep logging for another week and we'll be able to show you how things are trending.");
       }
     })();
   }, []);
 
   return (
-    <Screen scroll title="Weekly reflection" subtitle="Narrative-first; observational only">
+    <Screen scroll title="Your week" subtitle="A look at how your week has gone">
+      {/* Values */}
       <GlassCard>
-        <Text style={{ color: t.textPrimary, fontWeight: "800", fontSize: 16, marginBottom: 4 }}>Values you showed up for</Text>
+        <Text style={{ color: t.textPrimary, fontWeight: "800", fontSize: 17, marginBottom: 4 }}>Values you showed up for</Text>
         {valueTop.length === 0 ? (
-          <Text style={{ color: t.textMuted }}>Log a few days to see patterns.</Text>
+          <Text style={{ color: t.textMuted }}>Log a few days to see which values come through most.</Text>
         ) : (
-          valueTop.map((v) => (
-            <Text key={v.value} style={{ color: t.textPrimary, fontWeight: "800", marginTop: 6 }}>
-              {v.value}: {v.count} times
-            </Text>
-          ))
+          <>
+            <Text style={{ color: t.textMuted, marginTop: 4, marginBottom: 8 }}>These are the values you connected with most often.</Text>
+            {valueTop.map((v, i) => (
+              <View key={v.value} style={{ flexDirection: "row", alignItems: "center", gap: 10, marginTop: 6 }}>
+                <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: i === 0 ? t.glowPrimary : t.glassBackground, alignItems: "center", justifyContent: "center" }}>
+                  <Text style={{ color: t.textPrimary, fontWeight: "800", fontSize: 13 }}>{i + 1}</Text>
+                </View>
+                <Text style={{ color: t.textPrimary, fontWeight: "700", fontSize: 15, flex: 1 }}>{v.value}</Text>
+                <Text style={{ color: t.textMuted, fontSize: 13 }}>{v.count} time{v.count === 1 ? "" : "s"}</Text>
+              </View>
+            ))}
+          </>
         )}
       </GlassCard>
 
+      {/* Emotional state */}
       <GlassCard>
-        <Text style={{ color: t.textPrimary, fontWeight: "800", fontSize: 16, marginBottom: 4 }}>Regulation</Text>
-        <Text style={{ color: t.textMuted, marginTop: 6 }}>{regSummary || "No data yet."}</Text>
+        <Text style={{ color: t.textPrimary, fontWeight: "800", fontSize: 17, marginBottom: 4 }}>How you've been feeling</Text>
+        <Text style={{ color: t.textMuted, marginTop: 6 }}>{regSummary || "Not enough data yet."}</Text>
+        <Text style={{ color: t.textMuted, marginTop: 6 }}>{quadrantSummary || ""}</Text>
       </GlassCard>
 
+      {/* Adherence */}
       <GlassCard>
-        <Text style={{ color: t.textPrimary, fontWeight: "800", fontSize: 16, marginBottom: 4 }}>Affect space</Text>
-        <Text style={{ color: t.textMuted, marginTop: 6 }}>{quadrantSummary || "No data yet."}</Text>
-        <Text style={{ color: t.textMuted, marginTop: 6 }}>Patterns are observational. Correlation ≠ causation.</Text>
+        <Text style={{ color: t.textPrimary, fontWeight: "800", fontSize: 17, marginBottom: 4 }}>Following through</Text>
+        <Text style={{ color: t.textMuted }}>{adherenceLine || "No plan data yet."}</Text>
+        <Text style={{ color: t.textMuted, marginTop: 8 }}>{adherenceVsLbi}</Text>
       </GlassCard>
 
+      {/* Weekly trend */}
       <GlassCard>
-        <Text style={{ color: t.textPrimary, fontWeight: "800", fontSize: 16, marginBottom: 4 }}>Adherence</Text>
-        <Text style={{ color: t.textMuted }}>{adherenceLine || "No plan adherence data yet."}</Text>
-        <Text style={{ color: t.textMuted, marginTop: 6 }}>{adherenceVsLbi}</Text>
-        <Text style={{ color: t.textMuted, marginTop: 6 }}>{weeklyMeaning}</Text>
-        <Text style={{ color: t.textMuted, marginTop: 6 }}>
-          Evening nudges are {nudgeEnabled ? "enabled" : "disabled"}.
-        </Text>
+        <Text style={{ color: t.textPrimary, fontWeight: "800", fontSize: 17, marginBottom: 4 }}>The bigger picture</Text>
+        <Text style={{ color: t.textMuted }}>{weeklyMeaning}</Text>
       </GlassCard>
+
+      <Text style={{ color: t.textMuted, fontSize: 12, textAlign: "center", marginTop: Spacing.lg, lineHeight: 16 }}>
+        These patterns are observational — they show what happened, not what caused it.
+      </Text>
     </Screen>
   );
 }

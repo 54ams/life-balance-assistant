@@ -1,6 +1,16 @@
 import Constants from "expo-constants";
+import { Platform } from "react-native";
 
-function deriveDefaultBackendUrl() {
+const BACKEND_PORT = 3333;
+
+/**
+ * Auto-detect the backend URL based on the Expo dev server host.
+ *
+ * - iPhone Simulator: uses 127.0.0.1 (shares Mac network)
+ * - Android Emulator: uses 10.0.2.2 (Android's alias for host machine)
+ * - Physical device: uses the LAN IP that Expo already resolved
+ */
+function deriveDefaultBackendUrl(): string {
   const hostUri =
     (Constants.expoConfig as any)?.hostUri ||
     (Constants as any).manifest2?.extra?.expoClient?.hostUri ||
@@ -8,30 +18,41 @@ function deriveDefaultBackendUrl() {
     "";
 
   const host = String(hostUri).split(":")[0] || "localhost";
-  const isLocalHost =
+
+  // Android emulator can't reach the Mac via 127.0.0.1
+  if (Platform.OS === "android" && (host === "localhost" || host === "127.0.0.1")) {
+    return `http://10.0.2.2:${BACKEND_PORT}`;
+  }
+
+  const isLocal =
     host === "localhost" ||
     host === "127.0.0.1" ||
     host.startsWith("192.168.") ||
     host.startsWith("10.") ||
-    host.startsWith("172.16.");
-  const protocol = isLocalHost ? "http" : "https";
-  return `${protocol}://${host}:3333`;
+    host.startsWith("172.");
+
+  const protocol = isLocal ? "http" : "https";
+  return `${protocol}://${host}:${BACKEND_PORT}`;
 }
 
-export function getBackendBaseUrl() {
+export function getBackendBaseUrl(): string | null {
   const envUrl = process.env.EXPO_PUBLIC_BACKEND_URL?.trim();
   if (envUrl) return envUrl.replace(/\/+$/, "");
-  if (__DEV__) return deriveDefaultBackendUrl();
+  if (__DEV__) {
+    const url = deriveDefaultBackendUrl();
+    console.log(`[Backend] Auto-detected URL: ${url}`);
+    return url;
+  }
   return null;
 }
 
-export function hasBackendBaseUrl() {
+export function hasBackendBaseUrl(): boolean {
   return !!getBackendBaseUrl();
 }
 
-export function getBackendFeatureMessage() {
+export function getBackendFeatureMessage(): string | null {
   if (hasBackendBaseUrl()) return null;
-  return "Backend features are disabled in this build until EXPO_PUBLIC_BACKEND_URL points to a deployed backend.";
+  return "Backend features are disabled. Set EXPO_PUBLIC_BACKEND_URL to connect.";
 }
 
 export async function checkBackendHealth(): Promise<{
@@ -43,26 +64,26 @@ export async function checkBackendHealth(): Promise<{
 }> {
   const url = getBackendBaseUrl();
   if (!url) {
-    return {
-      ok: false,
-      url: "not configured",
-      message: "No backend URL configured for this build.",
-    };
+    return { ok: false, url: "not configured", message: "No backend URL configured." };
   }
   try {
-    const res = await fetch(`${url}/health`);
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 5000);
+    const res = await fetch(`${url}/health`, { signal: controller.signal });
+    clearTimeout(timeout);
     if (!res.ok) {
-      return { ok: false, url, message: `Backend responded ${res.status}` };
+      return { ok: false, url, message: `Backend returned ${res.status}` };
     }
     const json = (await res.json()) as { whoopConfigured?: boolean; llmConfigured?: boolean };
     return {
       ok: true,
       url,
-      message: "Backend reachable",
+      message: "Connected",
       whoopConfigured: json.whoopConfigured,
       llmConfigured: json.llmConfigured,
     };
   } catch (e: any) {
-    return { ok: false, url, message: e?.message ?? "Backend unreachable" };
+    const msg = e?.name === "AbortError" ? "Backend timed out (5s)" : (e?.message ?? "Backend unreachable");
+    return { ok: false, url, message: msg };
   }
 }
