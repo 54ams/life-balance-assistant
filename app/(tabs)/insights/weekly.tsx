@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from "react";
-import { Text, View } from "react-native";
+import { Text, View, useColorScheme } from "react-native";
 import { Screen } from "@/components/Screen";
 import { GlassCard } from "@/components/ui/GlassCard";
-import { useAppTheme } from "@/theme/tokens";
+import { Colors } from "@/constants/Colors";
 import { getPlanAdherenceSummary, listDailyRecords, listEmotions, listPlans } from "@/lib/storage";
 import type { EmotionValue } from "@/lib/types";
 import { quadrantOf } from "@/lib/emotion";
@@ -18,7 +18,11 @@ function quadrantLabel(q: string): string {
 }
 
 export default function WeeklyInsights() {
-  const t = useAppTheme();
+  const scheme = useColorScheme();
+  const isDark = scheme === "dark";
+  const c = isDark ? Colors.dark : Colors.light;
+  const glowPrimary = isDark ? "rgba(125,136,255,0.28)" : "rgba(138,124,255,0.28)";
+
   const [valueTop, setValueTop] = useState<{ value: EmotionValue; count: number }[]>([]);
   const [regSummary, setRegSummary] = useState<string>("");
   const [quadrantSummary, setQuadrantSummary] = useState<string>("");
@@ -101,19 +105,19 @@ export default function WeeklyInsights() {
     <Screen scroll title="Your week" subtitle="A look at how your week has gone">
       {/* Values */}
       <GlassCard>
-        <Text style={{ color: t.textPrimary, fontWeight: "800", fontSize: 17, marginBottom: 4 }}>Values you showed up for</Text>
+        <Text style={{ color: c.text.primary, fontWeight: "800", fontSize: 17, marginBottom: 4 }}>Values you showed up for</Text>
         {valueTop.length === 0 ? (
-          <Text style={{ color: t.textMuted }}>Log a few days to see which values come through most.</Text>
+          <Text style={{ color: c.text.tertiary }}>Log a few days to see which values come through most.</Text>
         ) : (
           <>
-            <Text style={{ color: t.textMuted, marginTop: 4, marginBottom: 8 }}>These are the values you connected with most often.</Text>
+            <Text style={{ color: c.text.tertiary, marginTop: 4, marginBottom: 8 }}>These are the values you connected with most often.</Text>
             {valueTop.map((v, i) => (
               <View key={v.value} style={{ flexDirection: "row", alignItems: "center", gap: 10, marginTop: 6 }}>
-                <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: i === 0 ? t.glowPrimary : t.glassBackground, alignItems: "center", justifyContent: "center" }}>
-                  <Text style={{ color: t.textPrimary, fontWeight: "800", fontSize: 13 }}>{i + 1}</Text>
+                <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: i === 0 ? glowPrimary : c.glass.primary, alignItems: "center", justifyContent: "center" }}>
+                  <Text style={{ color: c.text.primary, fontWeight: "800", fontSize: 13 }}>{i + 1}</Text>
                 </View>
-                <Text style={{ color: t.textPrimary, fontWeight: "700", fontSize: 15, flex: 1 }}>{v.value}</Text>
-                <Text style={{ color: t.textMuted, fontSize: 13 }}>{v.count} time{v.count === 1 ? "" : "s"}</Text>
+                <Text style={{ color: c.text.primary, fontWeight: "700", fontSize: 15, flex: 1 }}>{v.value}</Text>
+                <Text style={{ color: c.text.tertiary, fontSize: 13 }}>{v.count} time{v.count === 1 ? "" : "s"}</Text>
               </View>
             ))}
           </>
@@ -122,25 +126,25 @@ export default function WeeklyInsights() {
 
       {/* Emotional state */}
       <GlassCard>
-        <Text style={{ color: t.textPrimary, fontWeight: "800", fontSize: 17, marginBottom: 4 }}>How you've been feeling</Text>
-        <Text style={{ color: t.textMuted, marginTop: 6 }}>{regSummary || "Not enough data yet."}</Text>
-        <Text style={{ color: t.textMuted, marginTop: 6 }}>{quadrantSummary || ""}</Text>
+        <Text style={{ color: c.text.primary, fontWeight: "800", fontSize: 17, marginBottom: 4 }}>How you've been feeling</Text>
+        <Text style={{ color: c.text.tertiary, marginTop: 6 }}>{regSummary || "Not enough data yet."}</Text>
+        <Text style={{ color: c.text.tertiary, marginTop: 6 }}>{quadrantSummary || ""}</Text>
       </GlassCard>
 
       {/* Adherence */}
       <GlassCard>
-        <Text style={{ color: t.textPrimary, fontWeight: "800", fontSize: 17, marginBottom: 4 }}>Following through</Text>
-        <Text style={{ color: t.textMuted }}>{adherenceLine || "No plan data yet."}</Text>
-        <Text style={{ color: t.textMuted, marginTop: 8 }}>{adherenceVsLbi}</Text>
+        <Text style={{ color: c.text.primary, fontWeight: "800", fontSize: 17, marginBottom: 4 }}>Following through</Text>
+        <Text style={{ color: c.text.tertiary }}>{adherenceLine || "No plan data yet."}</Text>
+        <Text style={{ color: c.text.tertiary, marginTop: 8 }}>{adherenceVsLbi}</Text>
       </GlassCard>
 
       {/* Weekly trend */}
       <GlassCard>
-        <Text style={{ color: t.textPrimary, fontWeight: "800", fontSize: 17, marginBottom: 4 }}>The bigger picture</Text>
-        <Text style={{ color: t.textMuted }}>{weeklyMeaning}</Text>
+        <Text style={{ color: c.text.primary, fontWeight: "800", fontSize: 17, marginBottom: 4 }}>The bigger picture</Text>
+        <Text style={{ color: c.text.tertiary }}>{weeklyMeaning}</Text>
       </GlassCard>
 
-      <Text style={{ color: t.textMuted, fontSize: 12, textAlign: "center", marginTop: Spacing.lg, lineHeight: 16 }}>
+      <Text style={{ color: c.text.tertiary, fontSize: 12, textAlign: "center", marginTop: Spacing.lg, lineHeight: 16 }}>
         These patterns are observational — they show what happened, not what caused it.
       </Text>
     </Screen>

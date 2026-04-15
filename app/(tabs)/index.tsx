@@ -1,5 +1,5 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View, useColorScheme } from "react-native";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Animated, Pressable, ScrollView, StyleSheet, Text, View, useColorScheme, Dimensions } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useFocusEffect } from "expo-router";
 import { AuroraBackground } from "@/components/ui/AuroraBackground";
@@ -8,10 +8,14 @@ import { GlassCard } from "@/components/ui/GlassCard";
 import { TransparencyDrawer } from "@/components/ui/TransparencyDrawer";
 import { WeeklyStrip } from "@/components/ui/WeeklyStrip";
 import { IconSymbol } from "@/components/ui/icon-symbol";
+import { MiniLineChart } from "@/components/ui/MiniLineChart";
+import { RadarChart } from "@/components/ui/RadarChart";
+import { HeatmapCalendar } from "@/components/ui/HeatmapCalendar";
+import { EmptyState } from "@/components/ui/EmptyState";
 
 import { computeBaselineMeta } from "@/lib/baseline";
 import { computeConsistency } from "@/lib/consistency";
-import { getDay, getUserName, listDailyRecords, listEmotions, loadPlan } from "@/lib/storage";
+import { getAllDays, getDay, getUserName, listDailyRecords, listEmotions, loadPlan, setPlanActionCompleted, getPlanAdherenceSummary } from "@/lib/storage";
 import { todayISO } from "@/lib/util/todayISO";
 import type { LbiOutput } from "@/lib/lbi";
 import type { ISODate } from "@/lib/types";
@@ -20,6 +24,9 @@ import { Spacing, BorderRadius } from "@/constants/Spacing";
 import { refreshDerivedForDate } from "@/lib/pipeline";
 import { predictTomorrowRisk } from "@/lib/ml";
 import { buildMissingnessSummary } from "@/lib/transparency";
+import * as Haptics from "expo-haptics";
+
+const { width: SCREEN_W } = Dimensions.get("window");
 
 function greetingForHour(h: number) {
   if (h < 12) return "Good morning";
@@ -34,7 +41,8 @@ export default function HomeScreen() {
 
   const [date] = useState<ISODate>(todayISO());
   const [lbi, setLbi] = useState<LbiOutput | null>(null);
-  const [todayPlan, setTodayPlan] = useState<{ focus: string; actions: string[]; actionReasons: string[] } | null>(null);
+  const [todayPlan, setTodayPlan] = useState<{ focus: string; actions: string[]; actionReasons: string[]; completedActions: boolean[] } | null>(null);
+  const [adherenceSummary, setAdherenceSummary] = useState<{ streak: number; adherencePct: number } | null>(null);
   const [risk, setRisk] = useState<{
     trained: boolean;
     rowsUsed: number;
@@ -52,6 +60,13 @@ export default function HomeScreen() {
   const [userName, setUserName] = useState("");
   const [valueAlignmentPct, setValueAlignmentPct] = useState<number | null>(null);
   const [consistencyPct, setConsistencyPct] = useState<number | null>(null);
+  const [weeklyLbi, setWeeklyLbi] = useState<{ label: string; value: number }[]>([]);
+  const [heatmapData, setHeatmapData] = useState<{ date: string; value: number }[]>([]);
+  const [hasAnyData, setHasAnyData] = useState(true);
+
+  // Animated score reveal
+  const scoreAnim = useRef(new Animated.Value(0)).current;
+  const scoreScale = useRef(new Animated.Value(0.8)).current;
 
   const headerGreeting = useMemo(() => greetingForHour(new Date().getHours()), []);
 
@@ -63,9 +78,11 @@ export default function HomeScreen() {
         setMissingness(buildMissingnessSummary(day));
         setCheckedInToday(!!day?.checkIn);
         if (!day?.wearable) {
-          setStatus("Sync WHOOP or complete a check-in to get started.");
+          setStatus("");
           setTodayPlan(null);
+          setHasAnyData(!!day?.checkIn);
         } else {
+          setHasAnyData(true);
           if (!day?.checkIn) {
             setStatus("Complete today's check-in to improve accuracy.");
           } else {
@@ -76,14 +93,39 @@ export default function HomeScreen() {
           setLbi(derived.lbi);
           await computeBaselineMeta(7);
           const plan = await loadPlan(date);
-          setTodayPlan(plan ? { focus: plan.focus, actions: plan.actions, actionReasons: plan.actionReasons ?? [] } : null);
+          setTodayPlan(plan ? { focus: plan.focus, actions: plan.actions, actionReasons: plan.actionReasons ?? [], completedActions: plan.completedActions ?? plan.actions.map(() => false) } : null);
+
+          // Animate score reveal
+          Animated.parallel([
+            Animated.timing(scoreAnim, { toValue: 1, duration: 600, useNativeDriver: true }),
+            Animated.spring(scoreScale, { toValue: 1, friction: 6, tension: 80, useNativeDriver: true }),
+          ]).start();
         }
       } catch (e: any) {
         setStatus(e?.message ?? "Unable to refresh");
       }
 
-      const records = await listDailyRecords(14);
+      const records = await listDailyRecords(60);
       setDataDates(records.filter((r) => !!r.wearable || !!r.lbi).map((r) => r.date));
+
+      // Build 7-day LBI chart data
+      const last7 = records.slice(0, 7).reverse();
+      if (last7.length >= 2) {
+        setWeeklyLbi(
+          last7.map((r) => ({
+            label: new Date(r.date + "T12:00:00").toLocaleDateString("en-GB", { weekday: "short" }).slice(0, 2),
+            value: typeof r.lbi === "number" ? r.lbi : 0,
+          })).filter((d) => d.value > 0)
+        );
+      }
+
+      // Build heatmap data from all days
+      const allDays = await getAllDays();
+      setHeatmapData(
+        allDays
+          .filter((d) => typeof d.lbi === "number")
+          .map((d) => ({ date: d.date, value: d.lbi as number }))
+      );
 
       // Consistency score
       if (records.length >= 3) {
@@ -99,7 +141,6 @@ export default function HomeScreen() {
         emos.forEach((e) => (freq[e.valueChosen] = (freq[e.valueChosen] ?? 0) + 1));
         const top = Object.entries(freq).sort((a, b) => b[1] - a[1])[0];
         if (top) setIdentityLine(`Showing up for ${top[0]} (${top[1]}x this week)`);
-        // Value alignment = % of days in last 7 that had an emotion logged with a value
         const uniqueDays = new Set(emos.map((e) => e.date));
         setValueAlignmentPct(Math.round((uniqueDays.size / 7) * 100));
       } else {
@@ -108,9 +149,20 @@ export default function HomeScreen() {
       }
 
       setRisk(await predictTomorrowRisk());
+      setAdherenceSummary(await getPlanAdherenceSummary(7));
     })();
     return () => { alive = false; };
   }, [date]);
+
+  const toggleAction = useCallback(async (index: number) => {
+    if (!todayPlan) return;
+    const newCompleted = [...todayPlan.completedActions];
+    newCompleted[index] = !newCompleted[index];
+    setTodayPlan({ ...todayPlan, completedActions: newCompleted });
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    await setPlanActionCompleted(date, index, newCompleted[index]);
+    setAdherenceSummary(await getPlanAdherenceSummary(7));
+  }, [todayPlan, date]);
 
   useEffect(() => { return loadHome(); }, [loadHome]);
   useFocusEffect(useCallback(() => { return loadHome(); }, [loadHome]));
@@ -124,7 +176,6 @@ export default function HomeScreen() {
     ].slice(0, 3);
   }, [lbi]);
 
-  // Delta chips from subscores
   const deltaChips = useMemo(() => {
     if (!lbi) return [];
     const chips: { label: string; delta: number; color: string }[] = [];
@@ -135,6 +186,75 @@ export default function HomeScreen() {
     return chips;
   }, [lbi, c]);
 
+  // Empty state — first-day guided experience
+  if (!hasAnyData && !lbi) {
+    return (
+      <View style={{ flex: 1 }}>
+        <AuroraBackground />
+        <SafeAreaView style={{ flex: 1 }}>
+          <ScrollView contentContainerStyle={{ paddingHorizontal: Spacing.base, paddingBottom: 120 }} showsVerticalScrollIndicator={false}>
+            <View style={styles.header}>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.greeting, { color: c.text.secondary }]}>
+                  {headerGreeting}{userName ? `, ${userName}` : ""}
+                </Text>
+              </View>
+              <Pressable
+                onPress={() => router.push("/profile" as any)}
+                style={[styles.avatar, { backgroundColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.05)", borderColor: c.border.light }]}
+              >
+                <IconSymbol name="person.fill" size={18} color={c.text.secondary} />
+              </Pressable>
+            </View>
+
+            <GlassCard style={{ marginTop: Spacing.xl }}>
+              <EmptyState
+                icon="heart.text.square"
+                title="Welcome to Life Balance"
+                description="Start by syncing your WHOOP data or completing your first check-in. Your personalised insights will appear here."
+                actionLabel="Start Check-in"
+                onAction={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                  router.push("/checkin" as any);
+                }}
+              />
+            </GlassCard>
+
+            <GlassCard style={{ marginTop: Spacing.md }}>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 12, marginBottom: Spacing.sm }}>
+                <View style={{ width: 36, height: 36, borderRadius: 12, backgroundColor: isDark ? "rgba(124,111,220,0.12)" : "rgba(107,93,211,0.08)", alignItems: "center", justifyContent: "center" }}>
+                  <IconSymbol name="1.circle.fill" size={18} color={c.accent.primary} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 15, fontWeight: "700", color: c.text.primary }}>Sync wearable data</Text>
+                  <Text style={{ fontSize: 13, color: c.text.secondary }}>Connect WHOOP or import Apple Health</Text>
+                </View>
+              </View>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 12, marginBottom: Spacing.sm }}>
+                <View style={{ width: 36, height: 36, borderRadius: 12, backgroundColor: isDark ? "rgba(124,111,220,0.12)" : "rgba(107,93,211,0.08)", alignItems: "center", justifyContent: "center" }}>
+                  <IconSymbol name="2.circle.fill" size={18} color={c.accent.primary} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 15, fontWeight: "700", color: c.text.primary }}>Complete a check-in</Text>
+                  <Text style={{ fontSize: 13, color: c.text.secondary }}>Log your mood, energy, sleep and stress</Text>
+                </View>
+              </View>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+                <View style={{ width: 36, height: 36, borderRadius: 12, backgroundColor: isDark ? "rgba(124,111,220,0.12)" : "rgba(107,93,211,0.08)", alignItems: "center", justifyContent: "center" }}>
+                  <IconSymbol name="3.circle.fill" size={18} color={c.accent.primary} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 15, fontWeight: "700", color: c.text.primary }}>Get your balance score</Text>
+                  <Text style={{ fontSize: 13, color: c.text.secondary }}>See personalised insights and recommendations</Text>
+                </View>
+              </View>
+            </GlassCard>
+          </ScrollView>
+        </SafeAreaView>
+      </View>
+    );
+  }
+
   return (
     <View style={{ flex: 1 }}>
       <AuroraBackground />
@@ -143,10 +263,10 @@ export default function HomeScreen() {
           contentContainerStyle={{ paddingHorizontal: Spacing.base, paddingBottom: 120 }}
           showsVerticalScrollIndicator={false}
         >
-          {/* Header row — greeting + profile avatar */}
+          {/* Header row */}
           <View style={styles.header}>
             <View style={{ flex: 1 }}>
-              <Text style={[styles.greeting, { color: isDark ? c.text.secondary : c.text.secondary }]}>
+              <Text style={[styles.greeting, { color: c.text.secondary }]}>
                 {headerGreeting}{userName ? `, ${userName}` : ""}
               </Text>
             </View>
@@ -158,12 +278,12 @@ export default function HomeScreen() {
             </Pressable>
           </View>
 
-          {/* Week strip — Mon–Sun */}
+          {/* Week strip */}
           <View style={{ marginTop: Spacing.sm }}>
             <WeeklyStrip dataDates={dataDates} />
           </View>
 
-          {/* Hero section — "Today feels..." + Large LBI score */}
+          {/* Hero section — Animated score reveal */}
           <View style={styles.heroSection}>
             {identityLine ? (
               <Text style={[styles.feelsLabel, { color: c.text.secondary }]}>{identityLine}</Text>
@@ -171,12 +291,13 @@ export default function HomeScreen() {
               <Text style={[styles.feelsLabel, { color: c.text.secondary }]}>Today's balance</Text>
             )}
 
-            {/* Large score */}
-            <Pressable onPress={() => setDriversVisible(true)} onLongPress={() => setTransparencyVisible(true)}>
-              <Text style={[styles.heroScore, { color: c.text.primary }]}>
-                {lbi ? Math.round(lbi.lbi) : "—"}
-              </Text>
-            </Pressable>
+            <Animated.View style={{ opacity: scoreAnim, transform: [{ scale: scoreScale }] }}>
+              <Pressable onPress={() => setDriversVisible(true)} onLongPress={() => setTransparencyVisible(true)}>
+                <Text style={[styles.heroScore, { color: c.text.primary }]}>
+                  {lbi ? Math.round(lbi.lbi) : "—"}
+                </Text>
+              </Pressable>
+            </Animated.View>
 
             {/* Delta chips row */}
             {deltaChips.length > 0 && (
@@ -206,9 +327,40 @@ export default function HomeScreen() {
             </GlassCard>
           ) : null}
 
+          {/* 7-day LBI trend chart */}
+          {weeklyLbi.length >= 2 && (
+            <GlassCard style={{ marginTop: Spacing.md }}>
+              <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: Spacing.sm }}>
+                <Text style={[styles.sectionTitle, { color: c.text.primary }]}>7-day trend</Text>
+                <Pressable onPress={() => router.push("/insights/trends" as any)} style={({ pressed }) => [pressed && { opacity: 0.6 }]}>
+                  <Text style={{ fontSize: 13, fontWeight: "700", color: c.accent.primary }}>See all</Text>
+                </Pressable>
+              </View>
+              <MiniLineChart data={weeklyLbi} height={90} showValues />
+            </GlassCard>
+          )}
+
+          {/* Subscore breakdown */}
+          {lbi && (
+            <GlassCard style={{ marginTop: Spacing.md }}>
+              <Text style={[styles.sectionTitle, { color: c.text.primary, marginBottom: Spacing.sm }]}>Score breakdown</Text>
+              <RadarChart
+                axes={[
+                  { label: "Recovery", value: lbi.subscores.recovery },
+                  { label: "Sleep", value: lbi.subscores.sleep },
+                  { label: "Mood", value: lbi.subscores.mood },
+                  { label: "Stress", value: lbi.subscores.stress },
+                ]}
+              />
+            </GlassCard>
+          )}
+
           {/* Capture Today + Reflect on Yesterday CTAs */}
           <Pressable
-            onPress={() => router.push("/checkin" as any)}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+              router.push("/checkin" as any);
+            }}
             style={({ pressed }) => [
               styles.captureBtn,
               {
@@ -236,7 +388,7 @@ export default function HomeScreen() {
             <IconSymbol name="chevron.right" size={14} color={c.text.secondary} />
           </Pressable>
 
-          {/* Value Alignment & Emotional Consistency stats */}
+          {/* Value Alignment & Emotional Consistency */}
           {(valueAlignmentPct != null || consistencyPct != null) && (
             <View style={styles.statRow}>
               {valueAlignmentPct != null && (
@@ -255,33 +407,84 @@ export default function HomeScreen() {
                   style={({ pressed }) => [styles.statCard, { backgroundColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(255,255,255,0.65)", borderColor: c.border.light }, pressed && { opacity: 0.8 }]}
                 >
                   <View style={[styles.statDot, { backgroundColor: c.success }]} />
-                  <Text style={[styles.statLabel, { color: c.text.secondary }]}>Emotional Consistency</Text>
+                  <Text style={[styles.statLabel, { color: c.text.secondary }]}>Consistency</Text>
                   <Text style={[styles.statValue, { color: c.text.primary }]}>{consistencyPct}%</Text>
                 </Pressable>
               )}
             </View>
           )}
 
-          {/* Today's recommendation */}
+          {/* Today's plan with interactive checklist */}
           {todayPlan && (
             <GlassCard style={{ marginTop: Spacing.md }}>
-              <Text style={[styles.sectionTitle, { color: c.text.primary }]}>Today's recommendation</Text>
-              <Text style={{ color: c.text.secondary, marginTop: 4, fontSize: 14 }}>{todayPlan.focus}</Text>
-              <View style={{ marginTop: Spacing.sm, gap: 8 }}>
-                {todayPlan.actions.map((action, i) => (
-                  <View key={i} style={styles.actionItem}>
-                    <View style={[styles.actionBullet, { backgroundColor: c.accent.primary }]} />
-                    <View style={{ flex: 1 }}>
-                      <Text style={{ color: c.text.primary, fontSize: 14, fontWeight: "600" }}>{action}</Text>
-                      {todayPlan.actionReasons[i] ? (
-                        <Text style={{ color: c.text.secondary, fontSize: 12, marginTop: 2 }}>
-                          {todayPlan.actionReasons[i]}
-                        </Text>
-                      ) : null}
-                    </View>
+              <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+                <Text style={[styles.sectionTitle, { color: c.text.primary }]}>Today's plan</Text>
+                {adherenceSummary && adherenceSummary.streak > 0 && (
+                  <View style={[styles.streakBadge, { backgroundColor: isDark ? "rgba(47,163,122,0.15)" : "rgba(47,163,122,0.1)" }]}>
+                    <Text style={{ color: c.success, fontSize: 12, fontWeight: "800" }}>
+                      {adherenceSummary.streak}d streak
+                    </Text>
                   </View>
-                ))}
+                )}
               </View>
+              <Text style={{ color: c.text.secondary, marginTop: 4, fontSize: 14 }}>{todayPlan.focus}</Text>
+              <View style={{ marginTop: Spacing.sm, gap: 6 }}>
+                {todayPlan.actions.map((action, i) => {
+                  const done = todayPlan.completedActions[i];
+                  return (
+                    <Pressable
+                      key={i}
+                      onPress={() => toggleAction(i)}
+                      style={({ pressed }) => [styles.actionCheckRow, pressed && { opacity: 0.7 }]}
+                    >
+                      <View style={[styles.checkbox, { borderColor: done ? c.success : c.border.heavy, backgroundColor: done ? c.success : "transparent" }]}>
+                        {done && <Text style={{ color: "#fff", fontSize: 11, fontWeight: "800", lineHeight: 14 }}>✓</Text>}
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ color: done ? c.text.secondary : c.text.primary, fontSize: 14, fontWeight: "600", textDecorationLine: done ? "line-through" : "none" }}>{action}</Text>
+                        {todayPlan.actionReasons[i] ? (
+                          <Text style={{ color: c.text.tertiary, fontSize: 12, marginTop: 2 }}>
+                            {todayPlan.actionReasons[i]}
+                          </Text>
+                        ) : null}
+                      </View>
+                    </Pressable>
+                  );
+                })}
+              </View>
+              {/* Progress bar */}
+              {(() => {
+                const done = todayPlan.completedActions.filter(Boolean).length;
+                const total = todayPlan.actions.length;
+                const pct = total > 0 ? done / total : 0;
+                return (
+                  <View style={{ marginTop: Spacing.sm }}>
+                    <View style={{ height: 4, borderRadius: 2, backgroundColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)", overflow: "hidden" }}>
+                      <View style={{ height: 4, borderRadius: 2, width: `${Math.round(pct * 100)}%`, backgroundColor: pct === 1 ? c.success : c.accent.primary }} />
+                    </View>
+                    <Text style={{ color: c.text.tertiary, fontSize: 12, marginTop: 4 }}>
+                      {done}/{total} completed{pct === 1 ? " — well done!" : ""}
+                    </Text>
+                  </View>
+                );
+              })()}
+            </GlassCard>
+          )}
+
+          {/* Heatmap calendar */}
+          {heatmapData.length >= 3 && (
+            <GlassCard style={{ marginTop: Spacing.md }}>
+              <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: Spacing.sm }}>
+                <Text style={[styles.sectionTitle, { color: c.text.primary }]}>Score history</Text>
+                <Pressable onPress={() => router.push("/insights/trends" as any)} style={({ pressed }) => [pressed && { opacity: 0.6 }]}>
+                  <Text style={{ fontSize: 13, fontWeight: "700", color: c.accent.primary }}>Trends</Text>
+                </Pressable>
+              </View>
+              <HeatmapCalendar
+                data={heatmapData}
+                weeks={6}
+                onDayPress={(d) => router.push(`/day/${d}` as any)}
+              />
             </GlassCard>
           )}
 
@@ -328,7 +531,10 @@ export default function HomeScreen() {
 
         {/* Floating + (Quick Capture) button */}
         <Pressable
-          onPress={() => router.push("/checkin" as any)}
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            router.push("/checkin" as any);
+          }}
           style={({ pressed }) => [
             styles.fab,
             { backgroundColor: c.accent.primary, shadowColor: c.accent.primary },
@@ -478,16 +684,25 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: "800",
   },
-  actionItem: {
+  actionCheckRow: {
     flexDirection: "row",
     alignItems: "flex-start",
-    gap: 10,
+    gap: 12,
+    paddingVertical: 8,
   },
-  actionBullet: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    marginTop: 6,
+  checkbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 6,
+    borderWidth: 2,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 1,
+  },
+  streakBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: BorderRadius.full,
   },
   riskRow: {
     flexDirection: "row",

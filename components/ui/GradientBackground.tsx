@@ -1,9 +1,11 @@
 import React, { useEffect, useRef } from "react";
-import { Animated, StyleSheet } from "react-native";
-import { useAppTheme } from "@/theme/tokens";
+import { Animated, StyleSheet, useColorScheme } from "react-native";
+import { Colors } from "@/constants/Colors";
 
 export function GradientBackground() {
-  const t = useAppTheme();
+  const scheme = useColorScheme();
+  const isDark = scheme === "dark";
+  const c = isDark ? Colors.dark : Colors.light;
   const anim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -28,7 +30,7 @@ export function GradientBackground() {
         StyleSheet.absoluteFill,
         {
           transform: [{ translateX: translate }],
-          backgroundColor: t.backgroundPrimary,
+          backgroundColor: c.background,
           opacity: 0.96,
         },
       ]}

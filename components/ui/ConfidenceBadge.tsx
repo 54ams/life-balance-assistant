@@ -1,16 +1,18 @@
 import React from "react";
-import { StyleSheet, Text, View } from "react-native";
-import { useAppTheme } from "@/theme/tokens";
+import { StyleSheet, Text, View, useColorScheme } from "react-native";
+import { Colors } from "@/constants/Colors";
 
 export function ConfidenceBadge({ level }: { level: "high" | "medium" | "low" }) {
-  const t = useAppTheme();
+  const scheme = useColorScheme();
+  const isDark = scheme === "dark";
+  const c = isDark ? Colors.dark : Colors.light;
   const colors = {
-    high: t.accentSuccess,
-    medium: t.accentWarning,
-    low: t.accentDanger,
+    high: c.success,
+    medium: c.warning,
+    low: c.danger,
   };
   return (
-    <View style={[styles.badge, { borderColor: colors[level], backgroundColor: t.glassBackground }]}>
+    <View style={[styles.badge, { borderColor: colors[level], backgroundColor: c.glass.primary }]}>
       <Text style={{ color: colors[level], fontWeight: "800", fontSize: 12 }}>{`Confidence: ${level}`}</Text>
     </View>
   );

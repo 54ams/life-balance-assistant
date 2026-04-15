@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef } from "react";
-import { Animated, PanResponder, StyleSheet, View } from "react-native";
-import { useAppTheme } from "@/theme/tokens";
+import { Animated, PanResponder, StyleSheet, View, useColorScheme } from "react-native";
+import { Colors } from "@/constants/Colors";
 
 type Props = {
   initial: { x: number; y: number };
@@ -10,10 +10,15 @@ type Props = {
 
 // valence/arousal are mapped from -1..1 to canvas -1..1 space.
 export function AffectCanvas({ initial, onChange, ghost }: Props) {
-  const t = useAppTheme();
+  const scheme = useColorScheme();
+  const isDark = scheme === "dark";
+  const c = isDark ? Colors.dark : Colors.light;
   const radius = 140;
   const pos = useRef(new Animated.ValueXY({ x: initial.x, y: initial.y })).current;
   const latest = useRef({ x: initial.x, y: initial.y });
+
+  const accentGradientSoft = isDark ? ["#23314E", "#1B273D"] : ["#C2E9FB", "#E2D4FF"];
+  const glowSoft = isDark ? "rgba(77,189,255,0.20)" : "rgba(122,215,240,0.22)";
 
   useEffect(() => {
     pos.setValue(initial);
@@ -42,8 +47,8 @@ export function AffectCanvas({ initial, onChange, ghost }: Props) {
 
   return (
     <View style={[styles.wrap]}>
-      <View style={[styles.gradient, { backgroundColor: t.accentGradientSoft[0] }]} />
-      <View style={[styles.gradient, { backgroundColor: t.accentGradientSoft[1] }]} />
+      <View style={[styles.gradient, { backgroundColor: accentGradientSoft[0] }]} />
+      <View style={[styles.gradient, { backgroundColor: accentGradientSoft[1] }]} />
       {ghost ? (
         <View
           pointerEvents="none"
@@ -52,7 +57,7 @@ export function AffectCanvas({ initial, onChange, ghost }: Props) {
             {
               left: radius + ghost.x - 8,
               top: radius - ghost.y - 8,
-              borderColor: t.textMuted,
+              borderColor: c.text.tertiary,
             },
           ]}
         />
@@ -66,9 +71,9 @@ export function AffectCanvas({ initial, onChange, ghost }: Props) {
               { translateX: pos.x },
               { translateY: pos.y },
             ],
-            backgroundColor: t.glassBackground,
-            borderColor: t.glassBorder,
-            shadowColor: t.glowSoft,
+            backgroundColor: c.glass.primary,
+            borderColor: c.glass.border,
+            shadowColor: glowSoft,
           },
         ]}
       />

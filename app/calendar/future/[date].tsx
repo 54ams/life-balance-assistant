@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from "react";
-import { Alert, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { Alert, Pressable, StyleSheet, Text, TextInput, View, useColorScheme } from "react-native";
 import { useLocalSearchParams } from "expo-router";
 
 import { Screen } from "@/components/Screen";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { Button } from "@/components/ui/button";
-import { useAppTheme } from "@/theme/tokens";
+import { Colors } from "@/constants/Colors";
 import { addFutureEvent, deleteFutureEvent, listFutureEventsByDate } from "@/lib/storage";
 import type { ISODate } from "@/lib/types";
 
@@ -14,7 +14,10 @@ const impacts = ["low", "medium", "high"] as const;
 export default function FutureEventScreen() {
   const params = useLocalSearchParams<{ date: ISODate }>();
   const date = params?.date as ISODate;
-  const t = useAppTheme();
+  const scheme = useColorScheme();
+  const isDark = scheme === "dark";
+  const c = isDark ? Colors.dark : Colors.light;
+  const glassOverlay = isDark ? "rgba(0,0,0,0.35)" : "rgba(0,0,0,0.10)";
 
   const [title, setTitle] = useState("");
   const [impactLevel, setImpactLevel] = useState<typeof impacts[number]>("medium");
@@ -54,16 +57,16 @@ export default function FutureEventScreen() {
   return (
     <Screen scroll title="Future context" subtitle={date}>
       <GlassCard>
-        <Text style={{ color: t.textPrimary, fontWeight: "800", fontSize: 16 }}>Add context</Text>
+        <Text style={{ color: c.text.primary, fontWeight: "800", fontSize: 16 }}>Add context</Text>
         <TextInput
           placeholder="e.g., Travel day, Big presentation"
-          placeholderTextColor={t.textMuted}
-          style={[styles.input, { borderColor: t.glassBorder, color: t.textPrimary }]}
+          placeholderTextColor={c.text.tertiary}
+          style={[styles.input, { borderColor: c.glass.border, color: c.text.primary }]}
           value={title}
           onChangeText={setTitle}
         />
 
-        <Text style={{ color: t.textMuted, marginTop: 8 }}>Impact</Text>
+        <Text style={{ color: c.text.tertiary, marginTop: 8 }}>Impact</Text>
         <View style={styles.row}>
           {impacts.map((lvl) => (
             <Pressable
@@ -72,20 +75,20 @@ export default function FutureEventScreen() {
               style={[
                 styles.chip,
                 {
-                  borderColor: t.glassBorder,
-                  backgroundColor: impactLevel === lvl ? t.glassOverlay : "transparent",
+                  borderColor: c.glass.border,
+                  backgroundColor: impactLevel === lvl ? glassOverlay : "transparent",
                 },
               ]}
             >
-              <Text style={{ color: t.textPrimary, fontWeight: "700" }}>{lvl}</Text>
+              <Text style={{ color: c.text.primary, fontWeight: "700" }}>{lvl}</Text>
             </Pressable>
           ))}
         </View>
 
         <TextInput
           placeholder="Tags (comma separated)"
-          placeholderTextColor={t.textMuted}
-          style={[styles.input, { borderColor: t.glassBorder, color: t.textPrimary }]}
+          placeholderTextColor={c.text.tertiary}
+          style={[styles.input, { borderColor: c.glass.border, color: c.text.primary }]}
           value={tags}
           onChangeText={setTags}
         />
@@ -98,16 +101,16 @@ export default function FutureEventScreen() {
       <View style={{ height: 12 }} />
 
       <GlassCard>
-        <Text style={{ color: t.textPrimary, fontWeight: "800", fontSize: 16 }}>Saved for this day</Text>
+        <Text style={{ color: c.text.primary, fontWeight: "800", fontSize: 16 }}>Saved for this day</Text>
         {events.length === 0 ? (
-          <Text style={{ color: t.textMuted, marginTop: 8 }}>No events yet.</Text>
+          <Text style={{ color: c.text.tertiary, marginTop: 8 }}>No events yet.</Text>
         ) : (
           <View style={{ marginTop: 10, gap: 10 }}>
             {events.map((e) => (
               <View key={e.id} style={styles.eventRow}>
                 <View>
-                  <Text style={{ color: t.textPrimary, fontWeight: "700" }}>{e.title}</Text>
-                  <Text style={{ color: t.textMuted, marginTop: 2 }}>
+                  <Text style={{ color: c.text.primary, fontWeight: "700" }}>{e.title}</Text>
+                  <Text style={{ color: c.text.tertiary, marginTop: 2 }}>
                     {e.impactLevel} impact {e.tags?.length ? `• ${e.tags.join(", ")}` : ""}
                   </Text>
                 </View>
@@ -116,7 +119,7 @@ export default function FutureEventScreen() {
                   onPress={() => remove(e.id)}
                   style={({ pressed }) => [{ padding: 8 }, pressed && { opacity: 0.7 }]}
                 >
-                  <Text style={{ color: t.accentDanger, fontWeight: "800" }}>Delete</Text>
+                  <Text style={{ color: c.danger, fontWeight: "800" }}>Delete</Text>
                 </Pressable>
               </View>
             ))}

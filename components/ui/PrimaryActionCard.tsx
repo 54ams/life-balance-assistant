@@ -1,7 +1,7 @@
 import React from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View, useColorScheme } from "react-native";
 import { GlassCard } from "@/components/ui/GlassCard";
-import { useAppTheme } from "@/theme/tokens";
+import { Colors } from "@/constants/Colors";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 
 export function PrimaryActionCard({
@@ -17,7 +17,11 @@ export function PrimaryActionCard({
   onPress: () => void;
   accessibilityLabel?: string;
 }) {
-  const t = useAppTheme();
+  const scheme = useColorScheme();
+  const isDark = scheme === "dark";
+  const c = isDark ? Colors.dark : Colors.light;
+  const glassOverlay = isDark ? "rgba(0,0,0,0.35)" : "rgba(0,0,0,0.10)";
+
   return (
     <GlassCard style={styles.card}>
       <Pressable
@@ -29,14 +33,14 @@ export function PrimaryActionCard({
           { opacity: pressed ? 0.85 : 1 },
         ]}
       >
-        <View style={[styles.iconWrap, { backgroundColor: t.glassOverlay }]}>
-          <IconSymbol name={icon} size={18} color={t.textPrimary} />
+        <View style={[styles.iconWrap, { backgroundColor: glassOverlay }]}>
+          <IconSymbol name={icon} size={18} color={c.text.primary} />
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={{ color: t.textPrimary, fontWeight: "800", fontSize: 15 }}>{title}</Text>
-          <Text style={{ color: t.textMuted, marginTop: 4, fontSize: 12 }}>{subtitle}</Text>
+          <Text style={{ color: c.text.primary, fontWeight: "800", fontSize: 15 }}>{title}</Text>
+          <Text style={{ color: c.text.tertiary, marginTop: 4, fontSize: 12 }}>{subtitle}</Text>
         </View>
-        <IconSymbol name="chevron.right" size={16} color={t.textMuted} />
+        <IconSymbol name="chevron.right" size={16} color={c.text.tertiary} />
       </Pressable>
     </GlassCard>
   );

@@ -1,15 +1,27 @@
 import { Stack, router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import React, { useCallback, useMemo, useState } from "react";
-import { Text, View, useColorScheme } from "react-native";
+import { Pressable, Text, View, useColorScheme } from "react-native";
 
 import { Screen } from "@/components/Screen";
 import { GlassCard } from "@/components/ui/GlassCard";
-import { GlassButton } from "@/components/ui/GlassButton";
+import { RadarChart } from "@/components/ui/RadarChart";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { Colors } from "@/constants/Colors";
 import { Spacing, BorderRadius } from "@/constants/Spacing";
-import { Typography } from "@/constants/Typography";
 import { getDay, loadPlan, type StoredPlan } from "@/lib/storage";
 import type { DailyRecord } from "@/lib/types";
+
+function moodLabel(v: number): string {
+  return ["", "Very low", "Low", "Neutral", "Good", "Great"][v] ?? "";
+}
+function energyLabel(v: number): string {
+  return ["", "Exhausted", "Low", "Moderate", "High", "Energised"][v] ?? "";
+}
+function regulationEmoji(r: string): string {
+  if (r === "handled") return "Handled well";
+  if (r === "manageable") return "Manageable";
+  return "Overwhelmed";
+}
 
 export default function DayDetailsScreen() {
   const params = useLocalSearchParams();
@@ -17,6 +29,7 @@ export default function DayDetailsScreen() {
   const date = Array.isArray(dateParam) ? dateParam[0] : dateParam;
 
   const scheme = useColorScheme();
+  const isDark = scheme === "dark";
   const c = scheme === "dark" ? Colors.dark : Colors.light;
 
   const [plan, setPlan] = useState<StoredPlan | null>(null);
@@ -33,9 +46,7 @@ export default function DayDetailsScreen() {
         setPlan(p);
         setRecord(day);
       })();
-      return () => {
-        alive = false;
-      };
+      return () => { alive = false; };
     }, [date])
   );
 
@@ -44,193 +55,319 @@ export default function DayDetailsScreen() {
     return typeof plan.baseline === "number" ? plan.lbi - plan.baseline : null;
   }, [plan]);
 
-  const deltaText = useMemo(() => {
-    if (delta == null) return "—";
-    return `${delta > 0 ? "+" : ""}${delta}`;
-  }, [delta]);
-
   const statusTone = useMemo(() => {
     if (!plan) return c.text.secondary;
-    return plan.category === "RECOVERY" ? "#D64550" : "#2FA37A";
+    return plan.category === "RECOVERY" ? c.danger : c.success;
   }, [plan, c]);
+
+  const displayDate = date
+    ? new Date(date + "T12:00:00").toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" })
+    : "No date";
+
+  const hasData = record?.checkIn || record?.wearable || record?.lbi != null;
 
   return (
     <Screen scroll>
       <Stack.Screen options={{ title: "Day details", headerShown: false }} />
 
-      <Text style={{ fontSize: Typography.fontSize.xxl, fontWeight: Typography.fontWeight.bold, color: c.text.primary }}>
+      <Text style={{ fontSize: 28, fontWeight: "900", color: c.text.primary, letterSpacing: -0.3 }}>
         Day details
       </Text>
-      <Text style={{ marginTop: Spacing.xs, color: c.text.secondary }}>
-        {date ?? "No date"}
+      <Text style={{ marginTop: Spacing.xs, color: c.text.secondary, fontSize: 14 }}>
+        {displayDate}
       </Text>
 
       {!date ? (
         <GlassCard style={{ marginTop: Spacing.md }}>
-          <Text style={{ color: c.text.primary, fontWeight: Typography.fontWeight.bold }}>
-            No date provided.
-          </Text>
+          <EmptyState icon="calendar" title="No date selected" description="Navigate here from the home screen or calendar." />
         </GlassCard>
-      ) : !plan ? (
-        <View style={{ marginTop: Spacing.md, gap: Spacing.md }}>
-          <GlassCard>
-            <Text style={{ color: c.text.primary, fontWeight: Typography.fontWeight.bold }}>
-              No saved plan found.
-            </Text>
-            <Text style={{ marginTop: Spacing.xs, color: c.text.secondary }}>
-              Raw day data is still shown below.
-            </Text>
-          </GlassCard>
-
-          <GlassCard>
-            <Text style={{ color: c.text.secondary, fontWeight: Typography.fontWeight.bold }}>Signals</Text>
-            <View style={{ marginTop: Spacing.sm, gap: Spacing.xs }}>
-              <Text style={{ color: c.text.primary }}>LBI: {record?.lbi ?? "—"}</Text>
-              <Text style={{ color: c.text.primary }}>
-                Recovery: {record?.wearable?.recovery ?? "—"} • Sleep: {record?.wearable?.sleepHours ?? "—"} • Strain: {record?.wearable?.strain ?? "—"}
-              </Text>
-              <Text style={{ color: c.text.primary }}>
-                Mood: {record?.checkIn?.mood ?? "—"} • Energy: {record?.checkIn?.energy ?? "—"} • Stress: {record?.checkIn?.stressLevel ?? "—"}
-              </Text>
-              <Text style={{ color: c.text.primary }}>
-                Sleep quality: {record?.checkIn?.sleepQuality ?? "—"} • Deep work: {record?.checkIn?.deepWorkMins ?? "—"} min • Hydration: {record?.checkIn?.hydrationLitres ?? "—"} L
-              </Text>
-              <Text style={{ color: c.text.primary }}>
-                Behaviours: caffeine after 2pm {record?.checkIn?.caffeineAfter2pm ? "yes" : "no"} • alcohol {record?.checkIn?.alcohol ? "yes" : "no"} • exercise {record?.checkIn?.exerciseDone ? "yes" : "no"}
-              </Text>
-            </View>
-          </GlassCard>
-
-          {record?.checkIn?.stressIndicators ? (
-            <GlassCard>
-              <Text style={{ color: c.text.secondary, fontWeight: Typography.fontWeight.bold }}>Stress indicators</Text>
-              <Text style={{ marginTop: Spacing.xs, color: c.text.primary }}>
-                {Object.entries(record.checkIn.stressIndicators)
-                  .filter(([, value]) => value)
-                  .map(([key]) => key)
-                  .join(", ") || "None selected"}
-              </Text>
-            </GlassCard>
-          ) : null}
-
-          {record?.checkIn?.notes ? (
-            <GlassCard>
-              <Text style={{ color: c.text.secondary, fontWeight: Typography.fontWeight.bold }}>Check-in notes</Text>
-              <Text style={{ marginTop: Spacing.xs, color: c.text.primary }}>{record.checkIn.notes}</Text>
-            </GlassCard>
-          ) : null}
-
-          {record?.emotion ? (
-            <GlassCard>
-              <Text style={{ color: c.text.secondary, fontWeight: Typography.fontWeight.bold }}>Emotional snapshot</Text>
-              <Text style={{ marginTop: Spacing.xs, color: c.text.primary }}>
-                Valence {record.emotion.valence.toFixed(2)} • Arousal {record.emotion.arousal.toFixed(2)} • Regulation {record.emotion.regulation}
-              </Text>
-              <Text style={{ marginTop: Spacing.xs, color: c.text.primary }}>
-                Value: {record.emotion.valueChosen}
-              </Text>
-              {record.emotion.contextTags.length ? (
-                <Text style={{ marginTop: Spacing.xs, color: c.text.primary }}>
-                  Context: {record.emotion.contextTags.join(", ")}
-                </Text>
-              ) : null}
-              {record.emotion.reflection ? (
-                <Text style={{ marginTop: Spacing.xs, color: c.text.primary }}>
-                  Reflection: {record.emotion.reflection}
-                </Text>
-              ) : null}
-            </GlassCard>
-          ) : null}
-        </View>
+      ) : !hasData ? (
+        <GlassCard style={{ marginTop: Spacing.md }}>
+          <EmptyState
+            icon="square.and.pencil"
+            title="No data for this day"
+            description="Complete a check-in or sync wearable data to see details."
+          />
+        </GlassCard>
       ) : (
-        <View style={{ marginTop: Spacing.md, gap: Spacing.md }}>
-          <GlassCard>
-            <View
-              style={{
-                alignSelf: "flex-start",
-                paddingHorizontal: Spacing.base,
-                paddingVertical: Spacing.xs,
-                borderRadius: BorderRadius.full,
-                backgroundColor: c.glass.primary,
-                borderWidth: 2,
-                borderColor: c.glass.border,
-              }}
-            >
-              <Text style={{ color: statusTone, fontWeight: Typography.fontWeight.bold, fontSize: Typography.fontSize.sm }}>
-                {plan.category}
-              </Text>
-            </View>
+        <View style={{ marginTop: Spacing.md, gap: Spacing.sm }}>
 
-            <Text style={{ marginTop: Spacing.sm, color: c.text.primary, fontSize: Typography.fontSize.lg, fontWeight: Typography.fontWeight.bold }}>
-              {plan.focus}
-            </Text>
-
-            <Text style={{ marginTop: Spacing.sm, color: c.text.secondary, fontWeight: Typography.fontWeight.bold }}>
-              Actions
-            </Text>
-            <View style={{ marginTop: Spacing.xs, gap: Spacing.xs }}>
-              {plan.actions.map((a, i) => (
-                <View key={i} style={{ gap: 2 }}>
-                  <Text style={{ color: c.text.primary }}>
-                    • {a}
-                  </Text>
-                  <Text style={{ color: c.text.secondary }}>
-                    {plan.actionReasons?.[i] ?? "Linked to today's rule-based recommendation logic."}
+          {/* Score hero + category badge */}
+          {(record?.lbi != null || plan) && (
+            <GlassCard>
+              <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" }}>
+                <View>
+                  <Text style={{ color: c.text.secondary, fontSize: 12, fontWeight: "600" }}>Balance score</Text>
+                  <Text style={{ color: c.text.primary, fontSize: 48, fontWeight: "900", marginTop: 2 }}>
+                    {plan?.lbi ?? record?.lbi ?? "—"}
                   </Text>
                 </View>
-              ))}
-            </View>
-          </GlassCard>
+                <View style={{ alignItems: "flex-end", gap: 6 }}>
+                  {plan && (
+                    <View
+                      style={{
+                        paddingHorizontal: 12,
+                        paddingVertical: 5,
+                        borderRadius: BorderRadius.full,
+                        backgroundColor: statusTone + "15",
+                      }}
+                    >
+                      <Text style={{ color: statusTone, fontWeight: "700", fontSize: 12 }}>
+                        {plan.category === "RECOVERY" ? "Recovery day" : "Normal day"}
+                      </Text>
+                    </View>
+                  )}
+                  {delta != null && (
+                    <Text style={{ color: delta >= 0 ? c.success : c.danger, fontSize: 14, fontWeight: "800" }}>
+                      {delta > 0 ? "+" : ""}{delta} vs baseline
+                    </Text>
+                  )}
+                  {plan && (
+                    <Text style={{ color: c.text.tertiary, fontSize: 12 }}>
+                      Confidence: {plan.confidence ?? "—"}
+                    </Text>
+                  )}
+                </View>
+              </View>
 
-          <GlassCard>
-            <Text style={{ color: c.text.secondary, fontWeight: Typography.fontWeight.bold }}>Scores</Text>
-            <View style={{ marginTop: Spacing.sm, gap: Spacing.xs }}>
-              <Text style={{ color: c.text.primary }}>
-                LBI: <Text style={{ fontWeight: Typography.fontWeight.bold }}>{plan.lbi}</Text>
-              </Text>
-              <Text style={{ color: c.text.primary }}>
-                Baseline (7d): <Text style={{ fontWeight: Typography.fontWeight.bold }}>{plan.baseline ?? "—"}</Text>
-              </Text>
-              <Text style={{ color: c.text.primary }}>
-                Δ vs baseline: <Text style={{ fontWeight: Typography.fontWeight.bold, color: statusTone }}>{deltaText}</Text>
-              </Text>
-              <Text style={{ color: c.text.primary }}>
-                Confidence: <Text style={{ fontWeight: Typography.fontWeight.bold }}>{plan.confidence ?? "—"}</Text>
-              </Text>
-            </View>
-
-            <View style={{ marginTop: Spacing.sm }}>
-              <GlassButton
-                title="Why did I get this score?"
-                variant="secondary"
+              <Pressable
                 onPress={() => router.push({ pathname: "/insights/explain", params: { date } })}
-              />
-            </View>
-          </GlassCard>
+                style={({ pressed }) => [{ marginTop: Spacing.sm }, pressed && { opacity: 0.6 }]}
+              >
+                <Text style={{ color: c.accent.primary, fontWeight: "700", fontSize: 13 }}>
+                  Why did I get this score?
+                </Text>
+              </Pressable>
+            </GlassCard>
+          )}
 
-          <GlassCard>
-            <Text style={{ color: c.text.secondary, fontWeight: Typography.fontWeight.bold }}>Triggers</Text>
-            {plan.triggers.length === 0 ? (
-              <Text style={{ marginTop: Spacing.xs, color: c.text.secondary }}>No triggers recorded.</Text>
-            ) : (
-              <View style={{ marginTop: Spacing.xs, gap: Spacing.xs }}>
-                {plan.triggers.map((t, i) => (
-                  <Text key={i} style={{ color: c.text.primary }}>
-                    • {t}
-                  </Text>
+          {/* Subscore breakdown */}
+          {record?.lbiMeta && (
+            <GlassCard>
+              <Text style={{ color: c.text.primary, fontWeight: "800", fontSize: 16, marginBottom: Spacing.sm }}>
+                Score breakdown
+              </Text>
+              <RadarChart
+                axes={[
+                  { label: "Recovery", value: record.wearable?.recovery ?? 50 },
+                  { label: "Sleep", value: Math.min(100, (record.wearable?.sleepHours ?? 7) / 9 * 100) },
+                  { label: "Mood", value: (record.checkIn?.mood ?? 3) / 5 * 100 },
+                  { label: "Stress", value: 100 - ((record.checkIn?.stressLevel ?? 3) / 5 * 100) },
+                ]}
+              />
+            </GlassCard>
+          )}
+
+          {/* Wearable metrics */}
+          {record?.wearable && (
+            <GlassCard>
+              <Text style={{ color: c.text.primary, fontWeight: "800", fontSize: 16, marginBottom: Spacing.sm }}>
+                Wearable data
+              </Text>
+              <View style={{ flexDirection: "row", gap: 8 }}>
+                <MetricPill label="Recovery" value={`${record.wearable.recovery}%`} c={c} isDark={isDark} />
+                <MetricPill label="Sleep" value={`${record.wearable.sleepHours}h`} c={c} isDark={isDark} />
+                {record.wearable.strain != null && (
+                  <MetricPill label="Strain" value={`${record.wearable.strain.toFixed(1)}`} c={c} isDark={isDark} />
+                )}
+              </View>
+              {(record.wearable.hrv != null || record.wearable.restingHR != null) && (
+                <View style={{ flexDirection: "row", gap: 8, marginTop: 8 }}>
+                  {record.wearable.hrv != null && <MetricPill label="HRV" value={`${record.wearable.hrv}ms`} c={c} isDark={isDark} />}
+                  {record.wearable.restingHR != null && <MetricPill label="RHR" value={`${record.wearable.restingHR}bpm`} c={c} isDark={isDark} />}
+                </View>
+              )}
+            </GlassCard>
+          )}
+
+          {/* Check-in data */}
+          {record?.checkIn && (
+            <GlassCard>
+              <Text style={{ color: c.text.primary, fontWeight: "800", fontSize: 16, marginBottom: Spacing.sm }}>
+                Check-in
+              </Text>
+              <View style={{ gap: 8 }}>
+                <SignalRow label="Mood" value={moodLabel(record.checkIn.mood)} level={record.checkIn.mood} c={c} isDark={isDark} />
+                <SignalRow label="Energy" value={energyLabel(record.checkIn.energy ?? 3)} level={record.checkIn.energy ?? 3} c={c} isDark={isDark} />
+                <SignalRow label="Stress" value={["", "None", "Mild", "Moderate", "High", "Severe"][record.checkIn.stressLevel ?? 3]} level={6 - (record.checkIn.stressLevel ?? 3)} c={c} isDark={isDark} />
+                <SignalRow label="Sleep quality" value={["", "Terrible", "Poor", "Fair", "Good", "Excellent"][record.checkIn.sleepQuality ?? 3]} level={record.checkIn.sleepQuality ?? 3} c={c} isDark={isDark} />
+              </View>
+
+              {/* Behaviours */}
+              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: Spacing.sm }}>
+                {record.checkIn.exerciseDone && <BehaviourChip label="Exercise" positive c={c} isDark={isDark} />}
+                {record.checkIn.caffeineAfter2pm && <BehaviourChip label="Caffeine after 2pm" positive={false} c={c} isDark={isDark} />}
+                {record.checkIn.alcohol && <BehaviourChip label="Alcohol" positive={false} c={c} isDark={isDark} />}
+              </View>
+
+              {(record.checkIn.deepWorkMins != null && record.checkIn.deepWorkMins > 0) && (
+                <Text style={{ color: c.text.secondary, fontSize: 13, marginTop: 6 }}>
+                  Deep work: {record.checkIn.deepWorkMins} min
+                </Text>
+              )}
+              {(record.checkIn.hydrationLitres != null && record.checkIn.hydrationLitres > 0) && (
+                <Text style={{ color: c.text.secondary, fontSize: 13, marginTop: 2 }}>
+                  Hydration: {record.checkIn.hydrationLitres}L
+                </Text>
+              )}
+
+              {record.checkIn.notes ? (
+                <View style={{ marginTop: Spacing.sm, padding: 12, borderRadius: BorderRadius.lg, backgroundColor: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.02)" }}>
+                  <Text style={{ color: c.text.tertiary, fontSize: 11, fontWeight: "600", marginBottom: 4 }}>Notes</Text>
+                  <Text style={{ color: c.text.secondary, fontSize: 13, lineHeight: 18 }}>{record.checkIn.notes}</Text>
+                </View>
+              ) : null}
+            </GlassCard>
+          )}
+
+          {/* Stress indicators */}
+          {record?.checkIn?.stressIndicators && Object.values(record.checkIn.stressIndicators).some(Boolean) && (
+            <GlassCard>
+              <Text style={{ color: c.text.primary, fontWeight: "800", fontSize: 16, marginBottom: Spacing.sm }}>
+                Stress indicators
+              </Text>
+              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
+                {Object.entries(record.checkIn.stressIndicators)
+                  .filter(([, v]) => v)
+                  .map(([key]) => (
+                    <View
+                      key={key}
+                      style={{
+                        paddingHorizontal: 10,
+                        paddingVertical: 6,
+                        borderRadius: BorderRadius.full,
+                        backgroundColor: isDark ? "rgba(255,122,134,0.1)" : "rgba(214,69,80,0.06)",
+                      }}
+                    >
+                      <Text style={{ color: c.danger, fontSize: 13, fontWeight: "600" }}>
+                        {key.replace(/([A-Z])/g, " $1").replace(/^./, (s) => s.toUpperCase()).trim()}
+                      </Text>
+                    </View>
+                  ))}
+              </View>
+            </GlassCard>
+          )}
+
+          {/* Emotional snapshot */}
+          {record?.emotion && (
+            <GlassCard>
+              <Text style={{ color: c.text.primary, fontWeight: "800", fontSize: 16, marginBottom: Spacing.sm }}>
+                Emotional state
+              </Text>
+              <View style={{ gap: 8 }}>
+                <View style={{ flexDirection: "row", gap: 8 }}>
+                  <MetricPill label="Valence" value={record.emotion.valence > 0 ? "Positive" : record.emotion.valence < 0 ? "Negative" : "Neutral"} c={c} isDark={isDark} />
+                  <MetricPill label="Arousal" value={record.emotion.arousal > 0.3 ? "Activated" : record.emotion.arousal < -0.3 ? "Calm" : "Moderate"} c={c} isDark={isDark} />
+                </View>
+                <View style={{ flexDirection: "row", gap: 8 }}>
+                  <MetricPill label="Regulation" value={regulationEmoji(record.emotion.regulation)} c={c} isDark={isDark} />
+                  <MetricPill label="Value" value={record.emotion.valueChosen} c={c} isDark={isDark} />
+                </View>
+              </View>
+
+              {record.emotion.contextTags.length > 0 && (
+                <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 8 }}>
+                  {record.emotion.contextTags.map((tag) => (
+                    <View key={tag} style={{ paddingHorizontal: 10, paddingVertical: 4, borderRadius: BorderRadius.full, backgroundColor: isDark ? "rgba(124,111,220,0.1)" : "rgba(107,93,211,0.06)" }}>
+                      <Text style={{ color: c.accent.primary, fontSize: 12, fontWeight: "600" }}>{tag}</Text>
+                    </View>
+                  ))}
+                </View>
+              )}
+
+              {record.emotion.reflection ? (
+                <View style={{ marginTop: Spacing.sm, padding: 12, borderRadius: BorderRadius.lg, backgroundColor: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.02)" }}>
+                  <Text style={{ color: c.text.tertiary, fontSize: 11, fontWeight: "600", marginBottom: 4 }}>Reflection</Text>
+                  <Text style={{ color: c.text.secondary, fontSize: 13, lineHeight: 18 }}>{record.emotion.reflection}</Text>
+                </View>
+              ) : null}
+            </GlassCard>
+          )}
+
+          {/* Plan */}
+          {plan && (
+            <GlassCard>
+              <Text style={{ color: c.text.primary, fontWeight: "800", fontSize: 16 }}>Plan</Text>
+              <Text style={{ color: c.text.secondary, fontSize: 14, marginTop: 4 }}>{plan.focus}</Text>
+
+              <View style={{ marginTop: Spacing.sm, gap: 6 }}>
+                {plan.actions.map((a, i) => (
+                  <View key={i} style={{ flexDirection: "row", gap: 8, alignItems: "flex-start" }}>
+                    <View style={{ width: 20, height: 20, borderRadius: 6, borderWidth: 1.5, borderColor: c.border.heavy, alignItems: "center", justifyContent: "center", marginTop: 1 }}>
+                      {plan.completedActions?.[i] && <Text style={{ color: c.success, fontSize: 11, fontWeight: "800" }}>✓</Text>}
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ color: c.text.primary, fontSize: 14, fontWeight: "600" }}>{a}</Text>
+                      {plan.actionReasons?.[i] && (
+                        <Text style={{ color: c.text.tertiary, fontSize: 12, marginTop: 2 }}>{plan.actionReasons[i]}</Text>
+                      )}
+                    </View>
+                  </View>
                 ))}
               </View>
-            )}
-          </GlassCard>
 
-          <GlassCard>
-            <Text style={{ color: c.text.secondary, fontWeight: Typography.fontWeight.bold }}>Explanation</Text>
-            <Text style={{ marginTop: Spacing.xs, color: plan.explanation ? c.text.primary : c.text.secondary }}>
-              {plan.explanation ?? "No explanation saved for this day."}
-            </Text>
-          </GlassCard>
+              {plan.triggers.length > 0 && (
+                <>
+                  <Text style={{ color: c.text.secondary, fontWeight: "700", fontSize: 13, marginTop: Spacing.sm }}>Triggers</Text>
+                  <View style={{ marginTop: 4, gap: 4 }}>
+                    {plan.triggers.map((t, i) => (
+                      <Text key={i} style={{ color: c.text.secondary, fontSize: 13 }}>• {t}</Text>
+                    ))}
+                  </View>
+                </>
+              )}
+
+              {plan.explanation && (
+                <View style={{ marginTop: Spacing.sm, padding: 12, borderRadius: BorderRadius.lg, backgroundColor: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.02)" }}>
+                  <Text style={{ color: c.text.tertiary, fontSize: 11, fontWeight: "600", marginBottom: 4 }}>Explanation</Text>
+                  <Text style={{ color: c.text.secondary, fontSize: 13, lineHeight: 18 }}>{plan.explanation}</Text>
+                </View>
+              )}
+            </GlassCard>
+          )}
         </View>
       )}
     </Screen>
+  );
+}
+
+/* --- Sub-components --- */
+
+function MetricPill({ label, value, c, isDark }: { label: string; value: string; c: typeof Colors.light; isDark: boolean }) {
+  return (
+    <View style={{ flex: 1, paddingVertical: 10, paddingHorizontal: 12, borderRadius: BorderRadius.lg, backgroundColor: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.03)", alignItems: "center" }}>
+      <Text style={{ color: c.text.tertiary, fontSize: 11, fontWeight: "600" }}>{label}</Text>
+      <Text style={{ color: c.text.primary, fontSize: 14, fontWeight: "800", marginTop: 2 }}>{value}</Text>
+    </View>
+  );
+}
+
+function SignalRow({ label, value, level, c, isDark }: { label: string; value: string; level: number; c: typeof Colors.light; isDark: boolean }) {
+  const pct = Math.min(100, (level / 5) * 100);
+  const barColor = pct >= 60 ? c.success : pct >= 40 ? c.warning : c.danger;
+
+  return (
+    <View style={{ gap: 4 }}>
+      <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+        <Text style={{ color: c.text.secondary, fontSize: 13 }}>{label}</Text>
+        <Text style={{ color: c.text.primary, fontSize: 13, fontWeight: "700" }}>{value}</Text>
+      </View>
+      <View style={{ height: 6, borderRadius: 3, backgroundColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)", overflow: "hidden" }}>
+        <View style={{ height: 6, borderRadius: 3, width: `${pct}%`, backgroundColor: barColor }} />
+      </View>
+    </View>
+  );
+}
+
+function BehaviourChip({ label, positive, c, isDark }: { label: string; positive: boolean; c: typeof Colors.light; isDark: boolean }) {
+  const bg = positive
+    ? (isDark ? "rgba(87,214,164,0.1)" : "rgba(47,163,122,0.06)")
+    : (isDark ? "rgba(251,191,36,0.1)" : "rgba(217,119,6,0.06)");
+  const color = positive ? c.success : c.warning;
+
+  return (
+    <View style={{ paddingHorizontal: 10, paddingVertical: 5, borderRadius: BorderRadius.full, backgroundColor: bg }}>
+      <Text style={{ color, fontSize: 12, fontWeight: "600" }}>{label}</Text>
+    </View>
   );
 }

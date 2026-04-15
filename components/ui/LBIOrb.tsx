@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from "react";
-import { Animated, Pressable, StyleSheet, Text, View } from "react-native";
-import { useAppTheme } from "@/theme/tokens";
+import { Animated, Pressable, StyleSheet, Text, View, useColorScheme } from "react-native";
+import { Colors } from "@/constants/Colors";
 import { ConfidenceBadge } from "./ConfidenceBadge";
 
 export function LBIOrb({
@@ -16,7 +16,9 @@ export function LBIOrb({
   onPress: () => void;
   onLongPress?: () => void;
 }) {
-  const t = useAppTheme();
+  const scheme = useColorScheme();
+  const isDark = scheme === "dark";
+  const c = isDark ? Colors.dark : Colors.light;
   const spin = useRef(new Animated.Value(0)).current;
   const pulse = useRef(new Animated.Value(1)).current;
 
@@ -40,6 +42,8 @@ export function LBIOrb({
   const score = Math.round(lbi);
   const hasData = score > 0;
 
+  const glowPrimary = isDark ? "rgba(125,136,255,0.28)" : "rgba(138,124,255,0.28)";
+
   return (
     <Pressable
       onPress={onPress}
@@ -51,7 +55,7 @@ export function LBIOrb({
         style={[
           styles.glow,
           {
-            backgroundColor: t.glowPrimary,
+            backgroundColor: glowPrimary,
             transform: [{ scale: pulse }],
           },
         ]}
@@ -61,17 +65,17 @@ export function LBIOrb({
         style={[
           styles.ring,
           {
-            borderColor: t.glassBorder,
+            borderColor: c.glass.border,
             transform: [{ rotate }],
           },
         ]}
       />
       {/* Inner circle */}
-      <View style={[styles.inner, { backgroundColor: t.glassBackground, borderColor: t.glassBorder }]}>
-        <Text style={[styles.score, { color: t.textPrimary }]}>
+      <View style={[styles.inner, { backgroundColor: c.glass.primary, borderColor: c.glass.border }]}>
+        <Text style={[styles.score, { color: c.text.primary }]}>
           {hasData ? score : "—"}
         </Text>
-        <Text style={[styles.label, { color: t.textMuted }]}>
+        <Text style={[styles.label, { color: c.text.tertiary }]}>
           {hasData ? interpretation : "Tap to learn more"}
         </Text>
         <View style={{ marginTop: 8 }}>

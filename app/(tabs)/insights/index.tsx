@@ -1,48 +1,82 @@
 import { router } from "expo-router";
-import React from "react";
-import { Pressable, ScrollView, Text, View, Dimensions } from "react-native";
+import React, { useCallback, useState } from "react";
+import { Pressable, Text, View } from "react-native";
+import { useFocusEffect } from "expo-router";
 
 import { Screen } from "@/components/Screen";
 import { GlassCard } from "@/components/ui/GlassCard";
-import { GlassButton } from "@/components/ui/GlassButton";
 import { IconSymbol } from "@/components/ui/icon-symbol";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { Colors } from "@/constants/Colors";
 import { Spacing } from "@/constants/Spacing";
 import { TAB_ORDER } from "@/constants/navigation";
 import { useColorScheme } from "react-native";
 import { todayISO } from "@/lib/util/todayISO";
 import { TabSwipe } from "@/components/TabSwipe";
+import { listDailyRecords } from "@/lib/storage";
+import * as Haptics from "expo-haptics";
 
-const WIDTH = Dimensions.get("window").width;
-
-type Section = {
+type InsightCategory = {
   title: string;
-  desc: string;
-  route: string;
+  description: string;
   icon: string;
+  color: string;
+  items: { title: string; route: string; icon: string }[];
 };
-
-const FEATURED: Section[] = [
-  { title: "Why this score", desc: "Top drivers and uncertainty", route: "/insights/explain", icon: "lightbulb.fill" },
-  { title: "Trends", desc: "Trajectory vs baseline", route: "/insights/trends", icon: "chart.line.uptrend.xyaxis" },
-  { title: "Correlations", desc: "Exploratory relationships", route: "/insights/correlations", icon: "arrow.triangle.branch" },
-];
-
-const MORE: Section[] = [
-  { title: "Patterns", desc: "30-day comparisons", route: "/insights/patterns", icon: "square.grid.2x2" },
-  { title: "Consistency", desc: "Routine stability", route: "/insights/consistency", icon: "checkmark.circle" },
-  { title: "Integration", desc: "Signal weights & confidence", route: "/insights/integration", icon: "slider.horizontal.3" },
-  { title: "Baselines", desc: "Personal median + IQR", route: "/insights/baseline", icon: "chart.bar" },
-  { title: "Model performance", desc: "Validation & calibration", route: "/insights/performance", icon: "cpu" },
-  { title: "Risk outlook", desc: "Next-day personal model", route: "/insights/risk", icon: "exclamationmark.triangle" },
-  { title: "Weekly reflection", desc: "Identity & affect patterns", route: "/insights/weekly", icon: "text.book.closed" },
-  { title: "Adherence & LBI", desc: "Plan completion vs score", route: "/insights/adherence", icon: "checklist" },
-];
 
 export default function InsightsHome() {
   const scheme = useColorScheme();
+  const isDark = scheme === "dark";
   const c = Colors[scheme ?? "light"];
   const today = todayISO();
+  const [dataCount, setDataCount] = useState(0);
+
+  useFocusEffect(
+    useCallback(() => {
+      (async () => {
+        const records = await listDailyRecords(30);
+        setDataCount(records.filter((r) => r.lbi != null).length);
+      })();
+    }, [])
+  );
+
+  const categories: InsightCategory[] = [
+    {
+      title: "Your Score",
+      description: "Understand what drives your balance score and what-if scenarios",
+      icon: "lightbulb.fill",
+      color: isDark ? "#FBBF24" : "#D97706",
+      items: [
+        { title: "Why this score", route: "/insights/explain", icon: "lightbulb.fill" },
+        { title: "Score breakdown", route: "/insights/integration", icon: "slider.horizontal.3" },
+        { title: "Personal baseline", route: "/insights/baseline", icon: "chart.bar" },
+      ],
+    },
+    {
+      title: "Your Patterns",
+      description: "Discover trends, correlations, and what affects your wellbeing",
+      icon: "chart.line.uptrend.xyaxis",
+      color: isDark ? "#57D6A4" : "#2FA37A",
+      items: [
+        { title: "Trends", route: "/insights/trends", icon: "chart.line.uptrend.xyaxis" },
+        { title: "Correlations", route: "/insights/correlations", icon: "arrow.triangle.branch" },
+        { title: "Patterns", route: "/insights/patterns", icon: "square.grid.2x2" },
+        { title: "Consistency", route: "/insights/consistency", icon: "checkmark.circle" },
+        { title: "Emotions", route: "/insights/emotions", icon: "heart.text.square" },
+      ],
+    },
+    {
+      title: "Your Plan",
+      description: "Track adherence, risk outlook, and weekly reflections",
+      icon: "checklist",
+      color: isDark ? "#8B7FE8" : "#6B5DD3",
+      items: [
+        { title: "Adherence & LBI", route: "/insights/adherence", icon: "checklist" },
+        { title: "Risk outlook", route: "/insights/risk", icon: "exclamationmark.triangle" },
+        { title: "Weekly reflection", route: "/insights/weekly", icon: "text.book.closed" },
+      ],
+    },
+  ];
 
   return (
     <TabSwipe order={TAB_ORDER}>
@@ -51,89 +85,142 @@ export default function InsightsHome() {
           Insights
         </Text>
         <Text style={{ marginTop: 4, color: c.text.secondary, fontSize: 14 }}>
-          Explore your data. Correlation ≠ causation.
+          {dataCount > 0
+            ? `Based on ${dataCount} days of data`
+            : "Explore your data. Correlation ≠ causation."}
         </Text>
 
-        {/* Featured cards */}
-        <View style={{ gap: Spacing.sm, marginTop: Spacing.base }}>
-          {FEATURED.map((s) => (
-            <Pressable
-              key={s.route}
-              onPress={() => router.push({ pathname: s.route, params: { date: today } } as any)}
-              style={({ pressed }) => [pressed && { opacity: 0.85 }]}
-            >
-              <GlassCard padding="base">
-                <View style={{ flexDirection: "row", alignItems: "center", gap: 14 }}>
-                  <View style={{
-                    width: 42, height: 42, borderRadius: 14,
-                    backgroundColor: c.glass.secondary, alignItems: "center", justifyContent: "center",
-                  }}>
-                    <IconSymbol name={s.icon as any} size={20} color={c.accent.primary} />
+        {dataCount === 0 ? (
+          <GlassCard style={{ marginTop: Spacing.lg }}>
+            <EmptyState
+              icon="chart.bar.xaxis"
+              title="No insights yet"
+              description="Complete a few days of check-ins and sync your wearable to unlock personalised insights."
+              actionLabel="Start Check-in"
+              onAction={() => router.push("/checkin" as any)}
+            />
+          </GlassCard>
+        ) : (
+          <View style={{ gap: Spacing.md, marginTop: Spacing.base }}>
+            {categories.map((cat) => (
+              <GlassCard key={cat.title} padding="base">
+                {/* Category header */}
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 12, marginBottom: Spacing.sm }}>
+                  <View
+                    style={{
+                      width: 40,
+                      height: 40,
+                      borderRadius: 14,
+                      backgroundColor: cat.color + "18",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <IconSymbol name={cat.icon as any} size={20} color={cat.color} />
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={{ color: c.text.primary, fontWeight: "800", fontSize: 16 }}>{s.title}</Text>
-                    <Text style={{ color: c.text.secondary, fontSize: 13, marginTop: 2 }}>{s.desc}</Text>
+                    <Text style={{ color: c.text.primary, fontWeight: "800", fontSize: 17 }}>{cat.title}</Text>
+                    <Text style={{ color: c.text.secondary, fontSize: 13, marginTop: 2 }}>{cat.description}</Text>
                   </View>
-                  <IconSymbol name="chevron.right" size={14} color={c.text.tertiary} />
+                </View>
+
+                {/* Category items */}
+                <View style={{ gap: 2 }}>
+                  {cat.items.map((item, i) => (
+                    <Pressable
+                      key={item.route}
+                      onPress={() => {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                        router.push({ pathname: item.route, params: { date: today } } as any);
+                      }}
+                      style={({ pressed }) => [
+                        {
+                          flexDirection: "row",
+                          alignItems: "center",
+                          gap: 12,
+                          paddingVertical: 12,
+                          paddingHorizontal: 4,
+                          borderTopWidth: i > 0 ? 1 : 0,
+                          borderTopColor: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.03)",
+                        },
+                        pressed && { opacity: 0.6 },
+                      ]}
+                    >
+                      <IconSymbol name={item.icon as any} size={16} color={c.text.secondary} />
+                      <Text style={{ flex: 1, color: c.text.primary, fontWeight: "600", fontSize: 15 }}>
+                        {item.title}
+                      </Text>
+                      <IconSymbol name="chevron.right" size={12} color={c.text.tertiary} />
+                    </Pressable>
+                  ))}
                 </View>
               </GlassCard>
-            </Pressable>
-          ))}
-        </View>
+            ))}
+          </View>
+        )}
 
-        {/* Horizontal carousel */}
-        <Text style={{ fontSize: 17, fontWeight: "800", color: c.text.primary, marginTop: Spacing.lg }}>
-          More insights
-        </Text>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={{ marginTop: Spacing.sm, marginHorizontal: -Spacing.base }}
-          contentContainerStyle={{ paddingHorizontal: Spacing.base, gap: Spacing.sm }}
-        >
-          {MORE.map((s) => (
-            <Pressable
-              key={s.route}
-              onPress={() => router.push({ pathname: s.route, params: { date: today } } as any)}
-              style={({ pressed }) => [pressed && { opacity: 0.85 }]}
+        {/* Analytics (for examiners) */}
+        <GlassCard style={{ marginTop: Spacing.md }}>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+            <View
+              style={{
+                width: 34,
+                height: 34,
+                borderRadius: 10,
+                backgroundColor: c.glass.secondary,
+                alignItems: "center",
+                justifyContent: "center",
+              }}
             >
-              <GlassCard style={{ width: WIDTH * 0.42, minHeight: 120 }} padding="base">
-                <View style={{
-                  width: 34, height: 34, borderRadius: 10,
-                  backgroundColor: c.glass.secondary, alignItems: "center", justifyContent: "center",
-                  marginBottom: 10,
-                }}>
-                  <IconSymbol name={s.icon as any} size={16} color={c.accent.primary} />
-                </View>
-                <Text style={{ color: c.text.primary, fontWeight: "700", fontSize: 14 }}>{s.title}</Text>
-                <Text style={{ color: c.text.secondary, fontSize: 12, marginTop: 4 }}>{s.desc}</Text>
-              </GlassCard>
+              <IconSymbol name="cpu" size={16} color={c.text.secondary} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 15, fontWeight: "700", color: c.text.primary }}>Model performance</Text>
+              <Text style={{ fontSize: 12, color: c.text.secondary }}>Validation & calibration metrics</Text>
+            </View>
+            <Pressable
+              onPress={() => router.push("/insights/performance" as any)}
+              style={({ pressed }) => [pressed && { opacity: 0.6 }]}
+            >
+              <Text style={{ fontSize: 13, fontWeight: "700", color: c.accent.primary }}>View</Text>
             </Pressable>
-          ))}
-        </ScrollView>
+          </View>
+        </GlassCard>
 
-        {/* Analytics */}
-        <GlassCard style={{ marginTop: Spacing.lg }}>
-          <Text style={{ fontSize: 17, fontWeight: "800", color: c.text.primary }}>Analytics</Text>
-          <Text style={{ marginTop: 4, color: c.text.secondary, fontSize: 13 }}>
-            Report-friendly stats for pilot evaluation.
-          </Text>
-          <View style={{ marginTop: Spacing.sm }}>
-            <GlassButton
-              title="View analytics"
-              variant="secondary"
+        {/* Analytics report */}
+        <GlassCard style={{ marginTop: Spacing.sm }}>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+            <View
+              style={{
+                width: 34,
+                height: 34,
+                borderRadius: 10,
+                backgroundColor: c.glass.secondary,
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <IconSymbol name="doc.text" size={16} color={c.text.secondary} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 15, fontWeight: "700", color: c.text.primary }}>Full analytics report</Text>
+              <Text style={{ fontSize: 12, color: c.text.secondary }}>Export-ready stats for evaluation</Text>
+            </View>
+            <Pressable
               onPress={() => router.push("/insights/analytics" as any)}
-            />
+              style={({ pressed }) => [pressed && { opacity: 0.6 }]}
+            >
+              <Text style={{ fontSize: 13, fontWeight: "700", color: c.accent.primary }}>View</Text>
+            </Pressable>
           </View>
         </GlassCard>
 
         {/* Transparency */}
-        <GlassCard style={{ marginTop: Spacing.sm }}>
-          <Text style={{ fontSize: 14, fontWeight: "700", color: c.text.primary }}>Transparency</Text>
-          <Text style={{ marginTop: 4, color: c.text.secondary, fontSize: 13, lineHeight: 18 }}>
-            Patterns are observational. Confidence reflects missing signals. No diagnoses are made.
+        <View style={{ marginTop: Spacing.md, marginBottom: Spacing.sm }}>
+          <Text style={{ fontSize: 12, color: c.text.tertiary, textAlign: "center", lineHeight: 16 }}>
+            Patterns are observational · Confidence reflects missing signals · No diagnoses are made
           </Text>
-        </GlassCard>
+        </View>
       </Screen>
     </TabSwipe>
   );

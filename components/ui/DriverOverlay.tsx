@@ -1,8 +1,8 @@
 import React from "react";
-import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
+import { Modal, Pressable, StyleSheet, Text, View, useColorScheme } from "react-native";
 import { GlassCard } from "./GlassCard";
 import { StatPill } from "./StatPill";
-import { useAppTheme } from "@/theme/tokens";
+import { Colors } from "@/constants/Colors";
 import { Button } from "./button";
 import { router } from "expo-router";
 
@@ -17,13 +17,17 @@ export function DriverOverlay({
   onClose: () => void;
   drivers: Driver[];
 }) {
-  const t = useAppTheme();
+  const scheme = useColorScheme();
+  const isDark = scheme === "dark";
+  const c = isDark ? Colors.dark : Colors.light;
+  const glassOverlay = isDark ? "rgba(0,0,0,0.35)" : "rgba(0,0,0,0.10)";
+
   return (
     <Modal transparent visible={visible} animationType="fade" onRequestClose={onClose}>
-      <Pressable style={[StyleSheet.absoluteFill, { backgroundColor: t.glassOverlay }]} onPress={onClose} />
+      <Pressable style={[StyleSheet.absoluteFill, { backgroundColor: glassOverlay }]} onPress={onClose} />
       <View style={styles.center}>
         <GlassCard style={styles.card}>
-          <Text style={{ color: t.textPrimary, fontSize: 18, fontWeight: "800" }}>Top drivers</Text>
+          <Text style={{ color: c.text.primary, fontSize: 18, fontWeight: "800" }}>Top drivers</Text>
           <View style={{ marginTop: 12, gap: 8 }}>
             {drivers.map((d, i) => (
               <StatPill key={i} label={d.label} value={d.value} />

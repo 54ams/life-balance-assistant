@@ -1,6 +1,6 @@
 import React from "react";
-import { Alert, Modal, Pressable, StyleSheet, Text, View } from "react-native";
-import { useAppTheme } from "@/theme/tokens";
+import { Alert, Modal, Pressable, StyleSheet, Text, View, useColorScheme } from "react-native";
+import { Colors } from "@/constants/Colors";
 import { clearAll } from "@/lib/storage";
 
 type Props = {
@@ -9,19 +9,23 @@ type Props = {
 };
 
 export function TransparencyDrawer({ visible, onClose }: Props) {
-  const t = useAppTheme();
+  const scheme = useColorScheme();
+  const isDark = scheme === "dark";
+  const c = isDark ? Colors.dark : Colors.light;
+  const glassOverlay = isDark ? "rgba(0,0,0,0.35)" : "rgba(0,0,0,0.10)";
+
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <Pressable style={[StyleSheet.absoluteFill, { backgroundColor: t.glassOverlay }]} onPress={onClose} />
-      <View style={[styles.sheet, { backgroundColor: t.backgroundSecondary, borderColor: t.glassBorder }]}>
+      <Pressable style={[StyleSheet.absoluteFill, { backgroundColor: glassOverlay }]} onPress={onClose} />
+      <View style={[styles.sheet, { backgroundColor: c.backgroundSecondary, borderColor: c.glass.border }]}>
         <View style={styles.handle} />
-        <Text style={{ color: t.textPrimary, fontWeight: "900", fontSize: 18 }}>How LBI is computed</Text>
-        <Text style={[styles.body, { color: t.textMuted }]}>
+        <Text style={{ color: c.text.primary, fontWeight: "900", fontSize: 18 }}>How LBI is computed</Text>
+        <Text style={[styles.body, { color: c.text.tertiary }]}>
           LBI blends recovery + sleep (objective) with mood + stress indicators (subjective). Strain only adds a penalty when
           high strain meets low recovery. Confidence drops when signals are missing. Correlation ≠ causation.
         </Text>
-        <Text style={{ color: t.textPrimary, fontWeight: "900", fontSize: 18, marginTop: 12 }}>Data sources</Text>
-        <Text style={[styles.body, { color: t.textMuted }]}>
+        <Text style={{ color: c.text.primary, fontWeight: "900", fontSize: 18, marginTop: 12 }}>Data sources</Text>
+        <Text style={[styles.body, { color: c.text.tertiary }]}>
           Wearable: WHOOP recovery, sleep, strain. Self-report: affect map, regulation, values, context tags. All stored locally
           on device; tokens stay on backend. No raw data sent to LLM—only small summaries.
         </Text>
@@ -47,13 +51,13 @@ export function TransparencyDrawer({ visible, onClose }: Props) {
               ]
             );
           }}
-          style={[styles.delete, { borderColor: t.glassBorder, backgroundColor: t.glassOverlay }]}
+          style={[styles.delete, { borderColor: c.glass.border, backgroundColor: glassOverlay }]}
           accessibilityLabel="Delete all local data"
         >
-          <Text style={{ color: t.accentDanger, fontWeight: "800" }}>Delete all local data</Text>
+          <Text style={{ color: c.danger, fontWeight: "800" }}>Delete all local data</Text>
         </Pressable>
-        <Pressable onPress={onClose} style={[styles.close, { borderColor: t.glassBorder }]}>
-          <Text style={{ color: t.textPrimary, fontWeight: "800" }}>Close</Text>
+        <Pressable onPress={onClose} style={[styles.close, { borderColor: c.glass.border }]}>
+          <Text style={{ color: c.text.primary, fontWeight: "800" }}>Close</Text>
         </Pressable>
       </View>
     </Modal>

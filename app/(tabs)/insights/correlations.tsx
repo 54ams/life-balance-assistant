@@ -1,11 +1,14 @@
 import { Stack } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useFocusEffect } from "expo-router";
-import { Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 
 import { Screen } from "@/components/Screen";
-import { GlassCard } from "@/components/ui/glass-card";
+import { GlassCard } from "@/components/ui/GlassCard";
+import { StrengthIndicator, correlationToHuman } from "@/components/ui/StrengthIndicator";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { Colors } from "@/constants/Colors";
+import { Spacing, BorderRadius } from "@/constants/Spacing";
 import { useColorScheme } from "react-native";
 
 import type { ISODate } from "@/lib/types";
@@ -19,26 +22,28 @@ import { todayISO } from "@/lib/util/todayISO";
 
 function prettyVar(k: string) {
   const map: Record<string, string> = {
-    sleepHours: "sleep hours",
+    sleepHours: "sleep",
     stressIndicatorsCount: "stress indicators",
-    stressCount: "stress indicators",
+    stressCount: "stress",
     recovery: "recovery",
-    lbi: "LBI",
+    lbi: "balance score",
     mood: "mood",
     energy: "energy",
     strain: "strain",
-    adherenceRatio: "adherence ratio",
-    nextDayLbi: "next-day LBI",
+    adherenceRatio: "plan adherence",
+    nextDayLbi: "next-day balance",
   };
   return map[k] ?? k;
 }
 
 export default function CorrelationsScreen() {
   const scheme = useColorScheme();
+  const isDark = scheme === "dark";
   const c = Colors[scheme ?? "light"];
 
   const [date, setDate] = useState<ISODate>(todayISO());
   const [days, setDays] = useState<import("@/lib/types").DailyRecord[]>([]);
+  const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -66,7 +71,6 @@ export default function CorrelationsScreen() {
 
   const windowed = useMemo(() => sliceRecordsUpTo(days, date, 30), [days, date]);
   const summary = useMemo(() => buildAnalyticsSummary(windowed, 30), [windowed]);
-  const full = summary.correlations ?? [];
 
   const curated = useMemo(() => {
     const wantedPairs = new Set([
@@ -92,7 +96,7 @@ export default function CorrelationsScreen() {
   }, [summary]);
 
   return (
-    <Screen title="Correlations" subtitle="Guided relationships (last 30 days)">
+    <Screen title="Correlations" subtitle="How your signals relate to each other">
       <Stack.Screen options={{ headerShown: false }} />
 
       <View style={{ gap: 12 }}>
@@ -100,81 +104,100 @@ export default function CorrelationsScreen() {
           date={date}
           onChange={setDate}
           title="As of"
-          helperText="Correlations use the last 30 days up to the selected date (where data exists)."
+          helperText="Using the last 30 days up to this date."
         />
 
-        <GlassCard style={{ padding: 14 }}>
-          <Text style={{ color: c.text.primary, fontWeight: "900" }}>Exploratory only</Text>
-          <Text style={{ color: c.text.secondary, marginTop: 6 }}>
-            Methods shown (Pearson/Spearman), 95% bootstrap CI, FDR adjustment, and lag (0–3d). Correlation ≠ causation; use for reflection, not decisions.
-          </Text>
-          <Text style={{ color: c.danger, marginTop: 6, fontWeight: "700" }}>
-            Small samples or missing data can flip signs; treat “significant” as exploratory only.
-          </Text>
-        </GlassCard>
-
         {windowed.length < 10 ? (
-          <GlassCard style={{ padding: 14 }}>
-            <Text style={{ color: c.text.primary, fontWeight: "800" }}>Not enough data yet</Text>
-            <Text style={{ color: c.text.secondary, marginTop: 6 }}>
-              You need a few days of wearable + check-in data to produce meaningful correlations. Current window up to {formatDisplayDate(date)} has {windowed.length} days.
-            </Text>
+          <GlassCard>
+            <EmptyState
+              icon="arrow.triangle.branch"
+              title="Building your patterns"
+              description={`You need at least 10 days of data to discover meaningful patterns. Current window has ${windowed.length} days.`}
+            />
           </GlassCard>
-        ) : null}
-
-        <GlassCard style={{ padding: 14 }}>
-          <Text style={{ color: c.text.primary, fontWeight: "800" }}>How to read this</Text>
-          <Text style={{ color: c.text.secondary, marginTop: 6 }}>
-            Correlation shows whether two variables tend to move together in your data. It does not prove causation. Data imported from WHOOP where connected.
-          </Text>
-          <Text style={{ color: c.danger, marginTop: 6, fontWeight: "700" }}>
-            Interpret cautiously: low sample sizes can mislead; this is not medical advice.
-          </Text>
-        </GlassCard>
-
-        {curated.length ? (
-          <GlassCard style={{ padding: 14, gap: 10 }}>
-            <Text style={{ color: c.text.primary, fontWeight: "900" }}>Top relationships</Text>
-            {curated.map((x: any, i: number) => (
-              <View key={i} style={{ gap: 4, paddingTop: i ? 10 : 0 }}>
-                <Text style={{ color: c.text.primary, fontWeight: "800" }}>
-                  {prettyVar(x.a)} ↔ {prettyVar(x.b)} {x.lag ? `(lag ${x.lag}d)` : ""}
-                </Text>
-                <Text style={{ color: c.text.secondary }}>
-                  {x.method ?? "pearson"} r={typeof x.r === "number" ? x.r.toFixed(2) : "—"} • n={x.n ?? "—"} • CI [{x.ciLower != null ? x.ciLower.toFixed(2) : "—"},{" "}
-                  {x.ciUpper != null ? x.ciUpper.toFixed(2) : "—"}] • FDR {x.fdr != null ? x.fdr.toFixed(3) : "—"} {x.significant ? "significant" : "exploratory"}
-                </Text>
-                <Text style={{ color: c.text.secondary }}>
-                  Interpretation: {Math.abs(x.r ?? 0) >= 0.4 ? "moderate/strong pattern" : "weak/noisy pattern"}; correlation ≠ causation.
-                </Text>
-              </View>
-            ))}
+        ) : curated.length === 0 ? (
+          <GlassCard>
+            <EmptyState
+              icon="arrow.triangle.branch"
+              title="No clear patterns yet"
+              description="Keep logging check-ins and wearable data. Relationships will appear automatically."
+            />
           </GlassCard>
         ) : (
-          <GlassCard style={{ padding: 14 }}>
-            <Text style={{ color: c.text.primary, fontWeight: "800" }}>No guided correlations available</Text>
-            <Text style={{ color: c.text.secondary, marginTop: 6 }}>
-              As you collect more wearable + check-in days, relationships will appear here automatically.
-            </Text>
-          </GlassCard>
-        )}
+          <>
+            {/* Human-readable correlations */}
+            <GlassCard padding="base">
+              <Text style={{ color: c.text.primary, fontWeight: "800", fontSize: 17, marginBottom: Spacing.sm }}>
+                Key relationships
+              </Text>
 
-        {full.length ? (
-          <GlassCard style={{ padding: 14, gap: 10 }}>
-            <Text style={{ color: c.text.primary, fontWeight: "900" }}>All correlations (method / lag)</Text>
-            {full.map((x: any, i: number) => (
-              <View key={`full-${i}`} style={{ gap: 4, paddingTop: i ? 10 : 0 }}>
-                <Text style={{ color: c.text.primary, fontWeight: "800" }}>
-                  {prettyVar(x.a)} ↔ {prettyVar(x.b)} {x.lag ? `(lag ${x.lag}d)` : ""}
-                </Text>
-                <Text style={{ color: c.text.tertiary }}>
-                  {x.method ?? "pearson"} r={typeof x.r === "number" ? x.r.toFixed(2) : "—"} • n={x.n ?? "—"} • CI [{x.ciLower != null ? x.ciLower.toFixed(2) : "—"},{" "}
-                  {x.ciUpper != null ? x.ciUpper.toFixed(2) : "—"}] • FDR {x.fdr != null ? x.fdr.toFixed(3) : "—"} {x.significant ? "significant" : "exploratory"}
-                </Text>
-              </View>
-            ))}
-          </GlassCard>
-        ) : null}
+              {curated.map((x: any, i: number) => {
+                const isExpanded = expandedIndex === i;
+                const humanText = correlationToHuman(x.a, x.b, x.r ?? 0);
+
+                return (
+                  <Pressable
+                    key={i}
+                    onPress={() => setExpandedIndex(isExpanded ? null : i)}
+                    style={{
+                      paddingVertical: 12,
+                      borderTopWidth: i > 0 ? 1 : 0,
+                      borderTopColor: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.03)",
+                    }}
+                  >
+                    {/* Human-readable summary */}
+                    <Text style={{ color: c.text.primary, fontWeight: "700", fontSize: 15, marginBottom: 6 }}>
+                      {prettyVar(x.a)} & {prettyVar(x.b)}
+                    </Text>
+                    <Text style={{ color: c.text.secondary, fontSize: 13, lineHeight: 18, marginBottom: 8 }}>
+                      {humanText}
+                    </Text>
+
+                    {/* Strength bar */}
+                    <StrengthIndicator value={x.r ?? 0} />
+
+                    {/* Expandable details for examiners */}
+                    {isExpanded && (
+                      <View
+                        style={{
+                          marginTop: 10,
+                          padding: 12,
+                          borderRadius: BorderRadius.lg,
+                          backgroundColor: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.02)",
+                        }}
+                      >
+                        <Text style={{ color: c.text.tertiary, fontSize: 12, fontWeight: "600", marginBottom: 4 }}>
+                          Statistical details
+                        </Text>
+                        <Text style={{ color: c.text.tertiary, fontSize: 11, lineHeight: 16 }}>
+                          Method: {x.method ?? "pearson"} · r = {typeof x.r === "number" ? x.r.toFixed(3) : "—"} · n = {x.n ?? "—"}
+                        </Text>
+                        <Text style={{ color: c.text.tertiary, fontSize: 11, lineHeight: 16 }}>
+                          95% CI [{x.ciLower != null ? x.ciLower.toFixed(2) : "—"}, {x.ciUpper != null ? x.ciUpper.toFixed(2) : "—"}]
+                        </Text>
+                        <Text style={{ color: c.text.tertiary, fontSize: 11, lineHeight: 16 }}>
+                          FDR: {x.fdr != null ? x.fdr.toFixed(3) : "—"} · {x.significant ? "Statistically significant" : "Exploratory"}
+                          {x.lag ? ` · Lag: ${x.lag}d` : ""}
+                        </Text>
+                      </View>
+                    )}
+
+                    <Text style={{ color: c.accent.primary, fontSize: 12, fontWeight: "600", marginTop: 6 }}>
+                      {isExpanded ? "Hide details" : "Show details"}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </GlassCard>
+
+            {/* Disclaimer */}
+            <View style={{ paddingHorizontal: Spacing.sm }}>
+              <Text style={{ color: c.text.tertiary, fontSize: 12, textAlign: "center", lineHeight: 16 }}>
+                Correlation does not imply causation · Small samples can mislead · Use for reflection, not decisions
+              </Text>
+            </View>
+          </>
+        )}
       </View>
     </Screen>
   );
