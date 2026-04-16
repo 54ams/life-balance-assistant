@@ -10,6 +10,21 @@ export const EXPORT_ANONYMIZE_ID_KEY = "export_anonymize_id_v1";
 export const LLM_ENABLED_KEY = "llm_enabled_v1";
 export const NUDGE_ENABLED_KEY = "nudge_enabled_v1";
 export const STREAKS_ENABLED_KEY = "streaks_enabled_v1";
+export const PREFERRED_TONE_KEY = "preferred_tone_v1";
+export const PRIMARY_GOAL_KEY = "primary_goal_v1";
+export const SLEEP_WINDOW_KEY = "sleep_window_v1";
+export const DEMO_MODE_FLAG_KEY = "demo_mode_flag_v1";
+export const FIRST_LAUNCH_DONE_KEY = "first_launch_done_v1";
+
+export type PreferredTone = "Gentle" | "Direct" | "Playful";
+export type SleepWindow = "Early bird" | "Standard" | "Night owl" | "Shift worker";
+export type PrimaryGoal =
+  | "Sleep quality"
+  | "Stress recovery"
+  | "Consistent energy"
+  | "Emotional awareness"
+  | "Physical activity"
+  | "Mindful eating";
 
 export type AppConsent = {
   consentedAt: string;
@@ -87,6 +102,44 @@ export function hashParticipantId(input: string): string {
     h = (h * 33) ^ input.charCodeAt(i);
   }
   return `p_${(h >>> 0).toString(16)}`;
+}
+
+export async function getPreferredTone(): Promise<PreferredTone> {
+  const raw = await AsyncStorage.getItem(PREFERRED_TONE_KEY);
+  if (raw === "Direct" || raw === "Playful") return raw;
+  return "Gentle";
+}
+
+export async function setPreferredTone(tone: PreferredTone): Promise<void> {
+  await AsyncStorage.setItem(PREFERRED_TONE_KEY, tone);
+}
+
+export async function getPrimaryGoals(): Promise<PrimaryGoal[]> {
+  const raw = await AsyncStorage.getItem(PRIMARY_GOAL_KEY);
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? (parsed as PrimaryGoal[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+export async function setPrimaryGoals(goals: PrimaryGoal[]): Promise<void> {
+  const unique = Array.from(new Set(goals)).slice(0, 2);
+  await AsyncStorage.setItem(PRIMARY_GOAL_KEY, JSON.stringify(unique));
+}
+
+export async function getSleepWindow(): Promise<SleepWindow | null> {
+  const raw = await AsyncStorage.getItem(SLEEP_WINDOW_KEY);
+  if (raw === "Early bird" || raw === "Standard" || raw === "Night owl" || raw === "Shift worker") {
+    return raw;
+  }
+  return null;
+}
+
+export async function setSleepWindow(window: SleepWindow): Promise<void> {
+  await AsyncStorage.setItem(SLEEP_WINDOW_KEY, window);
 }
 
 export function containsSelfHarmSignals(text: string): boolean {

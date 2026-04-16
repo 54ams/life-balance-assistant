@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Animated, Pressable, ScrollView, StyleSheet, Text, View, useColorScheme, Dimensions } from "react-native";
+import { Alert, Animated, Pressable, ScrollView, StyleSheet, Text, View, useColorScheme, Dimensions } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useFocusEffect } from "expo-router";
 import { AuroraBackground } from "@/components/ui/AuroraBackground";
@@ -24,6 +24,8 @@ import { Spacing, BorderRadius } from "@/constants/Spacing";
 import { refreshDerivedForDate } from "@/lib/pipeline";
 import { predictTomorrowRisk } from "@/lib/ml";
 import { buildMissingnessSummary } from "@/lib/transparency";
+import { getDemoModeChoice, kioskReset } from "@/lib/demo";
+import { mentalScore, physioScore } from "@/lib/bridge";
 import * as Haptics from "expo-haptics";
 
 const { width: SCREEN_W } = Dimensions.get("window");
@@ -58,17 +60,74 @@ export default function HomeScreen() {
   const [identityLine, setIdentityLine] = useState<string>("");
   const [checkedInToday, setCheckedInToday] = useState(false);
   const [userName, setUserName] = useState("");
+  const [isDemoMode, setIsDemoMode] = useState(false);
   const [valueAlignmentPct, setValueAlignmentPct] = useState<number | null>(null);
   const [consistencyPct, setConsistencyPct] = useState<number | null>(null);
   const [weeklyLbi, setWeeklyLbi] = useState<{ label: string; value: number }[]>([]);
   const [heatmapData, setHeatmapData] = useState<{ date: string; value: number }[]>([]);
   const [hasAnyData, setHasAnyData] = useState(true);
+  const [bridgeToday, setBridgeToday] = useState<{ physio: number | null; mental: number | null }>({ physio: null, mental: null });
 
   // Animated score reveal
   const scoreAnim = useRef(new Animated.Value(0)).current;
   const scoreScale = useRef(new Animated.Value(0.8)).current;
 
   const headerGreeting = useMemo(() => greetingForHour(new Date().getHours()), []);
+
+  // Kiosk reset — hidden gesture for live viva handovers between examiners.
+  // Long-press the greeting for ~1s, then triple-tap the same greeting within
+  // 2s to confirm. Guarded by a final Alert so an accidental trigger is safe.
+  const armedAtRef = useRef<number>(0);
+  const tapCountRef = useRef<number>(0);
+  const lastTapRef = useRef<number>(0);
+
+  const armKioskReset = useCallback(() => {
+    armedAtRef.current = Date.now();
+    tapCountRef.current = 0;
+    lastTapRef.current = 0;
+    Haptics.selectionAsync().catch(() => {});
+  }, []);
+
+  const runKioskReset = useCallback(() => {
+    Alert.alert(
+      "Reset app?",
+      "This wipes all local data and returns to the welcome screen. Use between examiners.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Reset",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await kioskReset();
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+              router.replace("/welcome" as any);
+            } catch (err) {
+              Alert.alert("Reset failed", (err as any)?.message ?? "Unknown error");
+            }
+          },
+        },
+      ],
+    );
+  }, []);
+
+  const onGreetingTap = useCallback(() => {
+    const now = Date.now();
+    // Only count taps if armed within last 3s.
+    if (now - armedAtRef.current > 3000) {
+      tapCountRef.current = 0;
+      return;
+    }
+    // Reset tap run if gap too long.
+    if (now - lastTapRef.current > 700) tapCountRef.current = 0;
+    lastTapRef.current = now;
+    tapCountRef.current += 1;
+    if (tapCountRef.current >= 3) {
+      armedAtRef.current = 0;
+      tapCountRef.current = 0;
+      runKioskReset();
+    }
+  }, [runKioskReset]);
 
   const loadHome = useCallback(() => {
     let alive = true;
@@ -77,6 +136,10 @@ export default function HomeScreen() {
         const day = await getDay(date);
         setMissingness(buildMissingnessSummary(day));
         setCheckedInToday(!!day?.checkIn);
+        setBridgeToday({
+          physio: day ? physioScore(day) : null,
+          mental: day ? mentalScore(day) : null,
+        });
         if (!day?.wearable) {
           setStatus("");
           setTodayPlan(null);
@@ -135,6 +198,7 @@ export default function HomeScreen() {
 
       const emos = await listEmotions(7);
       setUserName(await getUserName());
+      setIsDemoMode((await getDemoModeChoice()) === "demo");
 
       if (emos.length) {
         const freq: Record<string, number> = {};
@@ -199,6 +263,16 @@ export default function HomeScreen() {
                   {headerGreeting}{userName ? `, ${userName}` : ""}
                 </Text>
               </View>
+              {isDemoMode && (
+                <Pressable
+                  onPress={() => router.push("/profile/settings/demo" as any)}
+                  accessibilityRole="button"
+                  accessibilityLabel="Demo data indicator. Tap to manage."
+                  style={[styles.demoChip, { backgroundColor: c.accent.primary }]}
+                >
+                  <Text style={styles.demoChipText}>Demo data</Text>
+                </Pressable>
+              )}
               <Pressable
                 onPress={() => router.push("/profile" as any)}
                 style={[styles.avatar, { backgroundColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.05)", borderColor: c.border.light }]}
@@ -265,11 +339,18 @@ export default function HomeScreen() {
         >
           {/* Header row */}
           <View style={styles.header}>
-            <View style={{ flex: 1 }}>
+            <Pressable
+              style={{ flex: 1 }}
+              onPress={onGreetingTap}
+              onLongPress={armKioskReset}
+              delayLongPress={800}
+              accessibilityRole="text"
+              accessibilityLabel={`${headerGreeting}${userName ? `, ${userName}` : ""}`}
+            >
               <Text style={[styles.greeting, { color: c.text.secondary }]}>
                 {headerGreeting}{userName ? `, ${userName}` : ""}
               </Text>
-            </View>
+            </Pressable>
             <Pressable
               onPress={() => router.push("/profile" as any)}
               style={[styles.avatar, { backgroundColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.05)", borderColor: c.border.light }]}
@@ -414,6 +495,45 @@ export default function HomeScreen() {
             </View>
           )}
 
+          {/* Today's Mind–Body bridge */}
+          {(bridgeToday.physio != null || bridgeToday.mental != null) && (
+            <Pressable
+              onPress={() => router.push("/insights/bridge" as any)}
+              style={({ pressed }) => [{ marginTop: Spacing.md, opacity: pressed ? 0.85 : 1 }]}
+            >
+              <GlassCard>
+                <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+                  <Text style={[styles.sectionTitle, { color: c.text.primary }]}>Today's bridge</Text>
+                  <Text style={{ color: c.accent.primary, fontSize: 12, fontWeight: "700" }}>See 14 days →</Text>
+                </View>
+                <Text style={{ color: c.text.secondary, marginTop: 4, fontSize: 13 }}>
+                  How your body and mind tracked today.
+                </Text>
+                <View style={{ flexDirection: "row", marginTop: 14, gap: 16 }}>
+                  <BridgeDial
+                    label="Body"
+                    value={bridgeToday.physio}
+                    color={isDark ? "#57D6A4" : "#2FA37A"}
+                    textColor={c.text.primary}
+                    subColor={c.text.secondary}
+                  />
+                  <BridgeDial
+                    label="Mind"
+                    value={bridgeToday.mental}
+                    color={isDark ? "#8B7FE8" : "#6B5DD3"}
+                    textColor={c.text.primary}
+                    subColor={c.text.secondary}
+                  />
+                  <View style={{ flex: 1, justifyContent: "center" }}>
+                    <Text style={{ color: c.text.secondary, fontSize: 12, lineHeight: 16 }}>
+                      {bridgeGapLine(bridgeToday.physio, bridgeToday.mental)}
+                    </Text>
+                  </View>
+                </View>
+              </GlassCard>
+            </Pressable>
+          )}
+
           {/* Today's plan with interactive checklist */}
           {todayPlan && (
             <GlassCard style={{ marginTop: Spacing.md }}>
@@ -550,6 +670,52 @@ export default function HomeScreen() {
 
 /* --- Sub-components --- */
 
+function BridgeDial({
+  label,
+  value,
+  color,
+  textColor,
+  subColor,
+}: {
+  label: string;
+  value: number | null;
+  color: string;
+  textColor: string;
+  subColor: string;
+}) {
+  return (
+    <View style={{ alignItems: "center", width: 64 }}>
+      <View
+        style={{
+          width: 54,
+          height: 54,
+          borderRadius: 27,
+          borderWidth: 4,
+          borderColor: color,
+          alignItems: "center",
+          justifyContent: "center",
+          backgroundColor: color + "14",
+        }}
+      >
+        <Text style={{ color: textColor, fontWeight: "800", fontSize: 16 }}>
+          {value == null ? "—" : value}
+        </Text>
+      </View>
+      <Text style={{ color: subColor, fontSize: 11, fontWeight: "700", marginTop: 4 }}>{label}</Text>
+    </View>
+  );
+}
+
+function bridgeGapLine(physio: number | null, mental: number | null): string {
+  if (physio == null && mental == null) return "";
+  if (physio == null) return "Sync your wearable to complete the picture.";
+  if (mental == null) return "Complete today's check-in to complete the picture.";
+  const gap = Math.abs(physio - mental);
+  if (gap <= 10) return "Body and mind are aligned today.";
+  if (physio > mental) return "Your body is ahead of your mind — worth a gentle pause.";
+  return "Your mind is ahead of your body — give recovery some room.";
+}
+
 function RiskPill({ label, prob, c, isDark }: { label: string; prob: number | null; c: typeof Colors.light; isDark: boolean }) {
   const pct = prob == null ? "—" : `${Math.round(prob * 100)}%`;
   const isHigh = prob != null && prob > 0.6;
@@ -579,6 +745,18 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
+  },
+  demoChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+    marginRight: 8,
+  },
+  demoChipText: {
+    color: "#fff",
+    fontSize: 11,
+    fontWeight: "800",
+    letterSpacing: 0.3,
   },
   heroSection: {
     alignItems: "center",

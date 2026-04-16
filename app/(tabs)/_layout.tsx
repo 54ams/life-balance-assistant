@@ -4,19 +4,32 @@ import React, { useEffect, useState } from "react";
 import { FloatingTabBar } from "@/components/ui/FloatingTabBar";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { getAppConsent } from "@/lib/privacy";
+import { hasSeenWelcome } from "@/app/welcome";
+import { getFirstRunDone } from "@/lib/demo";
+
+type GateState = "loading" | "welcome" | "onboarding" | "first-run" | "ok";
 
 export default function TabLayout() {
-  const [hasConsent, setHasConsent] = useState<boolean>(true);
+  const [gate, setGate] = useState<GateState>("loading");
+
   useEffect(() => {
     (async () => {
-      const consent = await getAppConsent();
-      setHasConsent(!!consent);
+      const [consent, welcomed, firstRun] = await Promise.all([
+        getAppConsent(),
+        hasSeenWelcome(),
+        getFirstRunDone(),
+      ]);
+      if (!welcomed) setGate("welcome");
+      else if (!consent) setGate("onboarding");
+      else if (!firstRun) setGate("first-run");
+      else setGate("ok");
     })();
   }, []);
 
-  if (!hasConsent) {
-    return <Redirect href="/onboarding" />;
-  }
+  if (gate === "loading") return null;
+  if (gate === "welcome") return <Redirect href="/welcome" />;
+  if (gate === "onboarding") return <Redirect href="/onboarding" />;
+  if (gate === "first-run") return <Redirect href="/first-run" />;
 
   return (
     <Tabs tabBar={(props) => <FloatingTabBar {...props} />} screenOptions={{ headerShown: false }}>

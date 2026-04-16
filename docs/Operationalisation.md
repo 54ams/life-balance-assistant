@@ -25,6 +25,10 @@
 - ML evaluation: `lib/ml/eval.ts`
   - chronological split, classification metrics, calibration bins
   - exploratory prediction only; not the source of the daily plan recommendations
+- Mind–Body Bridge scores: `lib/bridge.ts`
+  - `physioScore` (0–100) derived from `recovery` (primary) with a `sleepHours` fallback
+  - `mentalScore` (0–100) derived from `mood`, `energy` (1–5 each, equally weighted) minus a stress-indicator penalty (max 40)
+  - Paired visualisation in `app/(tabs)/insights/bridge.tsx`, with the strongest lag-correlated physio↔mental pair from `buildAnalyticsSummary` surfaced as the plain-English insight line
 
 ## Privacy and ethics controls
 

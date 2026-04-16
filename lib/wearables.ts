@@ -4,14 +4,15 @@ import { isDemoEnabled } from "./demo";
 
 /**
  * Fallback wearable data used only when no imported wearable data exists yet.
- * In demo mode returns synthetic values; otherwise returns neutral defaults
- * so the LBI still computes but doesn't mislead users with fake data.
+ *
+ * Returns null in production paths without demo mode so callers can render
+ * an empty-state UI instead of surfacing a thrown error mid-demo. Callers
+ * that expect a value should check for null.
  */
-export async function getTodayWearable(): Promise<WearableMetrics> {
+export async function getTodayWearable(): Promise<WearableMetrics | null> {
   const demo = await isDemoEnabled();
   if (!demo) {
-    // No stub in production path; caller should fetch from WHOOP instead.
-    throw new Error("No wearable data available (connect WHOOP)");
+    return null;
   }
   const day = new Date().getDate();
   const offset = (day % 7) - 3;

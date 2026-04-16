@@ -13,6 +13,7 @@ import {
   setDemoEnabled,
   setDemoWearable,
 } from "@/lib/demo";
+import { SCENARIOS, seedScenario, type ScenarioKey } from "@/lib/demoScenarios";
 
 export default function DemoToolsScreen() {
   const scheme = useColorScheme();
@@ -53,6 +54,18 @@ export default function DemoToolsScreen() {
     try {
       await clearDemoOverrides();
       Alert.alert("Done", "Cleared demo overrides.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const onSeedScenario = async (key: ScenarioKey, title: string) => {
+    setSaving(true);
+    try {
+      await seedScenario(key);
+      Alert.alert("Scenario loaded", `Seeded 14 days for "${title}". Open Home to see the arc.`);
+    } catch (err) {
+      Alert.alert("Couldn't seed scenario", (err as any)?.message ?? "Unknown error");
     } finally {
       setSaving(false);
     }
@@ -153,6 +166,31 @@ export default function DemoToolsScreen() {
           <Text style={[styles.secondaryText, { color: c.text.primary }]}>Clear demo overrides</Text>
         </Pressable>
       </GlassCard>
+
+      <GlassCard style={styles.cardPad}>
+        <Text style={[styles.sectionTitle, { color: c.text.primary }]}>Scenario presets</Text>
+        <Text style={[styles.sectionSub, { color: c.text.secondary }]}>
+          Each preset wipes local data and seeds a deterministic 14-day arc. Use these to steer the viva narrative live.
+        </Text>
+        <View style={{ height: 12 }} />
+        {SCENARIOS.map((s, idx) => (
+          <View key={s.key}>
+            {idx > 0 && <View style={{ height: 10 }} />}
+            <Pressable
+              onPress={() => onSeedScenario(s.key, s.title)}
+              disabled={saving}
+              style={({ pressed }) => [
+                styles.scenarioBtn,
+                { borderColor: c.border.medium },
+                pressed && styles.pressed,
+              ]}
+            >
+              <Text style={[styles.scenarioTitle, { color: c.text.primary }]}>{s.title}</Text>
+              <Text style={[styles.scenarioBlurb, { color: c.text.secondary }]}>{s.blurb}</Text>
+            </Pressable>
+          </View>
+        ))}
+      </GlassCard>
     </Screen>
   );
 }
@@ -185,4 +223,16 @@ const styles = StyleSheet.create({
   },
   secondaryText: { fontSize: 14, fontWeight: "700" },
   pressed: { opacity: 0.85 },
+  sectionTitle: { fontSize: 16, fontWeight: "800" },
+  sectionSub: { marginTop: 4, fontSize: 13, lineHeight: 18 },
+  scenarioBtn: {
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 14,
+    borderWidth: 1,
+    backgroundColor: "rgba(255,255,255,0.45)",
+    alignItems: "flex-start",
+  },
+  scenarioTitle: { fontSize: 15, fontWeight: "800" },
+  scenarioBlurb: { marginTop: 4, fontSize: 12, lineHeight: 16 },
 });

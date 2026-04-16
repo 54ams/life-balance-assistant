@@ -11,6 +11,38 @@ const DEMO_ENABLED_KEY = "demo_enabled_v1";
 const DEMO_CHECKIN_KEY = "demo_override_checkin_v1";
 const DEMO_WEARABLE_KEY = "demo_override_wearable_v1";
 
+/**
+ * Whether the user chose "exploring the demo" on first run. Distinct from
+ * `demo_enabled_v1` which is the settings-level toggle — this key records
+ * the examiner-mode intent so the UI can show a "Demo data" badge.
+ */
+export const DEMO_MODE_KEY = "demo_mode_choice_v1";
+export const FIRST_RUN_DONE_KEY = "first_run_done_v1";
+
+export type DemoModeChoice = "demo" | "fresh" | null;
+
+export async function getDemoModeChoice(): Promise<DemoModeChoice> {
+  const v = await AsyncStorage.getItem(DEMO_MODE_KEY);
+  return v === "demo" || v === "fresh" ? v : null;
+}
+
+export async function setDemoModeChoice(choice: DemoModeChoice): Promise<void> {
+  if (!choice) {
+    await AsyncStorage.removeItem(DEMO_MODE_KEY);
+  } else {
+    await AsyncStorage.setItem(DEMO_MODE_KEY, choice);
+  }
+}
+
+export async function getFirstRunDone(): Promise<boolean> {
+  return (await AsyncStorage.getItem(FIRST_RUN_DONE_KEY)) === "1";
+}
+
+export async function setFirstRunDone(done: boolean): Promise<void> {
+  if (done) await AsyncStorage.setItem(FIRST_RUN_DONE_KEY, "1");
+  else await AsyncStorage.removeItem(FIRST_RUN_DONE_KEY);
+}
+
 export async function isDemoEnabled(): Promise<boolean> {
   const v = await AsyncStorage.getItem(DEMO_ENABLED_KEY);
   return v === "1";
@@ -30,6 +62,27 @@ export async function setDemoWearable(wearable: WearableMetrics) {
 
 export async function clearDemoOverrides() {
   await AsyncStorage.multiRemove([DEMO_CHECKIN_KEY, DEMO_WEARABLE_KEY]);
+}
+
+/**
+ * Kiosk reset — for live-viva "reset between examiners" flow.
+ * Wipes all local data + onboarding/welcome/first-run flags so the next launch
+ * shows the animated welcome screen again.
+ */
+export async function kioskReset(): Promise<void> {
+  await clearAll();
+  await AsyncStorage.multiRemove([
+    "welcome_seen_v1",
+    "app_consent_v1",
+    "preferred_tone_v1",
+    "primary_goal_v1",
+    "sleep_window_v1",
+    DEMO_MODE_KEY,
+    FIRST_RUN_DONE_KEY,
+    DEMO_ENABLED_KEY,
+    DEMO_CHECKIN_KEY,
+    DEMO_WEARABLE_KEY,
+  ]);
 }
 
 export async function getDemoCheckIn(): Promise<DailyCheckIn | null> {

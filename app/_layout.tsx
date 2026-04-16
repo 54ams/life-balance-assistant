@@ -22,7 +22,9 @@ export default function RootLayout() {
     <AppErrorBoundary>
       <GestureHandlerRootView style={{ flex: 1 }}>
         <Stack screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="welcome" />
           <Stack.Screen name="onboarding" />
+          <Stack.Screen name="first-run" />
           <Stack.Screen name="(tabs)" />
         </Stack>
       </GestureHandlerRootView>

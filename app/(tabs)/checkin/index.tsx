@@ -121,6 +121,7 @@ export default function DailyCheckInScreen() {
   const [emotion, setEmotion] = useState<EmotionalDiaryEntry | null>(null);
   const [activeValues, setActiveValues] = useState<string[]>([]);
   const [generatingReflection, setGeneratingReflection] = useState(false);
+  const [reflectionSource, setReflectionSource] = useState<"remote" | "local" | "safety" | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -207,8 +208,7 @@ export default function DailyCheckInScreen() {
           ]
         );
       }
-      Alert.alert("Saved", "Daily check-in saved.");
-      router.replace({ pathname: "/", params: { refresh: "1" } } as any);
+      router.replace("/checkin/saved" as any);
     } catch (e: any) {
       Alert.alert("Could not save", e?.message ?? "Please try again.");
     }
@@ -482,27 +482,30 @@ export default function DailyCheckInScreen() {
                   onPress={async () => {
                     setGeneratingReflection(true);
                     try {
-                      const text = await reflectEmotion({
-                        date,
+                      const result = await reflectEmotion({
                         valence: emotion.valence,
                         arousal: emotion.arousal,
-                        intensity: deriveIntensity(emotion.valence, emotion.arousal),
                         regulation: emotion.regulation,
                         contextTags: emotion.contextTags,
                         valueChosen: emotion.valueChosen,
                       });
-                      if (text) {
-                        setEmotion((prev) => (prev ? { ...prev, reflection: text } : prev));
-                      } else {
-                        Alert.alert("Unavailable", "Could not generate a reflection right now.");
-                      }
-                    } catch {
-                      Alert.alert("Connection error", "Could not reach the server. Check your internet connection and try again.");
+                      setEmotion((prev) => (prev ? { ...prev, reflection: result.text } : prev));
+                      setReflectionSource(result.source);
                     } finally {
                       setGeneratingReflection(false);
                     }
                   }}
                 />
+                {reflectionSource === "local" && (
+                  <Text style={{ color: c.text.tertiary, fontSize: 11, marginTop: 6, fontStyle: "italic" }}>
+                    Offline reflection — generated locally on your device.
+                  </Text>
+                )}
+                {reflectionSource === "safety" && (
+                  <Text style={{ color: c.text.tertiary, fontSize: 11, marginTop: 6, fontStyle: "italic" }}>
+                    Reflection paused for safety. See resources in Profile → Settings → Help.
+                  </Text>
+                )}
               </View>
             </GlassCard>
           </>

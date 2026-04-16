@@ -58,6 +58,7 @@ export default function InsightsHome() {
       icon: "chart.line.uptrend.xyaxis",
       color: isDark ? "#57D6A4" : "#2FA37A",
       items: [
+        { title: "Mind–Body Bridge", route: "/insights/bridge", icon: "heart.text.square" },
         { title: "Trends", route: "/insights/trends", icon: "chart.line.uptrend.xyaxis" },
         { title: "Correlations", route: "/insights/correlations", icon: "arrow.triangle.branch" },
         { title: "Patterns", route: "/insights/patterns", icon: "square.grid.2x2" },

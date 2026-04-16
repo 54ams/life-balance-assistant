@@ -1,20 +1,28 @@
 import React, { useRef, useState } from "react";
-import { Alert, Animated, Pressable, StyleSheet, Text, TextInput, View, Dimensions } from "react-native";
+import { Alert, Animated, Pressable, StyleSheet, Text, View } from "react-native";
 import { router } from "expo-router";
 import { useColorScheme } from "react-native";
+import * as Haptics from "expo-haptics";
 
 import { Screen } from "@/components/Screen";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { GlassButton } from "@/components/ui/GlassButton";
 import { Colors } from "@/constants/Colors";
 import { Spacing, BorderRadius } from "@/constants/Spacing";
-import { Typography } from "@/constants/Typography";
-import { saveAppConsent, type AppConsent } from "@/lib/privacy";
-import { saveActiveValues, saveLifeContexts, saveUserName } from "@/lib/storage";
+import {
+  saveAppConsent,
+  setPreferredTone,
+  setPrimaryGoals,
+  setSleepWindow,
+  type AppConsent,
+  type PreferredTone,
+  type PrimaryGoal,
+  type SleepWindow,
+} from "@/lib/privacy";
+import { saveActiveValues, saveLifeContexts } from "@/lib/storage";
 import { defaultValuesSet } from "@/lib/emotion";
 
-const VERSION = "2026-03-12";
-const { width: SCREEN_W } = Dimensions.get("window");
+const VERSION = "2026-04-16";
 
 const ALL_VALUES = [
   "Growth", "Connection", "Health", "Peace", "Discipline", "Purpose",
@@ -26,6 +34,28 @@ const LIFE_CONTEXTS = [
   "Athlete", "Shift worker", "Remote worker",
 ];
 
+const GOALS: PrimaryGoal[] = [
+  "Sleep quality",
+  "Stress recovery",
+  "Consistent energy",
+  "Emotional awareness",
+  "Physical activity",
+  "Mindful eating",
+];
+
+const TONES: Array<{ key: PreferredTone; blurb: string }> = [
+  { key: "Gentle", blurb: "Soft, validating language." },
+  { key: "Direct", blurb: "Clear and matter-of-fact." },
+  { key: "Playful", blurb: "Warm with a light touch." },
+];
+
+const SLEEP_WINDOWS: Array<{ key: SleepWindow; blurb: string }> = [
+  { key: "Early bird", blurb: "To bed early, up early." },
+  { key: "Standard", blurb: "Around 11pm – 7am." },
+  { key: "Night owl", blurb: "Later nights, slower mornings." },
+  { key: "Shift worker", blurb: "Irregular sleep schedule." },
+];
+
 type ConsentFlags = AppConsent["items"];
 
 const INITIAL_FLAGS: ConsentFlags = {
@@ -35,7 +65,7 @@ const INITIAL_FLAGS: ConsentFlags = {
   nonMedicalUse: false,
 };
 
-const STEPS = ["Welcome", "Values", "Context", "Consent"];
+const STEPS = ["Welcome", "Values", "Context", "Personalise", "Consent"];
 
 export default function OnboardingScreen() {
   const scheme = useColorScheme();
@@ -43,7 +73,9 @@ export default function OnboardingScreen() {
   const [step, setStep] = useState(0);
   const [selectedValues, setSelectedValues] = useState<string[]>(defaultValuesSet());
   const [selectedContexts, setSelectedContexts] = useState<string[]>([]);
-  const [name, setName] = useState("");
+  const [goals, setGoals] = useState<PrimaryGoal[]>([]);
+  const [tone, setTone] = useState<PreferredTone>("Gentle");
+  const [sleepWindow, setSleepWin] = useState<SleepWindow | null>(null);
   const [flags, setFlags] = useState<ConsentFlags>(INITIAL_FLAGS);
   const fadeAnim = useRef(new Animated.Value(1)).current;
 
@@ -59,6 +91,15 @@ export default function OnboardingScreen() {
       Alert.alert("Values", "Please select at least 3 values that matter to you.");
       return;
     }
+    if (step === 3 && goals.length === 0) {
+      Alert.alert("Personalise", "Pick at least one thing you'd like LBA to help with.");
+      return;
+    }
+    if (step === 3 && !sleepWindow) {
+      Alert.alert("Personalise", "Please pick a sleep window that best fits you.");
+      return;
+    }
+    Haptics.selectionAsync().catch(() => {});
     animateTransition(step + 1);
   };
 
@@ -78,6 +119,12 @@ export default function OnboardingScreen() {
     );
   };
 
+  const toggleGoal = (g: PrimaryGoal) => {
+    setGoals((prev) =>
+      prev.includes(g) ? prev.filter((x) => x !== g) : prev.length < 2 ? [...prev, g] : prev
+    );
+  };
+
   const toggleConsent = (key: keyof ConsentFlags) => {
     setFlags((prev) => ({ ...prev, [key]: !prev[key] }));
   };
@@ -89,18 +136,20 @@ export default function OnboardingScreen() {
     }
     await saveActiveValues(selectedValues);
     await saveLifeContexts(selectedContexts);
-    if (name.trim()) await saveUserName(name);
+    await setPrimaryGoals(goals);
+    await setPreferredTone(tone);
+    if (sleepWindow) await setSleepWindow(sleepWindow);
     await saveAppConsent({
       consentedAt: new Date().toISOString(),
       privacyVersion: VERSION,
       items: flags,
     });
-    router.replace("/");
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+    router.replace("/first-run");
   };
 
   return (
     <Screen scroll contentStyle={{ paddingTop: 24, paddingBottom: 40 }}>
-      {/* Progress bar */}
       <View style={styles.progressRow}>
         {STEPS.map((_, i) => (
           <View
@@ -117,13 +166,11 @@ export default function OnboardingScreen() {
       </View>
 
       <Text style={[styles.stepLabel, { color: c.text.secondary }]}>
-        {step + 1} of {STEPS.length}
+        {step + 1} of {STEPS.length} · {STEPS[step]}
       </Text>
 
       <Animated.View style={{ opacity: fadeAnim }}>
-        {step === 0 && (
-          <WelcomeStep c={c} name={name} setName={setName} />
-        )}
+        {step === 0 && <WelcomeStep c={c} />}
         {step === 1 && (
           <ValuesStep c={c} selected={selectedValues} toggle={toggleValue} />
         )}
@@ -131,11 +178,21 @@ export default function OnboardingScreen() {
           <ContextStep c={c} selected={selectedContexts} toggle={toggleContext} />
         )}
         {step === 3 && (
+          <PersonaliseStep
+            c={c}
+            goals={goals}
+            toggleGoal={toggleGoal}
+            tone={tone}
+            setTone={setTone}
+            sleepWindow={sleepWindow}
+            setSleepWindow={setSleepWin}
+          />
+        )}
+        {step === 4 && (
           <ConsentStep c={c} flags={flags} toggle={toggleConsent} />
         )}
       </Animated.View>
 
-      {/* Navigation buttons */}
       <View style={styles.navRow}>
         {step > 0 ? (
           <Pressable onPress={back} style={[styles.backButton, { borderColor: c.border.medium }]}>
@@ -156,12 +213,12 @@ export default function OnboardingScreen() {
 
 /* --- Step Components --- */
 
-function WelcomeStep({ c, name, setName }: { c: typeof Colors.light; name: string; setName: (s: string) => void }) {
+function WelcomeStep({ c }: { c: typeof Colors.light }) {
   return (
     <>
       <Text style={[styles.h1, { color: c.accent.primary }]}>Life Balance{"\n"}Assistant</Text>
       <Text style={[styles.body, { color: c.text.secondary, marginTop: 12 }]}>
-        This prototype was built as part of a BCS synoptic project exploring how wearable data, emotional self-report, and lifestyle signals can combine into a transparent, explainable wellbeing score.
+        A calm space that brings physiological signals (recovery, sleep) and psychological signals (mood, stress, emotion) together into a single daily picture.
       </Text>
 
       <GlassCard style={{ marginTop: 20 }}>
@@ -169,20 +226,15 @@ function WelcomeStep({ c, name, setName }: { c: typeof Colors.light; name: strin
         <View style={{ gap: 12, marginTop: 12 }}>
           <StepItem num="1" text="Complete a short daily check-in" c={c} />
           <StepItem num="2" text="Optionally sync WHOOP recovery data" c={c} />
-          <StepItem num="3" text="Review your Life Balance Index, trends, and personalised recommendations" c={c} />
+          <StepItem num="3" text="See your Life Balance Index, mind–body bridge, and gentle suggestions" c={c} />
         </View>
       </GlassCard>
 
       <GlassCard style={{ marginTop: 12 }}>
-        <Text style={[styles.cardTitle, { color: c.text.primary }]}>What's your name?</Text>
-        <Text style={[styles.hint, { color: c.text.secondary }]}>Optional, only used for greetings</Text>
-        <TextInput
-          placeholder="Enter your name"
-          placeholderTextColor={c.text.tertiary}
-          value={name}
-          onChangeText={setName}
-          style={[styles.input, { borderColor: c.border.medium, color: c.text.primary }]}
-        />
+        <Text style={[styles.cardTitle, { color: c.text.primary }]}>Your privacy, up front</Text>
+        <Text style={[styles.body, { color: c.text.secondary, marginTop: 8 }]}>
+          LBA never asks for your name, email, phone, address, or anything that identifies you. All data stays on this device. You can export or delete it at any time.
+        </Text>
       </GlassCard>
     </>
   );
@@ -204,7 +256,7 @@ function ValuesStep({ c, selected, toggle }: { c: typeof Colors.light; selected:
     <>
       <Text style={[styles.h2, { color: c.text.primary }]}>What matters to you?</Text>
       <Text style={[styles.body, { color: c.text.secondary, marginTop: 8 }]}>
-        Select 3 to 6 values that are important in your life. These help the app understand what balance looks like for you.
+        Select 3 to 6 values. These help the app understand what balance looks like for you.
       </Text>
 
       <View style={styles.chipGrid}>
@@ -231,7 +283,7 @@ function ValuesStep({ c, selected, toggle }: { c: typeof Colors.light; selected:
       </View>
 
       <Text style={[styles.hint, { color: c.text.secondary, marginTop: 12 }]}>
-        {selected.length} selected (3-6 required)
+        {selected.length} selected (3–6 required)
       </Text>
     </>
   );
@@ -242,7 +294,7 @@ function ContextStep({ c, selected, toggle }: { c: typeof Colors.light; selected
     <>
       <Text style={[styles.h2, { color: c.text.primary }]}>Life context</Text>
       <Text style={[styles.body, { color: c.text.secondary, marginTop: 8 }]}>
-        Select any that apply. This helps us understand your baseline lifestyle so recommendations are more relevant.
+        These are broad, non-identifying buckets. Select any that apply — they help tune suggestions to your rhythm.
       </Text>
 
       <View style={styles.chipGrid}>
@@ -273,6 +325,122 @@ function ContextStep({ c, selected, toggle }: { c: typeof Colors.light; selected
         <Text style={[styles.body, { color: c.text.secondary, marginTop: 6 }]}>
           This app is observational and non-diagnostic. It does not provide medical advice or crisis support. All analytics are exploratory.
         </Text>
+      </GlassCard>
+    </>
+  );
+}
+
+function PersonaliseStep({
+  c,
+  goals,
+  toggleGoal,
+  tone,
+  setTone,
+  sleepWindow,
+  setSleepWindow,
+}: {
+  c: typeof Colors.light;
+  goals: PrimaryGoal[];
+  toggleGoal: (g: PrimaryGoal) => void;
+  tone: PreferredTone;
+  setTone: (t: PreferredTone) => void;
+  sleepWindow: SleepWindow | null;
+  setSleepWindow: (s: SleepWindow) => void;
+}) {
+  return (
+    <>
+      <Text style={[styles.h2, { color: c.text.primary }]}>Personalise</Text>
+      <Text style={[styles.body, { color: c.text.secondary, marginTop: 8 }]}>
+        Three quick, non-identifying choices to tune the app to you.
+      </Text>
+
+      <GlassCard style={{ marginTop: 16 }}>
+        <Text style={[styles.cardTitle, { color: c.text.primary }]}>What would you like help with?</Text>
+        <Text style={[styles.hint, { color: c.text.secondary }]}>Pick 1 or 2</Text>
+        <View style={[styles.chipGrid, { marginTop: 12 }]}>
+          {GOALS.map((g) => {
+            const active = goals.includes(g);
+            return (
+              <Pressable
+                key={g}
+                onPress={() => toggleGoal(g)}
+                style={[
+                  styles.valueChip,
+                  {
+                    backgroundColor: active ? c.accent.primary : "transparent",
+                    borderColor: active ? c.accent.primary : c.border.medium,
+                  },
+                ]}
+              >
+                <Text style={{ color: active ? "#fff" : c.text.primary, fontWeight: "700", fontSize: 14 }}>
+                  {g}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      </GlassCard>
+
+      <GlassCard style={{ marginTop: 12 }}>
+        <Text style={[styles.cardTitle, { color: c.text.primary }]}>Preferred tone</Text>
+        <Text style={[styles.hint, { color: c.text.secondary }]}>For reflections and nudges</Text>
+        <View style={{ gap: 8, marginTop: 12 }}>
+          {TONES.map(({ key, blurb }) => {
+            const active = tone === key;
+            return (
+              <Pressable
+                key={key}
+                onPress={() => setTone(key)}
+                style={[
+                  styles.rowPick,
+                  {
+                    borderColor: active ? c.accent.primary : c.border.medium,
+                    backgroundColor: active ? `${c.accent.primary}10` : "transparent",
+                  },
+                ]}
+              >
+                <View style={[styles.radio, { borderColor: active ? c.accent.primary : c.border.heavy }]}>
+                  {active && <View style={[styles.radioDot, { backgroundColor: c.accent.primary }]} />}
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ color: c.text.primary, fontWeight: "700" }}>{key}</Text>
+                  <Text style={{ color: c.text.secondary, fontSize: 12, marginTop: 2 }}>{blurb}</Text>
+                </View>
+              </Pressable>
+            );
+          })}
+        </View>
+      </GlassCard>
+
+      <GlassCard style={{ marginTop: 12 }}>
+        <Text style={[styles.cardTitle, { color: c.text.primary }]}>Rough sleep window</Text>
+        <Text style={[styles.hint, { color: c.text.secondary }]}>Helps time suggestions</Text>
+        <View style={{ gap: 8, marginTop: 12 }}>
+          {SLEEP_WINDOWS.map(({ key, blurb }) => {
+            const active = sleepWindow === key;
+            return (
+              <Pressable
+                key={key}
+                onPress={() => setSleepWindow(key)}
+                style={[
+                  styles.rowPick,
+                  {
+                    borderColor: active ? c.accent.primary : c.border.medium,
+                    backgroundColor: active ? `${c.accent.primary}10` : "transparent",
+                  },
+                ]}
+              >
+                <View style={[styles.radio, { borderColor: active ? c.accent.primary : c.border.heavy }]}>
+                  {active && <View style={[styles.radioDot, { backgroundColor: c.accent.primary }]} />}
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ color: c.text.primary, fontWeight: "700" }}>{key}</Text>
+                  <Text style={{ color: c.text.secondary, fontSize: 12, marginTop: 2 }}>{blurb}</Text>
+                </View>
+              </Pressable>
+            );
+          })}
+        </View>
       </GlassCard>
     </>
   );
@@ -381,13 +549,6 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: "800",
   },
-  input: {
-    marginTop: 10,
-    borderWidth: 1,
-    borderRadius: BorderRadius.lg,
-    padding: 14,
-    fontSize: 16,
-  },
   stepCircle: {
     width: 28,
     height: 28,
@@ -406,6 +567,27 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderRadius: BorderRadius.full,
     borderWidth: 1.5,
+  },
+  rowPick: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    padding: 12,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1.5,
+  },
+  radio: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 2,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  radioDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
   },
   consentRow: {
     flexDirection: "row",
