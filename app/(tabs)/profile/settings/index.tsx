@@ -49,78 +49,86 @@ export default function SettingsTab() {
     <Screen scroll>
       <Text style={[styles.h1, { color: C.text.primary }]}>Settings</Text>
       <Text style={[styles.sub, { color: C.text.secondary }]}>
-        Preferences, data, and tools.
+        Tweak how the app looks, sounds, and handles your data.
       </Text>
 
       <View style={{ height: 16 }} />
 
       <Row
-        title="Notifications"
-        subtitle="Daily check-in reminder"
+        title="Reminders"
+        subtitle="A gentle nudge for your daily check-in"
         onPress={() => router.push("/profile/settings/notifications" as any)}
         textColor={C.text.primary}
         mutedColor={C.text.secondary}
-        accessibilityLabel="Open notification settings"
+        accessibilityLabel="Open reminder settings"
       />
       <Row
-        title="Values"
-        subtitle="Choose up to 6 guiding values"
+        title="Reflection tone"
+        subtitle="Gentle, direct, or a bit playful"
+        onPress={() => router.push("/profile/settings/reflection" as any)}
+        textColor={C.text.primary}
+        mutedColor={C.text.secondary}
+        accessibilityLabel="Open reflection tone settings"
+      />
+      <Row
+        title="What matters to you"
+        subtitle="Pick a few values that guide your week"
         onPress={() => router.push("/profile/settings/values" as any)}
         textColor={C.text.primary}
         mutedColor={C.text.secondary}
         accessibilityLabel="Open values settings"
       />
       <Row
-        title="Data & privacy"
-        subtitle="What is stored locally and how exports work"
+        title="Your data"
+        subtitle="What's stored on this device, and for how long"
         onPress={() => router.push("/profile/settings/data" as any)}
         textColor={C.text.primary}
         mutedColor={C.text.secondary}
-        accessibilityLabel="Open data and privacy"
+        accessibilityLabel="Open your data"
       />
       <Row
         title="Privacy notice"
-        subtitle="Plain-language GDPR summary"
+        subtitle="A plain-English summary of what we store"
         onPress={() => router.push("/profile/settings/privacy" as any)}
         textColor={C.text.primary}
         mutedColor={C.text.secondary}
         accessibilityLabel="Open privacy notice"
       />
       <Row
-        title="Consent & safety"
-        subtitle="Participation, risks, and crisis resources"
+        title="Consent & your choices"
+        subtitle="What you agreed to, and how to change it"
         onPress={() => router.push("/profile/settings/consent" as any)}
         textColor={C.text.primary}
         mutedColor={C.text.secondary}
-        accessibilityLabel="Open consent and safety"
+        accessibilityLabel="Open consent and choices"
       />
       <Row
-        title="Safety resources"
-        subtitle="Immediate help and crisis links"
+        title="If you need support"
+        subtitle="Quick-dial numbers and UK support services"
         onPress={() => router.push("/profile/settings/help" as any)}
         textColor={C.text.primary}
         mutedColor={C.text.secondary}
-        accessibilityLabel="Open safety resources"
+        accessibilityLabel="Open support resources"
       />
       <Row
-        title="WHOOP consent"
-        subtitle="Grant or withdraw WHOOP data access"
+        title="WHOOP permission"
+        subtitle="Let us use your WHOOP data, or turn it off"
         onPress={() => router.push("/profile/settings/consent-whoop" as any)}
         textColor={C.text.primary}
         mutedColor={C.text.secondary}
-        accessibilityLabel="Open WHOOP consent"
+        accessibilityLabel="Open WHOOP permission"
       />
       <Row
-        title="WHOOP integration"
-        subtitle="Connect and sync wearables"
+        title="Connect WHOOP"
+        subtitle="Sign in and sync your wearable"
         onPress={() => router.push("/profile/integrations/whoop" as any)}
         textColor={C.text.primary}
         mutedColor={C.text.secondary}
-        accessibilityLabel="Open WHOOP integration"
+        accessibilityLabel="Open WHOOP connection"
       />
       <Row
-        title="Scoring model"
-        subtitle="Weights, thresholds, sensitivity"
+        title="How the score is built"
+        subtitle="Peek under the hood of the balance score"
         onPress={() => router.push("/profile/settings/model" as any)}
         textColor={C.text.primary}
         mutedColor={C.text.secondary}
@@ -128,39 +136,39 @@ export default function SettingsTab() {
       />
       <Row
         title="Demo tools"
-        subtitle="Seed data and test reminders"
+        subtitle="Load example data to explore the app"
         onPress={() => router.push("/profile/settings/demo" as any)}
         textColor={C.text.primary}
         mutedColor={C.text.secondary}
         accessibilityLabel="Open demo tools"
       />
       <Row
-        title="Study completion"
-        subtitle="Finish SUS and export the research bundle"
+        title="Wrapping up"
+        subtitle="Share feedback and take a copy of your data"
         onPress={() => router.push("/profile/settings/study" as any)}
         textColor={C.text.primary}
         mutedColor={C.text.secondary}
-        accessibilityLabel="Open study completion"
+        accessibilityLabel="Open wrapping up"
       />
       <Row
-        title="Diagnostics"
-        subtitle="Inspect stored records, plans, and recent samples"
+        title="Under the bonnet"
+        subtitle="A look at everything stored on this device"
         onPress={() => router.push("/audit" as any)}
         textColor={C.text.primary}
         mutedColor={C.text.secondary}
         accessibilityLabel="Open diagnostics"
       />
       <Row
-        title="Usability survey"
-        subtitle="Complete SUS and save participant feedback"
+        title="Share feedback"
+        subtitle="A short survey about how the app felt"
         onPress={() => router.push("/profile/settings/usability" as any)}
         textColor={C.text.primary}
         mutedColor={C.text.secondary}
-        accessibilityLabel="Open usability survey"
+        accessibilityLabel="Open feedback survey"
       />
       <Row
         title="About"
-        subtitle="Project version and credits"
+        subtitle="What this app is, and isn't"
         onPress={() => router.push("/profile/settings/about" as any)}
         textColor={C.text.primary}
         mutedColor={C.text.secondary}

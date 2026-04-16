@@ -17,6 +17,7 @@ import { containsSelfHarmSignals } from "@/lib/privacy";
 import { deriveIntensity } from "@/lib/emotion";
 import { refreshDerivedForDate } from "@/lib/pipeline";
 import { reflectEmotion } from "@/lib/llm";
+import { recordReflectionFeedback } from "@/lib/reflectionFeedback";
 import * as Haptics from "expo-haptics";
 
 const STRESS_INDICATORS: Array<{ key: keyof NonNullable<DailyCheckIn["stressIndicators"]>; label: string }> = [
@@ -122,6 +123,7 @@ export default function DailyCheckInScreen() {
   const [activeValues, setActiveValues] = useState<string[]>([]);
   const [generatingReflection, setGeneratingReflection] = useState(false);
   const [reflectionSource, setReflectionSource] = useState<"remote" | "local" | "safety" | null>(null);
+  const [reflectionFeedback, setReflectionFeedback] = useState<"up" | "down" | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -234,6 +236,36 @@ export default function DailyCheckInScreen() {
           </Text>
         </View>
       </View>
+
+      {/* Grounding alternative — body-first, wordless check-in path */}
+      {step === 0 && (
+        <Pressable
+          onPress={() => {
+            Haptics.selectionAsync();
+            router.push("/checkin/grounding" as any);
+          }}
+          style={({ pressed }) => [
+            styles.groundingLink,
+            {
+              borderColor: c.border.light,
+              backgroundColor: isDark ? "rgba(255,255,255,0.04)" : "rgba(255,255,255,0.55)",
+            },
+            pressed && { opacity: 0.75 },
+          ]}
+          accessibilityRole="button"
+          accessibilityLabel="Prefer a 30-second body-first grounding scan instead"
+        >
+          <View style={{ flex: 1 }}>
+            <Text style={{ color: c.text.tertiary, fontSize: 10, fontWeight: "800", letterSpacing: 1.4 }}>
+              PREFER SOMETHING QUIETER?
+            </Text>
+            <Text style={{ color: c.text.primary, fontSize: 15, fontWeight: "700", marginTop: 2 }}>
+              30-second grounding scan
+            </Text>
+          </View>
+          <IconSymbol name="chevron.right" size={14} color={c.text.secondary} />
+        </Pressable>
+      )}
 
       {/* Step progress bar */}
       <View style={{ gap: 8 }}>
@@ -477,10 +509,11 @@ export default function DailyCheckInScreen() {
               />
               <View style={{ marginTop: Spacing.sm }}>
                 <GlassButton
-                  title={generatingReflection ? "Generating..." : "Generate AI reflection"}
+                  title={generatingReflection ? "Writing…" : "Suggest a reflection"}
                   variant="secondary"
                   onPress={async () => {
                     setGeneratingReflection(true);
+                    setReflectionFeedback(null);
                     try {
                       const result = await reflectEmotion({
                         valence: emotion.valence,
@@ -498,14 +531,62 @@ export default function DailyCheckInScreen() {
                 />
                 {reflectionSource === "local" && (
                   <Text style={{ color: c.text.tertiary, fontSize: 11, marginTop: 6, fontStyle: "italic" }}>
-                    Offline reflection — generated locally on your device.
+                    Written on this device — no internet needed.
                   </Text>
                 )}
                 {reflectionSource === "safety" && (
                   <Text style={{ color: c.text.tertiary, fontSize: 11, marginTop: 6, fontStyle: "italic" }}>
-                    Reflection paused for safety. See resources in Profile → Settings → Help.
+                    Reflection paused for safety. See Profile → Settings → If you need support.
                   </Text>
                 )}
+                {reflectionSource && reflectionSource !== "safety" && emotion.reflection ? (
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 10, marginTop: 10 }}>
+                    <Text style={{ color: c.text.tertiary, fontSize: 12 }}>Helpful?</Text>
+                    <Pressable
+                      onPress={async () => {
+                        setReflectionFeedback("up");
+                        await recordReflectionFeedback("up");
+                      }}
+                      accessibilityRole="button"
+                      accessibilityLabel="Reflection was helpful"
+                      style={({ pressed }) => [
+                        styles.feedbackBtn,
+                        {
+                          borderColor: reflectionFeedback === "up" ? c.accent.primary : c.border.medium,
+                          backgroundColor: reflectionFeedback === "up" ? c.accent.primary + "15" : "transparent",
+                        },
+                        pressed && { opacity: 0.7 },
+                      ]}
+                    >
+                      <Text style={{ color: reflectionFeedback === "up" ? c.accent.primary : c.text.secondary, fontSize: 13, fontWeight: "700" }}>
+                        Yes
+                      </Text>
+                    </Pressable>
+                    <Pressable
+                      onPress={async () => {
+                        setReflectionFeedback("down");
+                        await recordReflectionFeedback("down");
+                      }}
+                      accessibilityRole="button"
+                      accessibilityLabel="Reflection was not helpful"
+                      style={({ pressed }) => [
+                        styles.feedbackBtn,
+                        {
+                          borderColor: reflectionFeedback === "down" ? c.danger : c.border.medium,
+                          backgroundColor: reflectionFeedback === "down" ? (c.danger ?? "#D64550") + "15" : "transparent",
+                        },
+                        pressed && { opacity: 0.7 },
+                      ]}
+                    >
+                      <Text style={{ color: reflectionFeedback === "down" ? (c.danger ?? "#D64550") : c.text.secondary, fontSize: 13, fontWeight: "700" }}>
+                        Not quite
+                      </Text>
+                    </Pressable>
+                    {reflectionFeedback ? (
+                      <Text style={{ color: c.text.tertiary, fontSize: 11 }}>Thanks.</Text>
+                    ) : null}
+                  </View>
+                ) : null}
               </View>
             </GlassCard>
           </>
@@ -582,5 +663,20 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     alignItems: "center",
     justifyContent: "center",
+  },
+  groundingLink: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+  },
+  feedbackBtn: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: BorderRadius.full,
+    borderWidth: 1,
   },
 });

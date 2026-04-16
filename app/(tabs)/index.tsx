@@ -1,39 +1,51 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Alert, Animated, Pressable, ScrollView, StyleSheet, Text, View, useColorScheme, Dimensions } from "react-native";
+import {
+  Alert,
+  Animated,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+  useColorScheme,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useFocusEffect } from "expo-router";
-import { AuroraBackground } from "@/components/ui/AuroraBackground";
-import { DriverOverlay } from "@/components/ui/DriverOverlay";
-import { GlassCard } from "@/components/ui/GlassCard";
-import { TransparencyDrawer } from "@/components/ui/TransparencyDrawer";
-import { WeeklyStrip } from "@/components/ui/WeeklyStrip";
-import { IconSymbol } from "@/components/ui/icon-symbol";
-import { MiniLineChart } from "@/components/ui/MiniLineChart";
-import { RadarChart } from "@/components/ui/RadarChart";
-import { HeatmapCalendar } from "@/components/ui/HeatmapCalendar";
-import { EmptyState } from "@/components/ui/EmptyState";
-
-import { computeBaselineMeta } from "@/lib/baseline";
-import { computeConsistency } from "@/lib/consistency";
-import { getAllDays, getDay, getUserName, listDailyRecords, listEmotions, loadPlan, setPlanActionCompleted, getPlanAdherenceSummary } from "@/lib/storage";
-import { todayISO } from "@/lib/util/todayISO";
-import type { LbiOutput } from "@/lib/lbi";
-import type { ISODate } from "@/lib/types";
-import { Colors } from "@/constants/Colors";
-import { Spacing, BorderRadius } from "@/constants/Spacing";
-import { refreshDerivedForDate } from "@/lib/pipeline";
-import { predictTomorrowRisk } from "@/lib/ml";
-import { buildMissingnessSummary } from "@/lib/transparency";
-import { getDemoModeChoice, kioskReset } from "@/lib/demo";
-import { mentalScore, physioScore } from "@/lib/bridge";
 import * as Haptics from "expo-haptics";
 
-const { width: SCREEN_W } = Dimensions.get("window");
+import { AuroraBackground } from "@/components/ui/AuroraBackground";
+import { StateOrb } from "@/components/ui/StateOrb";
+import { Ribbon7, type RibbonDay } from "@/components/ui/Ribbon7";
+import { RealignCard } from "@/components/ui/RealignCard";
+import { AnchorCard } from "@/components/ui/AnchorCard";
+import { BreathSession } from "@/components/ui/BreathSession";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { GlassCard } from "@/components/ui/GlassCard";
+import { IconSymbol } from "@/components/ui/icon-symbol";
+
+import { Colors, bridgeStateFrom, type BridgeState } from "@/constants/Colors";
+import { Spacing, BorderRadius } from "@/constants/Spacing";
+
+import { getAllDays, getDay, getUserName, listDailyRecords, loadPlan, setPlanActionCompleted } from "@/lib/storage";
+import { todayISO } from "@/lib/util/todayISO";
+import type { DailyRecord, ISODate } from "@/lib/types";
+import { refreshDerivedForDate } from "@/lib/pipeline";
+import { mentalScore, physioScore, narrativeFor } from "@/lib/bridge";
+import { getDemoModeChoice, kioskReset } from "@/lib/demo";
+import { realignFor } from "@/lib/realign";
+import { getAnchorsForDate, isDawnWindow, isDuskWindow, listAnchors, type AnchorRecord } from "@/lib/anchors";
+import { getActiveLift } from "@/lib/lift";
+import type { LbiOutput } from "@/lib/lbi";
 
 function greetingForHour(h: number) {
   if (h < 12) return "Good morning";
   if (h < 18) return "Good afternoon";
   return "Good evening";
+}
+
+function clamp01to100(n: number | null): number | null {
+  if (n == null || !Number.isFinite(n)) return null;
+  return Math.max(0, Math.min(100, Math.round(n)));
 }
 
 export default function HomeScreen() {
@@ -42,41 +54,38 @@ export default function HomeScreen() {
   const c = isDark ? Colors.dark : Colors.light;
 
   const [date] = useState<ISODate>(todayISO());
+
+  // Bridge state — the single source of truth that drives hue, orb, aurora.
+  const [physio, setPhysio] = useState<number | null>(null);
+  const [mentalRaw, setMentalRaw] = useState<number | null>(null);
+  const [activeLift, setActiveLift] = useState<number>(0);
   const [lbi, setLbi] = useState<LbiOutput | null>(null);
-  const [todayPlan, setTodayPlan] = useState<{ focus: string; actions: string[]; actionReasons: string[]; completedActions: boolean[] } | null>(null);
-  const [adherenceSummary, setAdherenceSummary] = useState<{ streak: number; adherencePct: number } | null>(null);
-  const [risk, setRisk] = useState<{
-    trained: boolean;
-    rowsUsed: number;
-    lbiRiskProb: number | null;
-    recoveryRiskProb: number | null;
-    topDrivers: { name: string; direction: "up" | "down"; strength: number }[];
-  } | null>(null);
-  const [missingness, setMissingness] = useState<ReturnType<typeof buildMissingnessSummary> | null>(null);
-  const [dataDates, setDataDates] = useState<ISODate[]>([]);
-  const [driversVisible, setDriversVisible] = useState(false);
-  const [transparencyVisible, setTransparencyVisible] = useState(false);
-  const [status, setStatus] = useState<string>("");
-  const [identityLine, setIdentityLine] = useState<string>("");
+
+  // Ribbon
+  const [ribbonDays, setRibbonDays] = useState<RibbonDay[]>([]);
+
+  // Anchors
+  const [anchorsToday, setAnchorsToday] = useState<AnchorRecord>({ date });
+
+  // Plan — collapsed to a single "one thing"
+  const [todayPlan, setTodayPlan] = useState<
+    { focus: string; actions: string[]; actionReasons: string[]; completedActions: boolean[] } | null
+  >(null);
+
+  // UI / session
   const [checkedInToday, setCheckedInToday] = useState(false);
   const [userName, setUserName] = useState("");
   const [isDemoMode, setIsDemoMode] = useState(false);
-  const [valueAlignmentPct, setValueAlignmentPct] = useState<number | null>(null);
-  const [consistencyPct, setConsistencyPct] = useState<number | null>(null);
-  const [weeklyLbi, setWeeklyLbi] = useState<{ label: string; value: number }[]>([]);
-  const [heatmapData, setHeatmapData] = useState<{ date: string; value: number }[]>([]);
   const [hasAnyData, setHasAnyData] = useState(true);
-  const [bridgeToday, setBridgeToday] = useState<{ physio: number | null; mental: number | null }>({ physio: null, mental: null });
+  const [breathVisible, setBreathVisible] = useState(false);
+  const [rippleKey, setRippleKey] = useState(0);
 
-  // Animated score reveal
-  const scoreAnim = useRef(new Animated.Value(0)).current;
-  const scoreScale = useRef(new Animated.Value(0.8)).current;
+  // Reveal animation
+  const reveal = useRef(new Animated.Value(0)).current;
 
   const headerGreeting = useMemo(() => greetingForHour(new Date().getHours()), []);
 
-  // Kiosk reset — hidden gesture for live viva handovers between examiners.
-  // Long-press the greeting for ~1s, then triple-tap the same greeting within
-  // 2s to confirm. Guarded by a final Alert so an accidental trigger is safe.
+  // Kiosk reset — preserved from previous Home so live viva handovers still work.
   const armedAtRef = useRef<number>(0);
   const tapCountRef = useRef<number>(0);
   const lastTapRef = useRef<number>(0);
@@ -91,7 +100,7 @@ export default function HomeScreen() {
   const runKioskReset = useCallback(() => {
     Alert.alert(
       "Reset app?",
-      "This wipes all local data and returns to the welcome screen. Use between examiners.",
+      "This clears everything on this device and takes you back to the welcome screen. Handy if you want to start completely fresh.",
       [
         { text: "Cancel", style: "cancel" },
         {
@@ -113,12 +122,10 @@ export default function HomeScreen() {
 
   const onGreetingTap = useCallback(() => {
     const now = Date.now();
-    // Only count taps if armed within last 3s.
     if (now - armedAtRef.current > 3000) {
       tapCountRef.current = 0;
       return;
     }
-    // Reset tap run if gap too long.
     if (now - lastTapRef.current > 700) tapCountRef.current = 0;
     lastTapRef.current = now;
     tapCountRef.current += 1;
@@ -129,145 +136,207 @@ export default function HomeScreen() {
     }
   }, [runKioskReset]);
 
+  /* ---------------- Loaders ---------------- */
+
+  const refreshLift = useCallback(async () => {
+    const lift = await getActiveLift();
+    setActiveLift(lift);
+  }, []);
+
+  const refreshAnchors = useCallback(async () => {
+    setAnchorsToday(await getAnchorsForDate(date));
+  }, [date]);
+
   const loadHome = useCallback(() => {
     let alive = true;
     (async () => {
       try {
         const day = await getDay(date);
-        setMissingness(buildMissingnessSummary(day));
         setCheckedInToday(!!day?.checkIn);
-        setBridgeToday({
-          physio: day ? physioScore(day) : null,
-          mental: day ? mentalScore(day) : null,
-        });
-        if (!day?.wearable) {
-          setStatus("");
+
+        const pScore = day ? physioScore(day) : null;
+        const mScore = day ? mentalScore(day) : null;
+        setPhysio(pScore);
+        setMentalRaw(mScore);
+
+        if (!day?.wearable && !day?.checkIn) {
+          setHasAnyData(false);
+          setLbi(null);
           setTodayPlan(null);
-          setHasAnyData(!!day?.checkIn);
         } else {
           setHasAnyData(true);
-          if (!day?.checkIn) {
-            setStatus("Complete today's check-in to improve accuracy.");
+          if (day?.wearable) {
+            try {
+              const derived = await refreshDerivedForDate(date);
+              if (alive) setLbi(derived.lbi);
+            } catch {
+              /* non-fatal */
+            }
+            const plan = await loadPlan(date);
+            if (alive) {
+              setTodayPlan(
+                plan
+                  ? {
+                      focus: plan.focus,
+                      actions: plan.actions,
+                      actionReasons: plan.actionReasons ?? [],
+                      completedActions: plan.completedActions ?? plan.actions.map(() => false),
+                    }
+                  : null,
+              );
+            }
           } else {
-            setStatus("");
+            setLbi(null);
+            setTodayPlan(null);
           }
-          const derived = await refreshDerivedForDate(date);
-          if (!alive) return;
-          setLbi(derived.lbi);
-          await computeBaselineMeta(7);
-          const plan = await loadPlan(date);
-          setTodayPlan(plan ? { focus: plan.focus, actions: plan.actions, actionReasons: plan.actionReasons ?? [], completedActions: plan.completedActions ?? plan.actions.map(() => false) } : null);
-
-          // Animate score reveal
-          Animated.parallel([
-            Animated.timing(scoreAnim, { toValue: 1, duration: 600, useNativeDriver: true }),
-            Animated.spring(scoreScale, { toValue: 1, friction: 6, tension: 80, useNativeDriver: true }),
-          ]).start();
         }
-      } catch (e: any) {
-        setStatus(e?.message ?? "Unable to refresh");
+
+        // Ribbon — last 7 days with bridge state + anchor markers
+        const [records, allAnchors] = await Promise.all([
+          listDailyRecords(14),
+          listAnchors(14),
+        ]);
+        if (alive) {
+          const anchorDates = new Set(
+            allAnchors.filter((a) => a.dawn || a.dusk).map((a) => a.date),
+          );
+          const last7: RibbonDay[] = fillLast7Days(records, anchorDates);
+          setRibbonDays(last7);
+        }
+
+        await refreshAnchors();
+        await refreshLift();
+
+        setUserName(await getUserName());
+        setIsDemoMode((await getDemoModeChoice()) === "demo");
+      } catch (err: any) {
+        if (alive) setHasAnyData(false);
       }
 
-      const records = await listDailyRecords(60);
-      setDataDates(records.filter((r) => !!r.wearable || !!r.lbi).map((r) => r.date));
-
-      // Build 7-day LBI chart data
-      const last7 = records.slice(0, 7).reverse();
-      if (last7.length >= 2) {
-        setWeeklyLbi(
-          last7.map((r) => ({
-            label: new Date(r.date + "T12:00:00").toLocaleDateString("en-GB", { weekday: "short" }).slice(0, 2),
-            value: typeof r.lbi === "number" ? r.lbi : 0,
-          })).filter((d) => d.value > 0)
-        );
-      }
-
-      // Build heatmap data from all days
-      const allDays = await getAllDays();
-      setHeatmapData(
-        allDays
-          .filter((d) => typeof d.lbi === "number")
-          .map((d) => ({ date: d.date, value: d.lbi as number }))
-      );
-
-      // Consistency score
-      if (records.length >= 3) {
-        const cOut = computeConsistency(records);
-        setConsistencyPct(cOut.score);
-      }
-
-      const emos = await listEmotions(7);
-      setUserName(await getUserName());
-      setIsDemoMode((await getDemoModeChoice()) === "demo");
-
-      if (emos.length) {
-        const freq: Record<string, number> = {};
-        emos.forEach((e) => (freq[e.valueChosen] = (freq[e.valueChosen] ?? 0) + 1));
-        const top = Object.entries(freq).sort((a, b) => b[1] - a[1])[0];
-        if (top) setIdentityLine(`Showing up for ${top[0]} (${top[1]}x this week)`);
-        const uniqueDays = new Set(emos.map((e) => e.date));
-        setValueAlignmentPct(Math.round((uniqueDays.size / 7) * 100));
-      } else {
-        setIdentityLine("");
-        setValueAlignmentPct(null);
-      }
-
-      setRisk(await predictTomorrowRisk());
-      setAdherenceSummary(await getPlanAdherenceSummary(7));
+      // Animate reveal once
+      Animated.timing(reveal, {
+        toValue: 1,
+        duration: 550,
+        useNativeDriver: true,
+      }).start();
     })();
-    return () => { alive = false; };
-  }, [date]);
+    return () => {
+      alive = false;
+    };
+  }, [date, reveal, refreshAnchors, refreshLift]);
 
-  const toggleAction = useCallback(async (index: number) => {
-    if (!todayPlan) return;
-    const newCompleted = [...todayPlan.completedActions];
-    newCompleted[index] = !newCompleted[index];
-    setTodayPlan({ ...todayPlan, completedActions: newCompleted });
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    await setPlanActionCompleted(date, index, newCompleted[index]);
-    setAdherenceSummary(await getPlanAdherenceSummary(7));
-  }, [todayPlan, date]);
+  useEffect(() => {
+    return loadHome();
+  }, [loadHome]);
 
-  useEffect(() => { return loadHome(); }, [loadHome]);
-  useFocusEffect(useCallback(() => { return loadHome(); }, [loadHome]));
+  useFocusEffect(
+    useCallback(() => {
+      return loadHome();
+    }, [loadHome]),
+  );
 
-  const drivers = useMemo(() => {
-    if (!lbi) return [];
-    return [
-      { label: "Recovery", value: `${lbi.subscores.recovery}` },
-      { label: "Sleep", value: `${lbi.subscores.sleep}` },
-      { label: "Mood", value: `${lbi.subscores.mood}` },
-    ].slice(0, 3);
-  }, [lbi]);
+  // Periodically refresh the active lift so the orb fades back as the 30-min
+  // window decays, without requiring the user to reopen the screen.
+  useEffect(() => {
+    const t = setInterval(() => {
+      refreshLift();
+    }, 30 * 1000);
+    return () => clearInterval(t);
+  }, [refreshLift]);
 
-  const deltaChips = useMemo(() => {
-    if (!lbi) return [];
-    const chips: { label: string; delta: number; color: string }[] = [];
-    const sub = lbi.subscores;
-    if (typeof sub.sleep === "number") chips.push({ label: "Sleep", delta: Math.round(sub.sleep - 50), color: sub.sleep >= 50 ? c.success : c.danger });
-    if (typeof sub.stress === "number") chips.push({ label: "Stress", delta: Math.round(sub.stress - 50), color: sub.stress >= 50 ? c.success : c.danger });
-    if (typeof sub.recovery === "number") chips.push({ label: "Recovery", delta: Math.round(sub.recovery - 50), color: sub.recovery >= 50 ? c.success : c.danger });
-    return chips;
-  }, [lbi, c]);
+  /* ---------------- Derived values ---------------- */
 
-  // Empty state — first-day guided experience
+  // The mentalScore the orb sees — raw signal + transient lift from rituals.
+  const mentalForOrb = useMemo(() => {
+    if (mentalRaw == null && activeLift === 0) return null;
+    const base = mentalRaw ?? 50; // soft default so the lift still registers visually
+    return clamp01to100(base + activeLift);
+  }, [mentalRaw, activeLift]);
+
+  const state: BridgeState = useMemo(() => bridgeStateFrom(physio, mentalForOrb), [physio, mentalForOrb]);
+  const narrative = useMemo(() => narrativeFor(physio, mentalForOrb), [physio, mentalForOrb]);
+  const realign = useMemo(() => realignFor(physio, mentalForOrb), [physio, mentalForOrb]);
+
+  // First incomplete action from the plan → "Today's one thing"
+  const oneThing = useMemo(() => {
+    if (!todayPlan) return null;
+    const idx = todayPlan.completedActions.findIndex((x) => !x);
+    if (idx < 0) return null;
+    return {
+      index: idx,
+      text: todayPlan.actions[idx],
+      reason: todayPlan.actionReasons[idx] ?? "",
+    };
+  }, [todayPlan]);
+
+  const showDawn = isDawnWindow() && !anchorsToday.dawn;
+  const showDusk = isDuskWindow() && !anchorsToday.dusk;
+
+  /* ---------------- Handlers ---------------- */
+
+  const onOrbLongPress = useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    router.push("/insights/bridge" as any);
+  }, []);
+
+  const onOrbPress = useCallback(() => {
+    Haptics.selectionAsync().catch(() => {});
+    router.push("/insights/bridge" as any);
+  }, []);
+
+  const onRealignPress = useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    setBreathVisible(true);
+  }, []);
+
+  const onBreathComplete = useCallback(async () => {
+    // Active lift has been recorded inside BreathSession via lib/lift.
+    await refreshLift();
+    setRippleKey((k) => k + 1);
+  }, [refreshLift]);
+
+  const onAnchorCaptured = useCallback(async () => {
+    await refreshAnchors();
+    await refreshLift();
+    setRippleKey((k) => k + 1);
+  }, [refreshAnchors, refreshLift]);
+
+  const toggleOneThing = useCallback(async () => {
+    if (!todayPlan || !oneThing) return;
+    const next = [...todayPlan.completedActions];
+    next[oneThing.index] = true;
+    setTodayPlan({ ...todayPlan, completedActions: next });
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+    await setPlanActionCompleted(date, oneThing.index, true);
+    setRippleKey((k) => k + 1);
+  }, [todayPlan, oneThing, date]);
+
+  /* ---------------- Empty state ---------------- */
+
   if (!hasAnyData && !lbi) {
     return (
       <View style={{ flex: 1 }}>
-        <AuroraBackground />
+        <AuroraBackground state="neutral" />
         <SafeAreaView style={{ flex: 1 }}>
-          <ScrollView contentContainerStyle={{ paddingHorizontal: Spacing.base, paddingBottom: 120 }} showsVerticalScrollIndicator={false}>
+          <ScrollView
+            contentContainerStyle={{ paddingHorizontal: Spacing.base, paddingBottom: 120 }}
+            showsVerticalScrollIndicator={false}
+          >
             <View style={styles.header}>
-              <View style={{ flex: 1 }}>
+              <Pressable
+                style={{ flex: 1 }}
+                onPress={onGreetingTap}
+                onLongPress={armKioskReset}
+                delayLongPress={800}
+              >
                 <Text style={[styles.greeting, { color: c.text.secondary }]}>
-                  {headerGreeting}{userName ? `, ${userName}` : ""}
+                  {headerGreeting}
+                  {userName ? `, ${userName}` : ""}
                 </Text>
-              </View>
+              </Pressable>
               {isDemoMode && (
                 <Pressable
                   onPress={() => router.push("/profile/settings/demo" as any)}
-                  accessibilityRole="button"
-                  accessibilityLabel="Demo data indicator. Tap to manage."
                   style={[styles.demoChip, { backgroundColor: c.accent.primary }]}
                 >
                   <Text style={styles.demoChipText}>Demo data</Text>
@@ -275,7 +344,13 @@ export default function HomeScreen() {
               )}
               <Pressable
                 onPress={() => router.push("/profile" as any)}
-                style={[styles.avatar, { backgroundColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.05)", borderColor: c.border.light }]}
+                style={[
+                  styles.avatar,
+                  {
+                    backgroundColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.05)",
+                    borderColor: c.border.light,
+                  },
+                ]}
               >
                 <IconSymbol name="person.fill" size={18} color={c.text.secondary} />
               </Pressable>
@@ -284,44 +359,14 @@ export default function HomeScreen() {
             <GlassCard style={{ marginTop: Spacing.xl }}>
               <EmptyState
                 icon="heart.text.square"
-                title="Welcome to Life Balance"
-                description="Start by syncing your WHOOP data or completing your first check-in. Your personalised insights will appear here."
-                actionLabel="Start Check-in"
+                title="Welcome"
+                description="Start with a short check-in — it's everything you need. If you've got a WHOOP you can connect it later, but nothing here waits on it."
+                actionLabel="Start check-in"
                 onAction={() => {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
                   router.push("/checkin" as any);
                 }}
               />
-            </GlassCard>
-
-            <GlassCard style={{ marginTop: Spacing.md }}>
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 12, marginBottom: Spacing.sm }}>
-                <View style={{ width: 36, height: 36, borderRadius: 12, backgroundColor: isDark ? "rgba(124,111,220,0.12)" : "rgba(107,93,211,0.08)", alignItems: "center", justifyContent: "center" }}>
-                  <IconSymbol name="1.circle.fill" size={18} color={c.accent.primary} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 15, fontWeight: "700", color: c.text.primary }}>Sync wearable data</Text>
-                  <Text style={{ fontSize: 13, color: c.text.secondary }}>Connect WHOOP or import Apple Health</Text>
-                </View>
-              </View>
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 12, marginBottom: Spacing.sm }}>
-                <View style={{ width: 36, height: 36, borderRadius: 12, backgroundColor: isDark ? "rgba(124,111,220,0.12)" : "rgba(107,93,211,0.08)", alignItems: "center", justifyContent: "center" }}>
-                  <IconSymbol name="2.circle.fill" size={18} color={c.accent.primary} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 15, fontWeight: "700", color: c.text.primary }}>Complete a check-in</Text>
-                  <Text style={{ fontSize: 13, color: c.text.secondary }}>Log your mood, energy, sleep and stress</Text>
-                </View>
-              </View>
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-                <View style={{ width: 36, height: 36, borderRadius: 12, backgroundColor: isDark ? "rgba(124,111,220,0.12)" : "rgba(107,93,211,0.08)", alignItems: "center", justifyContent: "center" }}>
-                  <IconSymbol name="3.circle.fill" size={18} color={c.accent.primary} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 15, fontWeight: "700", color: c.text.primary }}>Get your balance score</Text>
-                  <Text style={{ fontSize: 13, color: c.text.secondary }}>See personalised insights and recommendations</Text>
-                </View>
-              </View>
             </GlassCard>
           </ScrollView>
         </SafeAreaView>
@@ -329,15 +374,17 @@ export default function HomeScreen() {
     );
   }
 
+  /* ---------------- Main ---------------- */
+
   return (
     <View style={{ flex: 1 }}>
-      <AuroraBackground />
+      <AuroraBackground state={state} />
       <SafeAreaView style={{ flex: 1 }}>
         <ScrollView
-          contentContainerStyle={{ paddingHorizontal: Spacing.base, paddingBottom: 120 }}
+          contentContainerStyle={{ paddingHorizontal: Spacing.base, paddingBottom: 140 }}
           showsVerticalScrollIndicator={false}
         >
-          {/* Header row */}
+          {/* Header */}
           <View style={styles.header}>
             <Pressable
               style={{ flex: 1 }}
@@ -348,383 +395,208 @@ export default function HomeScreen() {
               accessibilityLabel={`${headerGreeting}${userName ? `, ${userName}` : ""}`}
             >
               <Text style={[styles.greeting, { color: c.text.secondary }]}>
-                {headerGreeting}{userName ? `, ${userName}` : ""}
+                {headerGreeting}
+                {userName ? `, ${userName}` : ""}
               </Text>
             </Pressable>
+            {isDemoMode && (
+              <Pressable
+                onPress={() => router.push("/profile/settings/demo" as any)}
+                accessibilityRole="button"
+                accessibilityLabel="Demo data indicator. Tap to manage."
+                style={[styles.demoChip, { backgroundColor: c.accent.primary }]}
+              >
+                <Text style={styles.demoChipText}>Demo data</Text>
+              </Pressable>
+            )}
             <Pressable
               onPress={() => router.push("/profile" as any)}
-              style={[styles.avatar, { backgroundColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.05)", borderColor: c.border.light }]}
+              style={[
+                styles.avatar,
+                {
+                  backgroundColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.05)",
+                  borderColor: c.border.light,
+                },
+              ]}
             >
               <IconSymbol name="person.fill" size={18} color={c.text.secondary} />
             </Pressable>
           </View>
 
-          {/* Week strip */}
-          <View style={{ marginTop: Spacing.sm }}>
-            <WeeklyStrip dataDates={dataDates} />
-          </View>
-
-          {/* Hero section — Animated score reveal */}
-          <View style={styles.heroSection}>
-            {identityLine ? (
-              <Text style={[styles.feelsLabel, { color: c.text.secondary }]}>{identityLine}</Text>
-            ) : (
-              <Text style={[styles.feelsLabel, { color: c.text.secondary }]}>Today's balance</Text>
-            )}
-
-            <Animated.View style={{ opacity: scoreAnim, transform: [{ scale: scoreScale }] }}>
-              <Pressable onPress={() => setDriversVisible(true)} onLongPress={() => setTransparencyVisible(true)}>
-                <Text style={[styles.heroScore, { color: c.text.primary }]}>
-                  {lbi ? Math.round(lbi.lbi) : "—"}
-                </Text>
-              </Pressable>
-            </Animated.View>
-
-            {/* Delta chips row */}
-            {deltaChips.length > 0 && (
-              <View style={styles.chipRow}>
-                {deltaChips.map((chip) => (
-                  <View key={chip.label} style={[styles.chip, { backgroundColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.05)" }]}>
-                    <Text style={[styles.chipLabel, { color: c.text.secondary }]}>{chip.label}</Text>
-                    <Text style={[styles.chipDelta, { color: chip.color }]}>
-                      {chip.delta > 0 ? "+" : ""}{chip.delta}
-                    </Text>
-                  </View>
-                ))}
-              </View>
-            )}
-          </View>
-
-          <DriverOverlay visible={driversVisible} onClose={() => setDriversVisible(false)} drivers={drivers} />
-          <TransparencyDrawer visible={transparencyVisible} onClose={() => setTransparencyVisible(false)} />
-
-          {/* Status nudge */}
-          {status ? (
-            <GlassCard style={{ marginTop: Spacing.sm }}>
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-                <View style={[styles.statusDot, { backgroundColor: c.accent.primary }]} />
-                <Text style={{ color: c.text.primary, flex: 1, fontSize: 14, lineHeight: 20 }}>{status}</Text>
-              </View>
-            </GlassCard>
-          ) : null}
-
-          {/* 7-day LBI trend chart */}
-          {weeklyLbi.length >= 2 && (
-            <GlassCard style={{ marginTop: Spacing.md }}>
-              <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: Spacing.sm }}>
-                <Text style={[styles.sectionTitle, { color: c.text.primary }]}>7-day trend</Text>
-                <Pressable onPress={() => router.push("/insights/trends" as any)} style={({ pressed }) => [pressed && { opacity: 0.6 }]}>
-                  <Text style={{ fontSize: 13, fontWeight: "700", color: c.accent.primary }}>See all</Text>
-                </Pressable>
-              </View>
-              <MiniLineChart data={weeklyLbi} height={90} showValues />
-            </GlassCard>
-          )}
-
-          {/* Subscore breakdown */}
-          {lbi && (
-            <GlassCard style={{ marginTop: Spacing.md }}>
-              <Text style={[styles.sectionTitle, { color: c.text.primary, marginBottom: Spacing.sm }]}>Score breakdown</Text>
-              <RadarChart
-                axes={[
-                  { label: "Recovery", value: lbi.subscores.recovery },
-                  { label: "Sleep", value: lbi.subscores.sleep },
-                  { label: "Mood", value: lbi.subscores.mood },
-                  { label: "Stress", value: lbi.subscores.stress },
-                ]}
-              />
-            </GlassCard>
-          )}
-
-          {/* Capture Today + Reflect on Yesterday CTAs */}
-          <Pressable
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-              router.push("/checkin" as any);
+          <Animated.View
+            style={{
+              opacity: reveal,
+              transform: [
+                {
+                  translateY: reveal.interpolate({ inputRange: [0, 1], outputRange: [8, 0] }),
+                },
+              ],
             }}
-            style={({ pressed }) => [
-              styles.captureBtn,
-              {
-                backgroundColor: c.accent.primary,
-                shadowColor: c.accent.primary,
-              },
-              pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] },
-            ]}
           >
-            <Text style={styles.captureBtnText}>
-              {checkedInToday ? "Update Check-in" : "Capture Today"}
-            </Text>
-          </Pressable>
-
-          <Pressable
-            onPress={() => {
-              const yesterday = new Date();
-              yesterday.setDate(yesterday.getDate() - 1);
-              const yIso = yesterday.toISOString().slice(0, 10);
-              router.push(`/day/${yIso}` as any);
-            }}
-            style={({ pressed }) => [styles.reflectLink, pressed && { opacity: 0.6 }]}
-          >
-            <Text style={[styles.reflectText, { color: c.text.secondary }]}>Reflect on Yesterday</Text>
-            <IconSymbol name="chevron.right" size={14} color={c.text.secondary} />
-          </Pressable>
-
-          {/* Value Alignment & Emotional Consistency */}
-          {(valueAlignmentPct != null || consistencyPct != null) && (
-            <View style={styles.statRow}>
-              {valueAlignmentPct != null && (
-                <Pressable
-                  onPress={() => router.push("/insights" as any)}
-                  style={({ pressed }) => [styles.statCard, { backgroundColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(255,255,255,0.65)", borderColor: c.border.light }, pressed && { opacity: 0.8 }]}
-                >
-                  <View style={[styles.statDot, { backgroundColor: c.accent.primary }]} />
-                  <Text style={[styles.statLabel, { color: c.text.secondary }]}>Value Alignment</Text>
-                  <Text style={[styles.statValue, { color: c.text.primary }]}>{valueAlignmentPct}%</Text>
-                </Pressable>
-              )}
-              {consistencyPct != null && (
-                <Pressable
-                  onPress={() => router.push("/insights/consistency" as any)}
-                  style={({ pressed }) => [styles.statCard, { backgroundColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(255,255,255,0.65)", borderColor: c.border.light }, pressed && { opacity: 0.8 }]}
-                >
-                  <View style={[styles.statDot, { backgroundColor: c.success }]} />
-                  <Text style={[styles.statLabel, { color: c.text.secondary }]}>Consistency</Text>
-                  <Text style={[styles.statValue, { color: c.text.primary }]}>{consistencyPct}%</Text>
-                </Pressable>
-              )}
-            </View>
-          )}
-
-          {/* Today's Mind–Body bridge */}
-          {(bridgeToday.physio != null || bridgeToday.mental != null) && (
-            <Pressable
-              onPress={() => router.push("/insights/bridge" as any)}
-              style={({ pressed }) => [{ marginTop: Spacing.md, opacity: pressed ? 0.85 : 1 }]}
+            {/* Narrative headline — the felt experience, not a number */}
+            <Text
+              style={[styles.narrative, { color: c.text.primary }]}
+              accessibilityRole="header"
             >
-              <GlassCard>
-                <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-                  <Text style={[styles.sectionTitle, { color: c.text.primary }]}>Today's bridge</Text>
-                  <Text style={{ color: c.accent.primary, fontSize: 12, fontWeight: "700" }}>See 14 days →</Text>
-                </View>
-                <Text style={{ color: c.text.secondary, marginTop: 4, fontSize: 13 }}>
-                  How your body and mind tracked today.
-                </Text>
-                <View style={{ flexDirection: "row", marginTop: 14, gap: 16 }}>
-                  <BridgeDial
-                    label="Body"
-                    value={bridgeToday.physio}
-                    color={isDark ? "#57D6A4" : "#2FA37A"}
-                    textColor={c.text.primary}
-                    subColor={c.text.secondary}
-                  />
-                  <BridgeDial
-                    label="Mind"
-                    value={bridgeToday.mental}
-                    color={isDark ? "#8B7FE8" : "#6B5DD3"}
-                    textColor={c.text.primary}
-                    subColor={c.text.secondary}
-                  />
-                  <View style={{ flex: 1, justifyContent: "center" }}>
-                    <Text style={{ color: c.text.secondary, fontSize: 12, lineHeight: 16 }}>
-                      {bridgeGapLine(bridgeToday.physio, bridgeToday.mental)}
-                    </Text>
-                  </View>
-                </View>
-              </GlassCard>
-            </Pressable>
-          )}
+              {narrative}
+            </Text>
 
-          {/* Today's plan with interactive checklist */}
-          {todayPlan && (
-            <GlassCard style={{ marginTop: Spacing.md }}>
-              <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-                <Text style={[styles.sectionTitle, { color: c.text.primary }]}>Today's plan</Text>
-                {adherenceSummary && adherenceSummary.streak > 0 && (
-                  <View style={[styles.streakBadge, { backgroundColor: isDark ? "rgba(47,163,122,0.15)" : "rgba(47,163,122,0.1)" }]}>
-                    <Text style={{ color: c.success, fontSize: 12, fontWeight: "800" }}>
-                      {adherenceSummary.streak}d streak
-                    </Text>
-                  </View>
-                )}
-              </View>
-              <Text style={{ color: c.text.secondary, marginTop: 4, fontSize: 14 }}>{todayPlan.focus}</Text>
-              <View style={{ marginTop: Spacing.sm, gap: 6 }}>
-                {todayPlan.actions.map((action, i) => {
-                  const done = todayPlan.completedActions[i];
-                  return (
-                    <Pressable
-                      key={i}
-                      onPress={() => toggleAction(i)}
-                      style={({ pressed }) => [styles.actionCheckRow, pressed && { opacity: 0.7 }]}
-                    >
-                      <View style={[styles.checkbox, { borderColor: done ? c.success : c.border.heavy, backgroundColor: done ? c.success : "transparent" }]}>
-                        {done && <Text style={{ color: "#fff", fontSize: 11, fontWeight: "800", lineHeight: 14 }}>✓</Text>}
-                      </View>
-                      <View style={{ flex: 1 }}>
-                        <Text style={{ color: done ? c.text.secondary : c.text.primary, fontSize: 14, fontWeight: "600", textDecorationLine: done ? "line-through" : "none" }}>{action}</Text>
-                        {todayPlan.actionReasons[i] ? (
-                          <Text style={{ color: c.text.tertiary, fontSize: 12, marginTop: 2 }}>
-                            {todayPlan.actionReasons[i]}
-                          </Text>
-                        ) : null}
-                      </View>
-                    </Pressable>
-                  );
-                })}
-              </View>
-              {/* Progress bar */}
-              {(() => {
-                const done = todayPlan.completedActions.filter(Boolean).length;
-                const total = todayPlan.actions.length;
-                const pct = total > 0 ? done / total : 0;
-                return (
-                  <View style={{ marginTop: Spacing.sm }}>
-                    <View style={{ height: 4, borderRadius: 2, backgroundColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)", overflow: "hidden" }}>
-                      <View style={{ height: 4, borderRadius: 2, width: `${Math.round(pct * 100)}%`, backgroundColor: pct === 1 ? c.success : c.accent.primary }} />
-                    </View>
-                    <Text style={{ color: c.text.tertiary, fontSize: 12, marginTop: 4 }}>
-                      {done}/{total} completed{pct === 1 ? " — well done!" : ""}
-                    </Text>
-                  </View>
-                );
-              })()}
-            </GlassCard>
-          )}
+            {/* State Orb — the single expressive metric */}
+            <View style={{ alignItems: "center", marginTop: Spacing.lg }}>
+              <StateOrb
+                physio={physio}
+                mental={mentalForOrb}
+                lbi={lbi ? lbi.lbi : null}
+                size={260}
+                rippleKey={rippleKey}
+                onPress={onOrbPress}
+                onLongPress={onOrbLongPress}
+              />
+            </View>
 
-          {/* Heatmap calendar */}
-          {heatmapData.length >= 3 && (
-            <GlassCard style={{ marginTop: Spacing.md }}>
-              <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: Spacing.sm }}>
-                <Text style={[styles.sectionTitle, { color: c.text.primary }]}>Score history</Text>
-                <Pressable onPress={() => router.push("/insights/trends" as any)} style={({ pressed }) => [pressed && { opacity: 0.6 }]}>
-                  <Text style={{ fontSize: 13, fontWeight: "700", color: c.accent.primary }}>Trends</Text>
+            {/* 7-day ribbon */}
+            {ribbonDays.length > 0 && (
+              <Ribbon7
+                days={ribbonDays}
+                onPressDay={(d) => router.push(`/day/${d}` as any)}
+              />
+            )}
+
+            {/* Realign — matched micro-intervention when divergent */}
+            {realign.show && (
+              <RealignCard action={realign} state={state} onPress={onRealignPress} />
+            )}
+
+            {/* Dawn / dusk anchor */}
+            {showDawn && (
+              <AnchorCard kind="dawn" existing={anchorsToday} onCapture={onAnchorCaptured} />
+            )}
+            {showDusk && (
+              <AnchorCard kind="dusk" existing={anchorsToday} onCapture={onAnchorCaptured} />
+            )}
+            {/* If already captured, show the collapsed acknowledgement */}
+            {!showDawn && anchorsToday.dawn && isDawnWindow() && (
+              <AnchorCard kind="dawn" existing={anchorsToday} />
+            )}
+            {!showDusk && anchorsToday.dusk && isDuskWindow() && (
+              <AnchorCard kind="dusk" existing={anchorsToday} />
+            )}
+
+            {/* Today's one thing — a single next-step nudge */}
+            {oneThing && (
+              <View
+                style={[
+                  styles.oneThingWrap,
+                  {
+                    backgroundColor: isDark ? "rgba(255,255,255,0.04)" : "rgba(255,255,255,0.55)",
+                    borderColor: c.border.light,
+                  },
+                ]}
+              >
+                <Text style={[styles.eyebrow, { color: c.text.tertiary }]}>TODAY'S ONE THING</Text>
+                <Text style={[styles.oneThingTitle, { color: c.text.primary }]}>{oneThing.text}</Text>
+                {oneThing.reason ? (
+                  <Text style={[styles.oneThingReason, { color: c.text.secondary }]}>
+                    {oneThing.reason}
+                  </Text>
+                ) : null}
+                <Pressable
+                  onPress={toggleOneThing}
+                  style={({ pressed }) => [
+                    styles.oneThingBtn,
+                    {
+                      backgroundColor: c.accent.primary,
+                      opacity: pressed ? 0.85 : 1,
+                    },
+                  ]}
+                >
+                  <Text style={styles.oneThingBtnText}>Mark done</Text>
                 </Pressable>
               </View>
-              <HeatmapCalendar
-                data={heatmapData}
-                weeks={6}
-                onDayPress={(d) => router.push(`/day/${d}` as any)}
-              />
-            </GlassCard>
-          )}
+            )}
 
-          {/* Risk outlook */}
-          {risk?.trained && (
-            <GlassCard style={{ marginTop: Spacing.md }}>
-              <Text style={[styles.sectionTitle, { color: c.text.primary }]}>Tomorrow outlook</Text>
-              <Text style={{ color: c.text.secondary, fontSize: 12, marginTop: 2 }}>
-                Based on {risk.rowsUsed} personal data points
-              </Text>
-              <View style={[styles.riskRow, { marginTop: Spacing.sm }]}>
-                <RiskPill label="LBI drop" prob={risk.lbiRiskProb} c={c} isDark={isDark} />
-                <RiskPill label="Recovery drop" prob={risk.recoveryRiskProb} c={c} isDark={isDark} />
-              </View>
-              {risk.topDrivers.length > 0 && (
-                <View style={{ marginTop: 8, gap: 4 }}>
-                  {risk.topDrivers.map((d) => (
-                    <Text key={d.name} style={{ color: c.text.secondary, fontSize: 12 }}>
-                      {d.direction === "up" ? "\u2191" : "\u2193"} {d.name}
-                    </Text>
-                  ))}
-                </View>
-              )}
-            </GlassCard>
-          )}
+            {/* Quiet entry points */}
+            <View style={styles.quietRow}>
+              <Pressable
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+                  router.push("/checkin" as any);
+                }}
+                style={({ pressed }) => [
+                  styles.quietLink,
+                  pressed && { opacity: 0.6 },
+                ]}
+              >
+                <Text style={[styles.quietLinkText, { color: c.text.secondary }]}>
+                  {checkedInToday ? "Update check-in" : "Check in"}
+                </Text>
+                <IconSymbol name="chevron.right" size={14} color={c.text.tertiary} />
+              </Pressable>
+              <Pressable
+                onPress={() => router.push("/insights" as any)}
+                style={({ pressed }) => [
+                  styles.quietLink,
+                  pressed && { opacity: 0.6 },
+                ]}
+              >
+                <Text style={[styles.quietLinkText, { color: c.text.secondary }]}>
+                  Deeper insights
+                </Text>
+                <IconSymbol name="chevron.right" size={14} color={c.text.tertiary} />
+              </Pressable>
+            </View>
 
-          {/* Confidence */}
-          {missingness && (
-            <GlassCard style={{ marginTop: Spacing.md }}>
-              <Text style={[styles.sectionTitle, { color: c.text.primary }]}>Data confidence</Text>
-              <Text style={{ color: c.text.secondary, marginTop: 4, fontSize: 13, lineHeight: 18 }}>
-                {missingness.confidenceEffect}
-              </Text>
-              <Text style={{ color: c.text.secondary, marginTop: 4, fontSize: 13 }}>
-                {missingness.nextStep}
-              </Text>
-            </GlassCard>
-          )}
-
-          <Text style={{ color: c.text.tertiary, marginTop: Spacing.lg, fontSize: 12, textAlign: "center", lineHeight: 16 }}>
-            Observational and non-diagnostic · Correlation ≠ causation
-          </Text>
+            <Text
+              style={{
+                color: c.text.tertiary,
+                marginTop: Spacing.lg,
+                fontSize: 11,
+                textAlign: "center",
+                lineHeight: 16,
+                letterSpacing: 0.3,
+              }}
+            >
+              Just observations, not diagnoses · Two things lining up doesn't mean one caused the other
+            </Text>
+          </Animated.View>
         </ScrollView>
 
-        {/* Floating + (Quick Capture) button */}
-        <Pressable
-          onPress={() => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            router.push("/checkin" as any);
-          }}
-          style={({ pressed }) => [
-            styles.fab,
-            { backgroundColor: c.accent.primary, shadowColor: c.accent.primary },
-            pressed && { transform: [{ scale: 0.92 }] },
-          ]}
-        >
-          <IconSymbol name="plus" size={26} color="#fff" />
-        </Pressable>
+        {/* Breath session modal */}
+        <BreathSession
+          visible={breathVisible}
+          preset={realign.preset}
+          durationSec={realign.durationSec}
+          state={state}
+          onClose={() => setBreathVisible(false)}
+          onComplete={() => onBreathComplete()}
+        />
       </SafeAreaView>
     </View>
   );
 }
 
-/* --- Sub-components --- */
+/* ---------------- Helpers ---------------- */
 
-function BridgeDial({
-  label,
-  value,
-  color,
-  textColor,
-  subColor,
-}: {
-  label: string;
-  value: number | null;
-  color: string;
-  textColor: string;
-  subColor: string;
-}) {
-  return (
-    <View style={{ alignItems: "center", width: 64 }}>
-      <View
-        style={{
-          width: 54,
-          height: 54,
-          borderRadius: 27,
-          borderWidth: 4,
-          borderColor: color,
-          alignItems: "center",
-          justifyContent: "center",
-          backgroundColor: color + "14",
-        }}
-      >
-        <Text style={{ color: textColor, fontWeight: "800", fontSize: 16 }}>
-          {value == null ? "—" : value}
-        </Text>
-      </View>
-      <Text style={{ color: subColor, fontSize: 11, fontWeight: "700", marginTop: 4 }}>{label}</Text>
-    </View>
-  );
-}
+function fillLast7Days(records: DailyRecord[], anchorDates: Set<string>): RibbonDay[] {
+  const byDate = new Map<string, DailyRecord>();
+  for (const r of records) byDate.set(r.date, r);
 
-function bridgeGapLine(physio: number | null, mental: number | null): string {
-  if (physio == null && mental == null) return "";
-  if (physio == null) return "Sync your wearable to complete the picture.";
-  if (mental == null) return "Complete today's check-in to complete the picture.";
-  const gap = Math.abs(physio - mental);
-  if (gap <= 10) return "Body and mind are aligned today.";
-  if (physio > mental) return "Your body is ahead of your mind — worth a gentle pause.";
-  return "Your mind is ahead of your body — give recovery some room.";
-}
-
-function RiskPill({ label, prob, c, isDark }: { label: string; prob: number | null; c: typeof Colors.light; isDark: boolean }) {
-  const pct = prob == null ? "—" : `${Math.round(prob * 100)}%`;
-  const isHigh = prob != null && prob > 0.6;
-  return (
-    <View style={[styles.riskPill, { backgroundColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)", borderColor: c.border.light }]}>
-      <Text style={{ color: c.text.secondary, fontSize: 12 }}>{label}</Text>
-      <Text style={{ color: isHigh ? c.danger : c.text.primary, fontSize: 18, fontWeight: "800" }}>{pct}</Text>
-    </View>
-  );
+  const out: RibbonDay[] = [];
+  const today = new Date();
+  today.setHours(12, 0, 0, 0);
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(today);
+    d.setDate(today.getDate() - i);
+    const iso = d.toISOString().slice(0, 10);
+    const rec = byDate.get(iso);
+    out.push({
+      date: iso,
+      physio: rec ? physioScore(rec) : null,
+      mental: rec ? mentalScore(rec) : null,
+      hasAnchor: anchorDates.has(iso),
+    });
+  }
+  return out;
 }
 
 const styles = StyleSheet.create({
@@ -735,8 +607,9 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.xs,
   },
   greeting: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: "600",
+    letterSpacing: 0.2,
   },
   avatar: {
     width: 40,
@@ -758,154 +631,62 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     letterSpacing: 0.3,
   },
-  heroSection: {
-    alignItems: "center",
-    marginTop: Spacing.xl,
-    marginBottom: Spacing.sm,
-  },
-  feelsLabel: {
-    fontSize: 15,
-    fontWeight: "600",
-    marginBottom: 4,
-  },
-  heroScore: {
-    fontSize: 72,
-    fontWeight: "900",
-    letterSpacing: -3,
-    lineHeight: 80,
-  },
-  chipRow: {
-    flexDirection: "row",
-    gap: 10,
-    marginTop: Spacing.sm,
-  },
-  chip: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: BorderRadius.full,
-  },
-  chipLabel: {
-    fontSize: 12,
-    fontWeight: "600",
-  },
-  chipDelta: {
-    fontSize: 14,
-    fontWeight: "800",
-  },
-  captureBtn: {
+  narrative: {
     marginTop: Spacing.lg,
-    alignSelf: "center",
-    paddingVertical: 14,
-    paddingHorizontal: 48,
-    borderRadius: BorderRadius.full,
-    shadowOpacity: 0.35,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 6,
+    fontSize: 26,
+    fontWeight: "300",
+    letterSpacing: -0.4,
+    lineHeight: 34,
   },
-  captureBtnText: {
+  eyebrow: {
+    fontSize: 10,
+    fontWeight: "800",
+    letterSpacing: 1.6,
+  },
+  oneThingWrap: {
+    marginTop: Spacing.lg,
+    borderRadius: 20,
+    borderWidth: 1,
+    padding: 16,
+  },
+  oneThingTitle: {
+    marginTop: 6,
+    fontSize: 18,
+    fontWeight: "800",
+    letterSpacing: -0.2,
+  },
+  oneThingReason: {
+    marginTop: 4,
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  oneThingBtn: {
+    marginTop: 12,
+    alignSelf: "flex-start",
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderRadius: BorderRadius.full,
+  },
+  oneThingBtnText: {
     color: "#fff",
-    fontSize: 16,
     fontWeight: "800",
-    letterSpacing: 0.3,
+    fontSize: 13,
+    letterSpacing: 0.4,
   },
-  reflectLink: {
+  quietRow: {
+    marginTop: Spacing.lg,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  quietLink: {
     flexDirection: "row",
     alignItems: "center",
-    alignSelf: "center",
     gap: 4,
-    marginTop: Spacing.sm,
     paddingVertical: 6,
   },
-  reflectText: {
+  quietLinkText: {
     fontSize: 14,
     fontWeight: "600",
-  },
-  statRow: {
-    flexDirection: "row",
-    gap: 10,
-    marginTop: Spacing.lg,
-  },
-  statCard: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    paddingVertical: 14,
-    paddingHorizontal: 14,
-    borderRadius: BorderRadius.xl,
-    borderWidth: 1,
-  },
-  statDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
-  statLabel: {
-    fontSize: 12,
-    fontWeight: "600",
-    flex: 1,
-  },
-  statValue: {
-    fontSize: 16,
-    fontWeight: "900",
-  },
-  statusDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
-  sectionTitle: {
-    fontSize: 17,
-    fontWeight: "800",
-  },
-  actionCheckRow: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 12,
-    paddingVertical: 8,
-  },
-  checkbox: {
-    width: 22,
-    height: 22,
-    borderRadius: 6,
-    borderWidth: 2,
-    alignItems: "center",
-    justifyContent: "center",
-    marginTop: 1,
-  },
-  streakBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: BorderRadius.full,
-  },
-  riskRow: {
-    flexDirection: "row",
-    gap: 10,
-  },
-  riskPill: {
-    flex: 1,
-    alignItems: "center",
-    paddingVertical: 12,
-    borderRadius: BorderRadius.lg,
-    borderWidth: 1,
-    gap: 4,
-  },
-  fab: {
-    position: "absolute",
-    bottom: 24,
-    right: 20,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    alignItems: "center",
-    justifyContent: "center",
-    shadowOpacity: 0.4,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 8,
   },
 });

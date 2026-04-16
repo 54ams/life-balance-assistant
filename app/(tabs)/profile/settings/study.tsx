@@ -27,42 +27,35 @@ export default function StudyCompletionScreen() {
 
   return (
     <Screen scroll contentStyle={{ paddingTop: 18 }}>
-      <Text style={[styles.h1, { color: c.text.primary }]}>Study completion</Text>
+      <Text style={[styles.h1, { color: c.text.primary }]}>Wrapping up</Text>
       <Text style={[styles.sub, { color: c.text.secondary }]}>
-        Use this flow at the end of pilot participation so usability and export evidence are captured consistently.
+        If you've been trying the app for a while, this is a tidy way to share your feedback and take a copy of your data with you.
       </Text>
 
       <GlassCard style={styles.card}>
-        <Text style={[styles.title, { color: c.text.primary }]}>Readiness snapshot</Text>
-        <Text style={[styles.body, { color: c.text.secondary }]}>Records in last 30 days: {summary.records}</Text>
-        <Text style={[styles.body, { color: c.text.secondary }]}>Saved plans in last 30 days: {summary.plans}</Text>
-        <Text style={[styles.body, { color: c.text.secondary }]}>SUS submissions on device: {summary.sus}</Text>
+        <Text style={[styles.title, { color: c.text.primary }]}>Where you are</Text>
+        <Text style={[styles.body, { color: c.text.secondary }]}>Check-ins in the last 30 days: {summary.records}</Text>
+        <Text style={[styles.body, { color: c.text.secondary }]}>Plans saved in the last 30 days: {summary.plans}</Text>
+        <Text style={[styles.body, { color: c.text.secondary }]}>Feedback surveys saved on this device: {summary.sus}</Text>
         <Text style={[styles.body, { color: c.text.secondary }]}>
-          Recommended minimum before write-up: multiple days of check-in + wearable data, saved plans, and at least one SUS submission.
+          A good stopping point is a handful of check-ins, a few plans, and one short feedback survey.
         </Text>
       </GlassCard>
 
       <GlassCard style={styles.card}>
-        <Text style={[styles.title, { color: c.text.primary }]}>Step 1</Text>
-        <Text style={[styles.body, { color: c.text.secondary }]}>Complete the in-app SUS survey and optional feedback.</Text>
+        <Text style={[styles.title, { color: c.text.primary }]}>Step 1 — Share feedback</Text>
+        <Text style={[styles.body, { color: c.text.secondary }]}>A short survey about how the app felt to use. Takes a minute.</Text>
         <Pressable style={[styles.btn, { backgroundColor: c.accent.primary }]} onPress={() => router.push("/profile/settings/usability" as any)}>
-          <Text style={styles.btnText}>Open SUS survey</Text>
+          <Text style={styles.btnText}>Open survey</Text>
         </Pressable>
       </GlassCard>
 
       <GlassCard style={styles.card}>
-        <Text style={[styles.title, { color: c.text.primary }]}>Step 2</Text>
-        <Text style={[styles.body, { color: c.text.secondary }]}>Export the anonymised research bundle and archive it for analysis.</Text>
+        <Text style={[styles.title, { color: c.text.primary }]}>Step 2 — Take a copy</Text>
+        <Text style={[styles.body, { color: c.text.secondary }]}>Save your check-ins, plans, and patterns as a file on this device.</Text>
         <Pressable style={[styles.btn, { backgroundColor: c.accent.primary }]} onPress={() => router.push("/profile/export" as any)}>
-          <Text style={styles.btnText}>Open export tools</Text>
+          <Text style={styles.btnText}>Open export</Text>
         </Pressable>
-      </GlassCard>
-
-      <GlassCard style={styles.card}>
-        <Text style={[styles.title, { color: c.text.primary }]}>Step 3</Text>
-        <Text style={[styles.body, { color: c.text.secondary }]}>
-          Capture screenshots of Home, Explain, Weekly reflection, and Export for the dissertation appendix.
-        </Text>
       </GlassCard>
     </Screen>
   );

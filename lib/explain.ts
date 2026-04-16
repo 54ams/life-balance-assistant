@@ -169,11 +169,25 @@ export function buildDayExplain(args: {
   };
 }
 
+export type Pattern = {
+  title: string;
+  /** Plain-English one-liner for the front of the tile. */
+  detail: string;
+  /** Structured breakdown for the "Show my maths" back of the tile. */
+  working?: {
+    summary: string;
+    inputs: string[];
+    method: string;
+    result: string;
+    footnote?: string;
+  };
+};
+
 /**
- * Very small, transparent “pattern mining” for the Insights screen.
+ * Very small, transparent "pattern mining" for the Insights screen.
  * This is intentionally simple (summary stats), suitable for a prototype.
  */
-export function buildPatterns(days: DailyRecord[]) {
+export function buildPatterns(days: DailyRecord[]): Pattern[] {
   const usable = days.filter((d) => typeof d.lbi === "number") as Array<DailyRecord & { lbi: number }>;
 
   if (usable.length < 5) {
@@ -185,7 +199,7 @@ export function buildPatterns(days: DailyRecord[]) {
     ];
   }
 
-  const items: { title: string; detail: string }[] = [];
+  const items: Pattern[] = [];
 
   const avg = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length;
 
@@ -207,8 +221,22 @@ export function buildPatterns(days: DailyRecord[]) {
     if (Math.abs(diff) >= 6) {
       const map: Record<number, string> = { 1: "😖", 2: "🙁", 3: "😐", 4: "🙂", 5: "😄" };
       items.push({
-        title: "Mood is linked with your LBI",
-        detail: `On mood ${map[high.mood] ?? high.mood} days your average LBI was ${high.mean} (n=${high.n}). On mood ${map[low.mood] ?? low.mood} days it was ${low.mean} (n=${low.n}). Difference: ${diff > 0 ? "+" : ""}${diff}.`,
+        title: "Mood is linked with your balance score",
+        detail:
+          diff > 0
+            ? `Your brighter-mood days tend to come with higher balance scores.`
+            : `Your lower-mood days tend to come with higher balance scores.`,
+        working: {
+          summary: "Comparing your balance score on your best and worst mood days.",
+          inputs: [
+            `${high.n} days at mood ${map[high.mood] ?? high.mood} (${high.mood}/5)`,
+            `${low.n} days at mood ${map[low.mood] ?? low.mood} (${low.mood}/5)`,
+          ],
+          method:
+            "Group days by the mood you gave at check-in, then take the average balance score in each group.",
+          result: `Average balance — mood ${map[high.mood] ?? high.mood}: ${high.mean} · mood ${map[low.mood] ?? low.mood}: ${low.mean} · difference ${diff > 0 ? "+" : ""}${diff}`,
+          footnote: `Based on ${usable.length} days.`,
+        },
       });
     }
   }
@@ -219,13 +247,29 @@ export function buildPatterns(days: DailyRecord[]) {
     const sleeps = withSleep.map((d) => d.wearable!.sleepHours).sort((a, b) => a - b);
     const mid = Math.floor((sleeps.length - 1) / 2);
     const median = sleeps.length % 2 === 0 ? (sleeps[mid] + sleeps[mid + 1]) / 2 : sleeps[mid];
-    const low = withSleep.filter((d) => d.wearable!.sleepHours <= median).map((d) => d.lbi);
-    const high = withSleep.filter((d) => d.wearable!.sleepHours > median).map((d) => d.lbi);
-    if (low.length >= 2 && high.length >= 2) {
-      const diff = Math.round(avg(high) - avg(low));
+    const lowGroup = withSleep.filter((d) => d.wearable!.sleepHours <= median).map((d) => d.lbi);
+    const highGroup = withSleep.filter((d) => d.wearable!.sleepHours > median).map((d) => d.lbi);
+    if (lowGroup.length >= 2 && highGroup.length >= 2) {
+      const highMean = Math.round(avg(highGroup));
+      const lowMean = Math.round(avg(lowGroup));
+      const diff = highMean - lowMean;
       items.push({
-        title: "More sleep tends to align with higher scores",
-        detail: `When sleep was above your median (${formatHours(median)}), average LBI was ${Math.round(avg(high))}. When it was at/below median, it was ${Math.round(avg(low))}. Difference: ${diff > 0 ? "+" : ""}${diff}.`,
+        title: "More sleep tends to come with a higher balance score",
+        detail:
+          diff >= 0
+            ? "On your longer-sleep days, your balance score tends to sit a little higher."
+            : "Interestingly, your longer-sleep days don't seem to bring a higher balance score.",
+        working: {
+          summary: "Comparing your balance score on longer-sleep days vs shorter-sleep days.",
+          inputs: [
+            `${highGroup.length} days with more than ${formatHours(median)} of sleep`,
+            `${lowGroup.length} days with ${formatHours(median)} or less`,
+          ],
+          method:
+            "Split your days at your own sleep median, then take the average balance score in each half.",
+          result: `Average balance — above median: ${highMean} · at or below: ${lowMean} · difference ${diff > 0 ? "+" : ""}${diff}`,
+          footnote: `Based on ${withSleep.length} days with sleep data.`,
+        },
       });
     }
   }
@@ -236,13 +280,29 @@ export function buildPatterns(days: DailyRecord[]) {
     const recs = withRec.map((d) => d.wearable!.recovery).sort((a, b) => a - b);
     const mid = Math.floor((recs.length - 1) / 2);
     const median = recs.length % 2 === 0 ? (recs[mid] + recs[mid + 1]) / 2 : recs[mid];
-    const low = withRec.filter((d) => d.wearable!.recovery <= median).map((d) => d.lbi);
-    const high = withRec.filter((d) => d.wearable!.recovery > median).map((d) => d.lbi);
-    if (low.length >= 2 && high.length >= 2) {
-      const diff = Math.round(avg(high) - avg(low));
+    const lowGroup = withRec.filter((d) => d.wearable!.recovery <= median).map((d) => d.lbi);
+    const highGroup = withRec.filter((d) => d.wearable!.recovery > median).map((d) => d.lbi);
+    if (lowGroup.length >= 2 && highGroup.length >= 2) {
+      const highMean = Math.round(avg(highGroup));
+      const lowMean = Math.round(avg(lowGroup));
+      const diff = highMean - lowMean;
       items.push({
-        title: "Recovery is associated with your LBI",
-        detail: `When recovery was above your median (${Math.round(median)}), average LBI was ${Math.round(avg(high))}. When it was at/below median, it was ${Math.round(avg(low))}. Difference: ${diff > 0 ? "+" : ""}${diff}.`,
+        title: "Recovery shows up in your balance score",
+        detail:
+          diff >= 0
+            ? "Your better-recovery days tend to come with a higher balance score."
+            : "Your better-recovery days don't seem to bring a higher balance score right now.",
+        working: {
+          summary: "Comparing your balance score on better-recovery vs lower-recovery days.",
+          inputs: [
+            `${highGroup.length} days with recovery above ${Math.round(median)}`,
+            `${lowGroup.length} days with recovery at or below ${Math.round(median)}`,
+          ],
+          method:
+            "Split your days at your own recovery median, then take the average balance score in each half.",
+          result: `Average balance — above median: ${highMean} · at or below: ${lowMean} · difference ${diff > 0 ? "+" : ""}${diff}`,
+          footnote: `Based on ${withRec.length} days with recovery data.`,
+        },
       });
     }
   }
@@ -257,10 +317,26 @@ export function buildPatterns(days: DailyRecord[]) {
     const hi = pairs.filter((p) => p.count >= 3).map((p) => p.lbi);
     const lo = pairs.filter((p) => p.count <= 1).map((p) => p.lbi);
     if (hi.length >= 2 && lo.length >= 2) {
-      const diff = Math.round(avg(lo) - avg(hi));
+      const loMean = Math.round(avg(lo));
+      const hiMean = Math.round(avg(hi));
+      const diff = loMean - hiMean;
       items.push({
-        title: "Stress indicators matter",
-        detail: `On low-stress days (0–1 indicators) average LBI was ${Math.round(avg(lo))}. On high-stress days (3+ indicators) it was ${Math.round(avg(hi))}. Difference: ${diff > 0 ? "+" : ""}${diff}.`,
+        title: "Stress shows up too",
+        detail:
+          diff >= 0
+            ? "Lower-stress days tend to come with a higher balance score than days with more ticked."
+            : "Counter-intuitively, ticking more stress indicators hasn't lined up with a lower balance score.",
+        working: {
+          summary: "Comparing balance on days with few stress indicators vs many.",
+          inputs: [
+            `${lo.length} days with 0–1 stress indicators ticked`,
+            `${hi.length} days with 3 or more ticked`,
+          ],
+          method:
+            "Group days by the number of stress indicators you ticked, then take the average balance score in each group.",
+          result: `Average balance — low-stress: ${loMean} · high-stress: ${hiMean} · difference ${diff > 0 ? "+" : ""}${diff}`,
+          footnote: `Based on ${withStress.length} days with a check-in.`,
+        },
       });
     }
   }

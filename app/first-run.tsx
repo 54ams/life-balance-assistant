@@ -12,13 +12,10 @@ import { seedDemo, setDemoEnabled, setDemoModeChoice, setFirstRunDone } from "@/
 /**
  * First-run picker shown once, immediately after onboarding consent.
  *
- * Lets users (including viva examiners) pick between:
+ * Two options:
  *   - "Exploring the demo" → seeds 14 days of realistic data, flags the
  *     session as demo so the home screen can show a "Demo data" chip.
  *   - "Starting fresh" → no data is seeded; the app starts empty.
- *
- * This is the reproducible examiner path that keeps the demo/user-test
- * distinction visible and one tap away.
  */
 export default function FirstRunScreen() {
   const scheme = useColorScheme();
@@ -57,31 +54,31 @@ export default function FirstRunScreen() {
 
   return (
     <Screen scroll contentStyle={{ paddingTop: 24, paddingBottom: 40 }}>
-      <Text style={[styles.h1, { color: c.text.primary }]}>How will you use LBA today?</Text>
+      <Text style={[styles.h1, { color: c.text.primary }]}>How would you like to start?</Text>
       <Text style={[styles.body, { color: c.text.secondary, marginTop: 8 }]}>
-        You can change this later in Profile → Settings → Demo tools.
+        You can change this any time in Profile → Settings → Demo tools.
       </Text>
 
       <Pressable onPress={pickDemo} disabled={!!busy} style={[{ marginTop: 20 }, busy === "demo" && { opacity: 0.6 }]}>
         <GlassCard>
           <View style={styles.cardHead}>
-            <Text style={[styles.cardTitle, { color: c.accent.primary }]}>Exploring the demo</Text>
+            <Text style={[styles.cardTitle, { color: c.accent.primary }]}>Have a look around first</Text>
             <View style={[styles.pill, { backgroundColor: c.accent.primary }]}>
-              <Text style={styles.pillText}>Recommended for examiners</Text>
+              <Text style={styles.pillText}>Recommended for a first look</Text>
             </View>
           </View>
           <Text style={[styles.body, { color: c.text.secondary, marginTop: 8 }]}>
-            Seeds a realistic 14-day dataset so every chart, correlation, and the Mind–Body Bridge view have something to show straight away. Everything stays on this device.
+            Loads two weeks of example data so every screen has something to show straight away. Everything stays on this device.
           </Text>
           <View style={styles.bulletList}>
-            <Bullet c={c} text="14 days of simulated WHOOP-like recovery, sleep and strain" />
-            <Bullet c={c} text="Synthetic check-ins and emotion entries" />
-            <Bullet c={c} text="Shows a 'Demo data' chip in the header — always clear what's real" />
+            <Bullet c={c} text="14 days of pretend wearable numbers — recovery, sleep, and strain" />
+            <Bullet c={c} text="Made-up check-ins and emotion notes, so charts aren't empty" />
+            <Bullet c={c} text="A little 'Demo data' tag on the home screen so you always know it's not real" />
           </View>
           {busy === "demo" && (
             <View style={{ flexDirection: "row", alignItems: "center", marginTop: 14, gap: 8 }}>
               <ActivityIndicator color={c.accent.primary} />
-              <Text style={{ color: c.text.secondary }}>Seeding demo data…</Text>
+              <Text style={{ color: c.text.secondary }}>Loading example data…</Text>
             </View>
           )}
         </GlassCard>
@@ -89,15 +86,15 @@ export default function FirstRunScreen() {
 
       <Pressable onPress={pickFresh} disabled={!!busy} style={[{ marginTop: 12 }, busy === "fresh" && { opacity: 0.6 }]}>
         <GlassCard>
-          <Text style={[styles.cardTitle, { color: c.text.primary }]}>Starting fresh</Text>
+          <Text style={[styles.cardTitle, { color: c.text.primary }]}>Start with a blank slate</Text>
           <Text style={[styles.body, { color: c.text.secondary, marginTop: 8 }]}>
-            No seeded data. Use this if you plan to check in daily and build up your own picture. Your insights will appear as data accumulates (roughly 3–5 days for baselines).
+            No example data — just you. Check in each day and the app will start spotting patterns after about 3–5 days.
           </Text>
         </GlassCard>
       </Pressable>
 
       <Text style={[styles.footnote, { color: c.text.tertiary }]}>
-        Both paths use identical screens and logic — only the starting data differs.
+        You'll see the same screens either way — only the starting data is different.
       </Text>
     </Screen>
   );

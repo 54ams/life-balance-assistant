@@ -30,7 +30,7 @@ export type ReflectionSource = "remote" | "local" | "safety";
 export type ReflectionResult = { text: string; source: ReflectionSource };
 
 const SAFETY_MESSAGE =
-  "This reflection is paused for safety. If you need support, please contact Samaritans on 116 123 (UK) or emergency services.";
+  "Reflection is paused for safety. If you need someone to talk to, Samaritans are free any time on 116 123. In an emergency call 999.";
 
 function getDefaultLlmUrl(): string | null {
   const envUrl = process.env.EXPO_PUBLIC_LLM_URL;

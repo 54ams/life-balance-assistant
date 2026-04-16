@@ -3,6 +3,10 @@ import { Text, View } from "react-native";
 
 import { Screen } from "@/components/Screen";
 import { GlassCard } from "@/components/ui/glass-card";
+import { FlipCard } from "@/components/ui/FlipCard";
+import { WorkingPanel } from "@/components/ui/WorkingPanel";
+import { ShowWorkingToggle } from "@/components/ui/ShowWorkingToggle";
+import { useShowWorking } from "@/hooks/useShowWorking";
 import { Colors } from "@/constants/Colors";
 import { useColorScheme } from "react-native";
 
@@ -35,6 +39,7 @@ export default function IntegrationScreen() {
   const [whoopConnected, setWhoopConnected] = useState(false);
   const [whoopLastSynced, setWhoopLastSynced] = useState<string | null>(null);
   const [whoopDays, setWhoopDays] = useState<number>(0);
+  const working = useShowWorking(false);
 
   // Load persisted selected date once
   useEffect(() => {
@@ -155,17 +160,45 @@ export default function IntegrationScreen() {
 
         {!loading && hasAnyData && computed ? (
           <>
-            <GlassCard style={{ padding: 14 }}>
-              <Text style={{ color: c.text.primary, fontWeight: "800", fontSize: 16 }}>
-                Life Balance Index: {computed.lbi.lbi} / 100
-              </Text>
-              <Text style={{ color: c.text.tertiary, marginTop: 6 }}>
-                {computed.lbi.classification} • confidence {computed.lbi.confidence}
-              </Text>
-              <Text style={{ color: c.text.tertiary, marginTop: 6 }}>
-                Baseline: {baselineMeta?.status ?? "calibrating"} ({baselineMeta?.daysUsed ?? 0}/{baselineMeta?.targetDays ?? 7} days)
-              </Text>
-            </GlassCard>
+            <View style={{ flexDirection: "row", justifyContent: "flex-end" }}>
+              <ShowWorkingToggle value={working.globalShow} onToggle={working.toggleGlobal} />
+            </View>
+
+            <FlipCard
+              flipped={working.isFlipped("lbi")}
+              onToggle={() => working.toggleTile("lbi")}
+              accessibilityLabel={`Balance score ${computed.lbi.lbi}. Tap to ${working.isFlipped("lbi") ? "hide" : "show"} the maths.`}
+              front={
+                <GlassCard style={{ padding: 14 }}>
+                  <Text style={{ color: c.text.primary, fontWeight: "800", fontSize: 16 }}>
+                    Life Balance Index: {computed.lbi.lbi} / 100
+                  </Text>
+                  <Text style={{ color: c.text.tertiary, marginTop: 6 }}>
+                    {computed.lbi.classification} • confidence {computed.lbi.confidence}
+                  </Text>
+                  <Text style={{ color: c.text.tertiary, marginTop: 6 }}>
+                    Baseline: {baselineMeta?.status ?? "calibrating"} ({baselineMeta?.daysUsed ?? 0}/{baselineMeta?.targetDays ?? 7} days)
+                  </Text>
+                  <Text style={{ color: c.text.tertiary, fontSize: 11, marginTop: 10, textAlign: "right", fontWeight: "600" }}>
+                    Tap to show the maths
+                  </Text>
+                </GlassCard>
+              }
+              back={
+                <WorkingPanel
+                  summary="How your balance score for this day was put together."
+                  inputs={[
+                    `Recovery sub-score: ${Math.round(computed.lbi.subscores.recovery)} / 100`,
+                    `Sleep sub-score: ${Math.round(computed.lbi.subscores.sleep)} / 100`,
+                    `Mood sub-score: ${Math.round(computed.lbi.subscores.mood)} / 100`,
+                    `Stress sub-score: ${Math.round(computed.lbi.subscores.stress)} / 100`,
+                  ]}
+                  method="Body side (recovery + sleep, weighted equally) counts for 70%. Mind side (mood + stress, weighted equally) counts for 30%. Add them up, round to a whole number."
+                  result={`Balance score ${computed.lbi.lbi} / 100 · ${computed.lbi.classification} · confidence ${computed.lbi.confidence}`}
+                  footnote={`Baseline ${baselineMeta?.status ?? "calibrating"} — using ${baselineMeta?.daysUsed ?? 0} of ${baselineMeta?.targetDays ?? 7} days.`}
+                />
+              }
+            />
 
             <GlassCard style={{ padding: 14 }}>
               <Text style={{ color: c.text.primary, fontWeight: "800", fontSize: 14 }}>Signals used</Text>

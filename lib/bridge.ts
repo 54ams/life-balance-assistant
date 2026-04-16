@@ -40,3 +40,43 @@ export function bridgeGap(physio: number | null, mental: number | null): number 
   if (physio == null || mental == null) return null;
   return Math.abs(physio - mental);
 }
+
+/**
+ * Signed gap — positive means body ahead of mind, negative means mind ahead.
+ * Returns null when either score is missing.
+ */
+export function bridgeDelta(physio: number | null, mental: number | null): number | null {
+  if (physio == null || mental == null) return null;
+  return physio - mental;
+}
+
+/**
+ * Short, calm narrative sentence that becomes the headline on Home.
+ * Leads with the felt experience, not the number. Keeps tone non-clinical.
+ */
+export function narrativeFor(
+  physio: number | null,
+  mental: number | null,
+): string {
+  if (physio == null && mental == null) return "A quiet start. Let today unfold.";
+  if (physio == null) return "Your body signal is still waking up.";
+  if (mental == null) return "A check-in will complete today's picture.";
+
+  const delta = physio - mental;
+  const abs = Math.abs(delta);
+
+  if (abs <= 10) {
+    if ((physio + mental) / 2 >= 65) return "Body and mind are in step. Enjoy this.";
+    if ((physio + mental) / 2 <= 35) return "Body and mind are both asking for care.";
+    return "Body and mind are in step today.";
+  }
+
+  if (delta > 0) {
+    if (abs >= 30) return "Your body is ahead. Let the mind catch up.";
+    return "Running a little ahead of yourself today.";
+  }
+
+  if (abs >= 30) return "Your mind is ahead. Let the body catch up.";
+  return "Your mind is a little ahead today.";
+}
+

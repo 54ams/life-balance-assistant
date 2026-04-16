@@ -6,11 +6,15 @@ import { Screen } from "@/components/Screen";
 import { InsightsDatePicker } from "@/components/InsightsDatePicker";
 import { Button } from "@/components/ui/button";
 import { GlassCard } from "@/components/ui/glass-card";
+import { FlipCard } from "@/components/ui/FlipCard";
+import { WorkingPanel } from "@/components/ui/WorkingPanel";
+import { ShowWorkingToggle } from "@/components/ui/ShowWorkingToggle";
+import { useShowWorking } from "@/hooks/useShowWorking";
 import { Colors } from "@/constants/Colors";
 import { useColorScheme } from "react-native";
 import { getInsightsSelectedDate, setInsightsSelectedDate } from "@/lib/insightsDate";
 import { getAllDays } from "@/lib/storage";
-import { buildPatterns } from "@/lib/explain";
+import { buildPatterns, type Pattern } from "@/lib/explain";
 import type { ISODate } from "@/lib/types";
 import { todayISO } from "@/lib/util/todayISO";
 
@@ -19,10 +23,10 @@ export default function PatternsScreen() {
   const c = Colors[scheme ?? "light"] as any;
 
   const [loading, setLoading] = useState(true);
-  const [items, setItems] = useState<{ title: string; detail: string }[]>([]);
+  const [items, setItems] = useState<Pattern[]>([]);
   const [date, setDate] = useState<ISODate>(todayISO());
+  const working = useShowWorking(false);
 
-  // Load persisted selected date once
   useEffect(() => {
     (async () => {
       const saved = await getInsightsSelectedDate();
@@ -30,7 +34,6 @@ export default function PatternsScreen() {
     })();
   }, []);
 
-  // Persist when user changes date
   useEffect(() => {
     (async () => {
       await setInsightsSelectedDate(date);
@@ -76,12 +79,18 @@ export default function PatternsScreen() {
 
       <GlassCard style={{ marginTop: 14 }}>
         <Text style={{ color: c.text.primary, fontWeight: "800" }}>
-          Why this matters (viva-ready)
+          Why you can trust these
         </Text>
         <Text style={{ marginTop: 8, color: c.text.secondary }}>
-          These insights are intentionally transparent: group averages and counts, not opaque AI. That makes them easier to validate and ethically safer for wellbeing support.
+          Nothing here is a black box. They're simple averages and counts from your own data, so you can see exactly how each one was worked out.
         </Text>
       </GlassCard>
+
+      {!loading && items.some((it) => it.working) ? (
+        <View style={{ marginTop: 14, flexDirection: "row", justifyContent: "flex-end" }}>
+          <ShowWorkingToggle value={working.globalShow} onToggle={working.toggleGlobal} />
+        </View>
+      ) : null}
 
       <View style={{ marginTop: 14, gap: 12 }}>
         {loading ? (
@@ -92,12 +101,48 @@ export default function PatternsScreen() {
             </Text>
           </GlassCard>
         ) : (
-          items.map((it, i) => (
-            <GlassCard key={i}>
-              <Text style={{ color: c.text.primary, fontWeight: "900" }}>{it.title}</Text>
-              <Text style={{ marginTop: 8, color: c.text.secondary }}>{it.detail}</Text>
-            </GlassCard>
-          ))
+          items.map((it, i) => {
+            const id = `pat-${i}`;
+            const flipped = working.isFlipped(id);
+            const hasWorking = !!it.working;
+
+            if (!hasWorking) {
+              return (
+                <GlassCard key={id}>
+                  <Text style={{ color: c.text.primary, fontWeight: "900" }}>{it.title}</Text>
+                  <Text style={{ marginTop: 8, color: c.text.secondary }}>{it.detail}</Text>
+                </GlassCard>
+              );
+            }
+
+            return (
+              <FlipCard
+                key={id}
+                flipped={flipped}
+                onToggle={() => working.toggleTile(id)}
+                flipDelayMs={flipped !== working.globalShow ? 0 : i * 40}
+                accessibilityLabel={`${it.title}. Tap to ${flipped ? "hide" : "show"} the maths.`}
+                front={
+                  <GlassCard>
+                    <Text style={{ color: c.text.primary, fontWeight: "900" }}>{it.title}</Text>
+                    <Text style={{ marginTop: 8, color: c.text.secondary }}>{it.detail}</Text>
+                    <Text style={{ color: c.text.tertiary, fontSize: 11, marginTop: 10, textAlign: "right", fontWeight: "600" }}>
+                      Tap to show the maths
+                    </Text>
+                  </GlassCard>
+                }
+                back={
+                  <WorkingPanel
+                    summary={it.working!.summary}
+                    inputs={it.working!.inputs}
+                    method={it.working!.method}
+                    result={it.working!.result}
+                    footnote={it.working!.footnote}
+                  />
+                }
+              />
+            );
+          })
         )}
       </View>
 

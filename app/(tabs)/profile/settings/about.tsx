@@ -12,16 +12,16 @@ export default function AboutScreen() {
   return (
     <Screen scroll contentStyle={{ paddingTop: 18 }}>
       <Text style={[styles.h1, { color: c.text.primary }]}>About</Text>
-      <Text style={[styles.sub, { color: c.text.secondary }]}>Life Balance Assistant — synoptic prototype.</Text>
+      <Text style={[styles.sub, { color: c.text.secondary }]}>Life Balance Assistant — a prototype wellbeing app.</Text>
 
       <GlassCard style={styles.card}>
         <Text style={[styles.cardTitle, { color: c.text.primary }]}>What it does</Text>
-        <Text style={[styles.p, { color: c.text.secondary }]}>Generates a daily Life Balance Index (LBI), a short actionable plan, and transparent explanation screens using wearable and self-report data. WHOOP integration improves signal quality; manual wearable entry is available as a fallback.</Text>
+        <Text style={[styles.p, { color: c.text.secondary }]}>Brings together how your body is doing (from a WHOOP wearable if you have one) and how your mind is doing (from short daily check-ins) into a single daily picture, with gentle suggestions when things feel off. You can also type in wearable numbers by hand if you'd rather not connect a device.</Text>
       </GlassCard>
 
       <GlassCard style={styles.card}>
-        <Text style={[styles.cardTitle, { color: c.text.primary }]}>Prototype scope</Text>
-        <Text style={[styles.p, { color: c.text.secondary }]}>All user data is stored locally on-device, with WHOOP tokens kept server-side. Predictive and reflective features are exploratory, non-medical, and intended for dissertation evaluation rather than clinical use.</Text>
+        <Text style={[styles.cardTitle, { color: c.text.primary }]}>What this is, and isn't</Text>
+        <Text style={[styles.p, { color: c.text.secondary }]}>Your data stays on this device. The only thing kept on a server is your WHOOP login, and only if you choose to connect one. This is a prototype for personal reflection — not medical advice, not a crisis service, not a substitute for seeing a professional.</Text>
       </GlassCard>
     </Screen>
   );

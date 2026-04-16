@@ -89,15 +89,15 @@ export default function ConsentSafetyScreen() {
         <View style={{ gap: 10, marginTop: 8 }}>
           <Check label="I agree to local processing of wellbeing data." checked={flags.dataProcessing} onPress={() => toggle("dataProcessing")} />
           <Check label="I agree to optional WHOOP import for this prototype." checked={flags.whoopImport} onPress={() => toggle("whoopImport")} />
-          <Check label="I understand exports may be used for dissertation research." checked={flags.exportForResearch} onPress={() => toggle("exportForResearch")} />
-          <Check label="I understand this is not medical advice or crisis support." checked={flags.nonMedicalUse} onPress={() => toggle("nonMedicalUse")} />
+          <Check label="I understand my exports may be used (anonymously) to help improve this app." checked={flags.exportForResearch} onPress={() => toggle("exportForResearch")} />
+          <Check label="I understand this is not medical advice or a crisis service." checked={flags.nonMedicalUse} onPress={() => toggle("nonMedicalUse")} />
         </View>
       </GlassCard>
 
       <GlassCard style={styles.card}>
-        <Text style={[styles.title, { color: c.text.primary }]}>Safety signposting</Text>
+        <Text style={[styles.title, { color: c.text.primary }]}>If things feel too heavy</Text>
         <Text style={[styles.body, { color: c.text.secondary }]}>
-          If you feel at immediate risk, contact emergency services. For crisis support, call 988 (US) or your local equivalent.
+          In an emergency, call 999. For someone to talk to any time, call Samaritans on 116 123 (free, 24/7). You'll find more options in Settings → Safety resources.
         </Text>
       </GlassCard>
 

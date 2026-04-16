@@ -29,7 +29,7 @@ export async function explainPlan(prompt: string, context?: string) {
 
   const joined = `${prompt}\n${context ?? ""}`;
   if (hasSelfHarmSignals(joined)) {
-    return "I cannot provide reflective output for this content. If you are in immediate danger, contact emergency services or a crisis line (for example, 988 in the US).";
+    return "I can't reflect on this content safely. If you may be in immediate danger, please call 999. If you need someone to talk to, Samaritans are free and available any time on 116 123.";
   }
 
   const response = await client.responses.create({

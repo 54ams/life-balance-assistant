@@ -237,8 +237,8 @@ export default function WhoopScreen() {
 
   return (
     <Screen scroll>
-      <Text style={[styles.h1, { color: c.text.primary }]}>WHOOP integration</Text>
-      <Text style={[styles.sub, { color: c.text.secondary }]}>Data imported from WHOOP. Correlation ≠ causation.</Text>
+      <Text style={[styles.h1, { color: c.text.primary }]}>WHOOP</Text>
+      <Text style={[styles.sub, { color: c.text.secondary }]}>Connect your WHOOP to bring in recovery, sleep, and strain — or skip this and type the numbers in yourself.</Text>
 
       <GlassCard style={styles.card}>
         <Text style={[styles.title, { color: c.text.primary }]}>Connection</Text>
@@ -305,7 +305,7 @@ export default function WhoopScreen() {
         <Text style={{ color: c.text.secondary, marginTop: 4 }}>WHOOP days in last 7: {whoopDaysLast7}/7</Text>
         {syncStatus ? <Text style={{ color: c.text.secondary, marginTop: 6 }}>Status: {syncStatus}</Text> : null}
         <Text style={{ color: c.text.tertiary, marginTop: 6 }}>
-          Data is cached for 24h per day to respect WHOOP rate limits. If WHOOP is unavailable, use the manual path below to preserve the dissertation demo flow.
+          Each day's data is saved for 24 hours to keep WHOOP happy. If WHOOP isn't working, you can always type in the numbers yourself below.
         </Text>
       </GlassCard>
 
@@ -337,9 +337,9 @@ export default function WhoopScreen() {
       </GlassCard>
 
       <GlassCard style={styles.card}>
-        <Text style={[styles.title, { color: c.text.primary }]}>Manual wearable entry</Text>
+        <Text style={[styles.title, { color: c.text.primary }]}>Type in numbers yourself</Text>
         <Text style={{ color: c.text.secondary, marginTop: 6 }}>
-          Use this when WHOOP is unavailable but you still need biometric inputs for the prototype.
+          If you don't have a WHOOP, or it's not syncing, pop your numbers in here and the app will treat them the same way.
         </Text>
         <View style={{ gap: 10, marginTop: 10 }}>
           <TextInput

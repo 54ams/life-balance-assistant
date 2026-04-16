@@ -25,22 +25,31 @@ export default function HelpResourcesScreen() {
     <Screen scroll contentStyle={{ paddingTop: 18 }}>
       <Text style={[styles.h1, { color: c.text.primary }]}>Safety resources</Text>
       <Text style={[styles.sub, { color: c.text.secondary }]}>
-        This app is not a crisis service. If you may be in danger, use immediate support.
+        This app is not a crisis service. If you are in danger or need someone to talk to right now, please use one of the options below.
       </Text>
 
       <GlassCard style={styles.card}>
-        <Text style={[styles.title, { color: c.text.primary }]}>Immediate help</Text>
+        <Text style={[styles.title, { color: c.text.primary }]}>Right now</Text>
         <View style={{ gap: 8, marginTop: 10 }}>
-          <LinkRow label="Call 112 / local emergency services" url="tel:112" />
-          <LinkRow label="Call 988 (US crisis line)" url="tel:988" />
-          <LinkRow label="Befrienders worldwide helplines" url="https://www.befrienders.org/" />
+          <LinkRow label="999 — Emergency services" url="tel:999" />
+          <LinkRow label="Samaritans — 116 123 (free, 24/7)" url="tel:116123" />
+          <LinkRow label="Shout — text SHOUT to 85258" url="sms:85258&body=SHOUT" />
         </View>
       </GlassCard>
 
       <GlassCard style={styles.card}>
-        <Text style={[styles.title, { color: c.text.primary }]}>When to use this</Text>
+        <Text style={[styles.title, { color: c.text.primary }]}>Other support</Text>
+        <View style={{ gap: 8, marginTop: 10 }}>
+          <LinkRow label="NHS 111 — non-urgent health advice" url="tel:111" />
+          <LinkRow label="Mind — information and support" url="https://www.mind.org.uk/" />
+          <LinkRow label="CALM — helpline for men (5pm–midnight)" url="tel:0800585858" />
+        </View>
+      </GlassCard>
+
+      <GlassCard style={styles.card}>
+        <Text style={[styles.title, { color: c.text.primary }]}>When to use this page</Text>
         <Text style={[styles.body, { color: c.text.secondary }]}>
-          If you notice escalating distress, self-harm thoughts, or inability to stay safe, contact professional support now.
+          If you notice rising distress, thoughts of harming yourself, or you can't stay safe, please reach out — now. You don't have to wait for it to get worse.
         </Text>
       </GlassCard>
     </Screen>

@@ -83,7 +83,7 @@ export default function ExportScreen() {
 
   const subtitle = useMemo(
     () =>
-      "Use this bundle in your dissertation appendix to evidence daily outputs, adherence, analytics, and evaluation data.",
+      "Download a copy of your check-ins, plans, and any patterns the app has spotted. You own this — take it with you any time.",
     []
   );
 

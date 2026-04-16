@@ -1,14 +1,18 @@
 import { Stack } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useFocusEffect } from "expo-router";
-import { Pressable, Text, View } from "react-native";
+import { Text, View } from "react-native";
 
 import { Screen } from "@/components/Screen";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { StrengthIndicator, correlationToHuman } from "@/components/ui/StrengthIndicator";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { FlipCard } from "@/components/ui/FlipCard";
+import { WorkingPanel } from "@/components/ui/WorkingPanel";
+import { ShowWorkingToggle } from "@/components/ui/ShowWorkingToggle";
+import { useShowWorking } from "@/hooks/useShowWorking";
 import { Colors } from "@/constants/Colors";
-import { Spacing, BorderRadius } from "@/constants/Spacing";
+import { Spacing } from "@/constants/Spacing";
 import { useColorScheme } from "react-native";
 
 import type { ISODate } from "@/lib/types";
@@ -17,7 +21,6 @@ import { sliceRecordsUpTo } from "@/lib/range";
 import { buildAnalyticsSummary } from "@/lib/analytics";
 import { getInsightsSelectedDate, setInsightsSelectedDate } from "@/lib/insightsDate";
 import { InsightsDatePicker } from "@/components/InsightsDatePicker";
-import { formatDisplayDate } from "@/lib/date";
 import { todayISO } from "@/lib/util/todayISO";
 
 function prettyVar(k: string) {
@@ -38,12 +41,11 @@ function prettyVar(k: string) {
 
 export default function CorrelationsScreen() {
   const scheme = useColorScheme();
-  const isDark = scheme === "dark";
   const c = Colors[scheme ?? "light"];
 
   const [date, setDate] = useState<ISODate>(todayISO());
   const [days, setDays] = useState<import("@/lib/types").DailyRecord[]>([]);
-  const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
+  const working = useShowWorking(false);
 
   useEffect(() => {
     (async () => {
@@ -125,75 +127,70 @@ export default function CorrelationsScreen() {
           </GlassCard>
         ) : (
           <>
-            {/* Human-readable correlations */}
-            <GlassCard padding="base">
-              <Text style={{ color: c.text.primary, fontWeight: "800", fontSize: 17, marginBottom: Spacing.sm }}>
+            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+              <Text style={{ color: c.text.primary, fontWeight: "800", fontSize: 17 }}>
                 Key relationships
               </Text>
+              <ShowWorkingToggle value={working.globalShow} onToggle={working.toggleGlobal} />
+            </View>
 
+            <View style={{ gap: 10 }}>
               {curated.map((x: any, i: number) => {
-                const isExpanded = expandedIndex === i;
+                const id = `corr-${i}`;
+                const flipped = working.isFlipped(id);
                 const humanText = correlationToHuman(x.a, x.b, x.r ?? 0);
+                const pairLabel = `${prettyVar(x.a)} & ${prettyVar(x.b)}`;
+                const strength =
+                  typeof x.r === "number" ? x.r.toFixed(3) : "—";
+                const ciLower = x.ciLower != null ? x.ciLower.toFixed(2) : "—";
+                const ciUpper = x.ciUpper != null ? x.ciUpper.toFixed(2) : "—";
+                const reliability = x.significant
+                  ? "Pattern is reasonably reliable"
+                  : "Early signal — keep logging to confirm";
+                const lagNote = x.lag ? " · Next-day effect" : "";
 
                 return (
-                  <Pressable
-                    key={i}
-                    onPress={() => setExpandedIndex(isExpanded ? null : i)}
-                    style={{
-                      paddingVertical: 12,
-                      borderTopWidth: i > 0 ? 1 : 0,
-                      borderTopColor: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.03)",
-                    }}
-                  >
-                    {/* Human-readable summary */}
-                    <Text style={{ color: c.text.primary, fontWeight: "700", fontSize: 15, marginBottom: 6 }}>
-                      {prettyVar(x.a)} & {prettyVar(x.b)}
-                    </Text>
-                    <Text style={{ color: c.text.secondary, fontSize: 13, lineHeight: 18, marginBottom: 8 }}>
-                      {humanText}
-                    </Text>
-
-                    {/* Strength bar */}
-                    <StrengthIndicator value={x.r ?? 0} />
-
-                    {/* Expandable details for examiners */}
-                    {isExpanded && (
-                      <View
-                        style={{
-                          marginTop: 10,
-                          padding: 12,
-                          borderRadius: BorderRadius.lg,
-                          backgroundColor: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.02)",
-                        }}
-                      >
-                        <Text style={{ color: c.text.tertiary, fontSize: 12, fontWeight: "600", marginBottom: 4 }}>
-                          Statistical details
+                  <FlipCard
+                    key={id}
+                    flipped={flipped}
+                    onToggle={() => working.toggleTile(id)}
+                    flipDelayMs={flipped !== working.globalShow ? 0 : i * 40}
+                    accessibilityLabel={`${pairLabel}. Tap to ${flipped ? "hide" : "show"} the numbers.`}
+                    front={
+                      <GlassCard padding="base">
+                        <Text style={{ color: c.text.primary, fontWeight: "700", fontSize: 15, marginBottom: 6 }}>
+                          {pairLabel}
                         </Text>
-                        <Text style={{ color: c.text.tertiary, fontSize: 11, lineHeight: 16 }}>
-                          Method: {x.method ?? "pearson"} · r = {typeof x.r === "number" ? x.r.toFixed(3) : "—"} · n = {x.n ?? "—"}
+                        <Text style={{ color: c.text.secondary, fontSize: 13, lineHeight: 18, marginBottom: 10 }}>
+                          {humanText}
                         </Text>
-                        <Text style={{ color: c.text.tertiary, fontSize: 11, lineHeight: 16 }}>
-                          95% CI [{x.ciLower != null ? x.ciLower.toFixed(2) : "—"}, {x.ciUpper != null ? x.ciUpper.toFixed(2) : "—"}]
+                        <StrengthIndicator value={x.r ?? 0} />
+                        <Text style={{ color: c.text.tertiary, fontSize: 11, marginTop: 10, textAlign: "right", fontWeight: "600" }}>
+                          Tap to show the numbers
                         </Text>
-                        <Text style={{ color: c.text.tertiary, fontSize: 11, lineHeight: 16 }}>
-                          FDR: {x.fdr != null ? x.fdr.toFixed(3) : "—"} · {x.significant ? "Statistically significant" : "Exploratory"}
-                          {x.lag ? ` · Lag: ${x.lag}d` : ""}
-                        </Text>
-                      </View>
-                    )}
-
-                    <Text style={{ color: c.accent.primary, fontSize: 12, fontWeight: "600", marginTop: 6 }}>
-                      {isExpanded ? "Hide details" : "Show details"}
-                    </Text>
-                  </Pressable>
+                      </GlassCard>
+                    }
+                    back={
+                      <WorkingPanel
+                        summary={`How the link between ${prettyVar(x.a)} and ${prettyVar(x.b)} was measured.`}
+                        inputs={[
+                          `${prettyVar(x.a)} across ${x.n ?? "—"} days`,
+                          `${prettyVar(x.b)} across the same days`,
+                        ]}
+                        method={`Spearman rank correlation, with a bootstrap to estimate a likely range.`}
+                        result={`Strength ${strength} (between −1 and +1) · likely range ${ciLower} to ${ciUpper}`}
+                        footnote={`${reliability}${lagNote}`}
+                      />
+                    }
+                  />
                 );
               })}
-            </GlassCard>
+            </View>
 
-            {/* Disclaimer */}
+            {/* Gentle reminder */}
             <View style={{ paddingHorizontal: Spacing.sm }}>
               <Text style={{ color: c.text.tertiary, fontSize: 12, textAlign: "center", lineHeight: 16 }}>
-                Correlation does not imply causation · Small samples can mislead · Use for reflection, not decisions
+                Two things happening together doesn't mean one caused the other · A handful of days can be misleading · Something to notice, not a rule to follow
               </Text>
             </View>
           </>

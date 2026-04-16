@@ -218,15 +218,15 @@ function WelcomeStep({ c }: { c: typeof Colors.light }) {
     <>
       <Text style={[styles.h1, { color: c.accent.primary }]}>Life Balance{"\n"}Assistant</Text>
       <Text style={[styles.body, { color: c.text.secondary, marginTop: 12 }]}>
-        A calm space that brings physiological signals (recovery, sleep) and psychological signals (mood, stress, emotion) together into a single daily picture.
+        A calm space for noticing how your body and mind are doing — together, in one place. Nothing to fix, just something to see.
       </Text>
 
       <GlassCard style={{ marginTop: 20 }}>
         <Text style={[styles.cardTitle, { color: c.text.primary }]}>How it works</Text>
         <View style={{ gap: 12, marginTop: 12 }}>
-          <StepItem num="1" text="Complete a short daily check-in" c={c} />
-          <StepItem num="2" text="Optionally sync WHOOP recovery data" c={c} />
-          <StepItem num="3" text="See your Life Balance Index, mind–body bridge, and gentle suggestions" c={c} />
+          <StepItem num="1" text="Take a short daily check-in — a minute or two" c={c} />
+          <StepItem num="2" text="Connect a WHOOP wearable if you have one (optional)" c={c} />
+          <StepItem num="3" text="See how your body and mind are doing, with gentle suggestions when you need them" c={c} />
         </View>
       </GlassCard>
 
@@ -468,7 +468,7 @@ function ConsentStep({ c, flags, toggle }: { c: typeof Colors.light; flags: Cons
           c={c}
         />
         <ConsentRow
-          label="I understand exports may be used for dissertation research."
+          label="I understand my exports may be used (in anonymous form) to help improve this app."
           checked={flags.exportForResearch}
           onPress={() => toggle("exportForResearch")}
           c={c}
@@ -484,7 +484,7 @@ function ConsentStep({ c, flags, toggle }: { c: typeof Colors.light; flags: Cons
       <GlassCard style={{ marginTop: 20 }}>
         <Text style={[styles.cardTitle, { color: c.text.primary }]}>Safety notice</Text>
         <Text style={[styles.body, { color: c.text.secondary, marginTop: 6 }]}>
-          If you may be at immediate risk, please use emergency services or a crisis line such as 988 (US) or 116 123 (UK). Continue only if this prototype is appropriate for your situation.
+          If you may be at immediate risk, please call 999 for emergency services or Samaritans on 116 123 (free, 24/7). Continue only if this app is appropriate for your situation.
         </Text>
       </GlassCard>
     </>

@@ -74,7 +74,7 @@ export default function DemoToolsScreen() {
   return (
     <Screen scroll contentStyle={styles.container}>
       <Text style={[styles.title, { color: c.text.primary }]}>Demo tools</Text>
-      <Text style={[styles.sub, { color: c.text.secondary }]}>Seed data and simulate wearable/check-in states for your viva.</Text>
+      <Text style={[styles.sub, { color: c.text.secondary }]}>Load example data so you can see how the app looks once a few days are filled in.</Text>
 
       <GlassCard>
         <View style={styles.rowBetween}>
@@ -170,7 +170,7 @@ export default function DemoToolsScreen() {
       <GlassCard style={styles.cardPad}>
         <Text style={[styles.sectionTitle, { color: c.text.primary }]}>Scenario presets</Text>
         <Text style={[styles.sectionSub, { color: c.text.secondary }]}>
-          Each preset wipes local data and seeds a deterministic 14-day arc. Use these to steer the viva narrative live.
+          Each option clears your current data and replaces it with 14 days of example data telling a different story. Handy for exploring what the app looks like in different situations.
         </Text>
         <View style={{ height: 12 }} />
         {SCENARIOS.map((s, idx) => (
