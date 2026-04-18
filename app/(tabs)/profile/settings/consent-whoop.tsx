@@ -3,7 +3,7 @@ import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { Screen } from "@/components/Screen";
-import { GlassCard } from "@/components/ui/glass-card";
+import { GlassCard } from "@/components/ui/GlassCard";
 import { Colors } from "@/constants/Colors";
 import { useColorScheme } from "react-native";
 import { getBackendBaseUrl } from "@/lib/backend";

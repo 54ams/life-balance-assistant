@@ -149,7 +149,7 @@ export default function BridgeScreen() {
   const c = Colors[scheme ?? "light"];
 
   const physioColor = isDark ? "#57D6A4" : "#2FA37A";
-  const mentalColor = isDark ? "#8B7FE8" : "#6B5DD3";
+  const mentalColor = isDark ? "#A4BFB5" : "#6F9A90";
   // Load track uses the terracotta from the body-state gradient — it
   // reads as "the work your mind is doing", distinct from mood.
   const loadColor = isDark ? "#E0A088" : "#B87C5E";

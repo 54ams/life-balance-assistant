@@ -31,7 +31,7 @@ export default function CheckInSavedScreen() {
   const c = Colors[scheme ?? "light"];
 
   const physioColor = isDark ? "#57D6A4" : "#2FA37A";
-  const mentalColor = isDark ? "#8B7FE8" : "#6B5DD3";
+  const mentalColor = isDark ? "#A4BFB5" : "#6F9A90";
 
   const [values, setValues] = useState<{ physio: number | null; mental: number | null }>({
     physio: null,

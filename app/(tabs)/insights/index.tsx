@@ -83,7 +83,7 @@ export default function InsightsHome() {
       title: "Your Score",
       description: "Understand what drives your balance score and what-if scenarios",
       icon: "lightbulb.fill",
-      color: isDark ? "#FBBF24" : "#D97706",
+      color: isDark ? "#E0B278" : "#C2824A",
       items: [
         { title: "Why this score", route: "/insights/explain", icon: "lightbulb.fill" },
         { title: "Score breakdown", route: "/insights/integration", icon: "slider.horizontal.3" },
@@ -108,7 +108,7 @@ export default function InsightsHome() {
       title: "Your Plan",
       description: "Track adherence, risk outlook, and weekly reflections",
       icon: "checklist",
-      color: isDark ? "#8B7FE8" : "#6B5DD3",
+      color: isDark ? "#A4BFB5" : "#6F9A90",
       items: [
         { title: "Adherence & LBI", route: "/insights/adherence", icon: "checklist" },
         { title: "Risk outlook", route: "/insights/risk", icon: "exclamationmark.triangle" },
@@ -221,6 +221,48 @@ export default function InsightsHome() {
             />
           </View>
         ) : null}
+
+        {/* Recommended starting point for newer users */}
+        {dataCount > 0 && dataCount < 14 && (
+          <GlassCard style={{ marginTop: Spacing.md }} padding="base">
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+              <View
+                style={{
+                  width: 34,
+                  height: 34,
+                  borderRadius: 10,
+                  backgroundColor: c.lime + "28",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <IconSymbol name="sparkles" size={16} color={c.accent.primary} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: c.text.primary, fontWeight: "800", fontSize: 14 }}>
+                  Start here
+                </Text>
+                <Text style={{ color: c.text.secondary, fontSize: 12, marginTop: 1 }}>
+                  {dataCount < 5
+                    ? `You have ${dataCount} days. Try "Why this score" to see how your balance is calculated.`
+                    : `${dataCount} days logged. "Trends" is a good next step to spot early patterns.`}
+                </Text>
+              </View>
+              <Pressable
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  router.push({
+                    pathname: dataCount < 5 ? "/insights/explain" : "/insights/trends",
+                    params: { date: today },
+                  } as any);
+                }}
+                style={({ pressed }) => [pressed && { opacity: 0.6 }]}
+              >
+                <Text style={{ color: c.accent.primary, fontWeight: "800", fontSize: 13 }}>Go</Text>
+              </Pressable>
+            </View>
+          </GlassCard>
+        )}
 
         {dataCount === 0 ? (
           <GlassCard style={{ marginTop: Spacing.lg }}>

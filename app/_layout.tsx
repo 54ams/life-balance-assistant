@@ -19,6 +19,7 @@ import {
 } from "@expo-google-fonts/inter";
 import { AppErrorBoundary } from "@/components/AppErrorBoundary";
 import { getRetentionDays, runRetentionPurgeNow } from "@/lib/privacy";
+import { setupNotificationDeepLink } from "@/lib/notifications";
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
@@ -35,6 +36,7 @@ export default function RootLayout() {
   });
 
   useEffect(() => {
+    setupNotificationDeepLink();
     (async () => {
       try {
         const days = await getRetentionDays();

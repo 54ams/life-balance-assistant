@@ -7,6 +7,11 @@ import { IconSymbol } from "@/components/ui/icon-symbol";
 import { Colors } from "@/constants/Colors";
 import { BorderRadius, Spacing } from "@/constants/Spacing";
 
+// Only these three routes are visible in the tab bar. Everything else
+// (checkin, calendar, profile, history) is reachable from within these
+// screens but hidden from the bar.
+const VISIBLE_TABS = new Set(["index", "insights", "checkins"]);
+
 export function FloatingTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   const scheme = useColorScheme();
   const c = scheme === "dark" ? Colors.dark : Colors.light;
@@ -29,6 +34,10 @@ export function FloatingTabBar({ state, descriptors, navigation }: BottomTabBarP
       <View style={styles.row}>
         {state.routes.map((route, index) => {
           const { options } = descriptors[route.key];
+
+          // Only render the three primary tabs.
+          if (!VISIBLE_TABS.has(route.name)) return null;
+
           const label =
             options.tabBarLabel !== undefined
               ? options.tabBarLabel

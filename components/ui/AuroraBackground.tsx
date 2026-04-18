@@ -86,7 +86,7 @@ export function AuroraBackground({ state = "neutral", intensity = "ambient" }: P
   // Two colour ramps per orb, derived from the state palette. Mixes the
   // state hue with the background ink so orbs bleed into the night.
   const orbColors = useMemo(() => {
-    const ink = isDark ? "#0A0E1A" : "#EFECF7";
+    const ink = isDark ? "#1B241A" : "#EFE8D9";
     return {
       a: [gradient.start, gradient.end, ink] as const,
       b: [gradient.end, gradient.start, ink] as const,
@@ -166,8 +166,8 @@ export function AuroraBackground({ state = "neutral", intensity = "ambient" }: P
         pointerEvents="none"
         colors={
           isDark
-            ? ["rgba(10,14,26,0)", "rgba(10,14,26,0.55)"]
-            : ["rgba(239,236,247,0)", "rgba(239,236,247,0.55)"]
+            ? ["rgba(27,36,26,0)", "rgba(27,36,26,0.55)"]
+            : ["rgba(239,232,217,0)", "rgba(239,232,217,0.55)"]
         }
         start={{ x: 0.5, y: 0.4 }}
         end={{ x: 0.5, y: 1 }}

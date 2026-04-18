@@ -4,7 +4,7 @@ import { Pressable, Text, View } from "react-native";
 
 import { Screen } from "@/components/Screen";
 import { InsightsDatePicker } from "@/components/InsightsDatePicker";
-import { GlassCard } from "@/components/ui/glass-card";
+import { GlassCard } from "@/components/ui/GlassCard";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { Colors } from "@/constants/Colors";
 import { Spacing, BorderRadius } from "@/constants/Spacing";

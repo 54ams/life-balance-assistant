@@ -6,7 +6,7 @@ import { Alert, StyleSheet, Text, TextInput, View } from "react-native";
 
 import { Screen } from "@/components/Screen";
 import { Button } from "@/components/ui/button";
-import { GlassCard } from "@/components/ui/glass-card";
+import { GlassCard } from "@/components/ui/GlassCard";
 import { Colors } from "@/constants/Colors";
 import { useColorScheme } from "react-native";
 import { upsertWearable } from "@/lib/storage";

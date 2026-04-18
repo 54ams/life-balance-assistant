@@ -5,13 +5,16 @@ import { useCallback, useMemo, useState } from "react";
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { Screen } from "@/components/Screen";
-import { GlassCard } from "@/components/ui/glass-card";
+import { GlassCard } from "@/components/ui/GlassCard";
 import { Colors } from "@/constants/Colors";
 import { useColorScheme } from "react-native";
 import { exportPlans, exportModelSensitivity } from "@/lib/export";
 import { analyticsToMarkdown, buildAnalyticsSummary } from "@/lib/analytics";
-import { getAllDays } from "@/lib/storage";
+import { getAllDays, listDailyRecords } from "@/lib/storage";
 import { buildAppendixSummary } from "@/lib/report";
+import { GlassCard as GC2 } from "@/components/ui/GlassCard";
+import { IconSymbol } from "@/components/ui/icon-symbol";
+import { Spacing } from "@/constants/Spacing";
 
 export default function ExportScreen() {
   const scheme = useColorScheme();
@@ -20,11 +23,19 @@ export default function ExportScreen() {
   const [days, setDays] = useState(7);
   const [payload, setPayload] = useState<string>("{}");
   const [appendix, setAppendix] = useState<string>("");
+  const [preview, setPreview] = useState<{ total: number; withCheckIn: number; withWearable: number; withLbi: number } | null>(null);
 
   const refresh = useCallback(async () => {
     const out = await exportPlans(days);
     setPayload(out);
     setAppendix(await buildAppendixSummary(days));
+    const records = await listDailyRecords(days);
+    setPreview({
+      total: records.length,
+      withCheckIn: records.filter((r) => r.checkIn != null).length,
+      withWearable: records.filter((r) => r.wearable != null).length,
+      withLbi: records.filter((r) => typeof r.lbi === "number").length,
+    });
   }, [days]);
 
   useFocusEffect(
@@ -93,6 +104,28 @@ export default function ExportScreen() {
         <Text style={[styles.title, { color: c.text.primary }]}>Export ({days} days)</Text>
         <Text style={[styles.subtitle, { color: c.text.secondary }]}>{subtitle}</Text>
       </View>
+
+      {/* Export preview */}
+      {preview && preview.total > 0 && (
+        <GC2 style={{ marginBottom: Spacing.sm }} padding="base">
+          <Text style={[styles.cardTitle, { color: c.text.primary }]}>What's in this export</Text>
+          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 12, marginTop: 8 }}>
+            {[
+              { label: "Days", value: preview.total, icon: "calendar" },
+              { label: "Check-ins", value: preview.withCheckIn, icon: "square.and.pencil" },
+              { label: "Wearable", value: preview.withWearable, icon: "heart.fill" },
+              { label: "LBI scores", value: preview.withLbi, icon: "chart.bar" },
+            ].map((item) => (
+              <View key={item.label} style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                <IconSymbol name={item.icon as any} size={13} color={c.text.tertiary} />
+                <Text style={{ color: c.text.secondary, fontSize: 13 }}>
+                  <Text style={{ fontWeight: "800" }}>{item.value}</Text> {item.label.toLowerCase()}
+                </Text>
+              </View>
+            ))}
+          </View>
+        </GC2>
+      )}
 
       <GlassCard style={styles.card}>
         <Text style={[styles.cardTitle, { color: c.text.primary }]}>How to copy</Text>

@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 
 import { Screen } from "@/components/Screen";
-import { GlassCard } from "@/components/ui/glass-card";
+import { GlassCard } from "@/components/ui/GlassCard";
 import { Colors } from "@/constants/Colors";
 import { useColorScheme } from "react-native";
 import { SUS_QUESTIONS, computeSusScore, type SusResponse } from "@/lib/evaluation/sus";

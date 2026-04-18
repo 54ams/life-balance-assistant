@@ -26,8 +26,8 @@ export function RadarChart({ axes, size = 200 }: RadarChartProps) {
 
   const barColor = (v: number) => {
     if (v >= 75) return isDark ? "#57D6A4" : "#2FA37A";
-    if (v >= 50) return isDark ? "#FBBF24" : "#D97706";
-    return isDark ? "#FF7A86" : "#D64550";
+    if (v >= 50) return isDark ? "#E0B278" : "#C2824A";
+    return isDark ? "#E08078" : "#B2423A";
   };
 
   return (

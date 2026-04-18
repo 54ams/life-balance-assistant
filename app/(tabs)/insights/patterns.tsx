@@ -5,7 +5,7 @@ import { Text, View } from "react-native";
 import { Screen } from "@/components/Screen";
 import { InsightsDatePicker } from "@/components/InsightsDatePicker";
 import { Button } from "@/components/ui/button";
-import { GlassCard } from "@/components/ui/glass-card";
+import { GlassCard } from "@/components/ui/GlassCard";
 import { FlipCard } from "@/components/ui/FlipCard";
 import { WorkingPanel } from "@/components/ui/WorkingPanel";
 import { ShowWorkingToggle } from "@/components/ui/ShowWorkingToggle";

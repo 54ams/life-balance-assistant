@@ -1,5 +1,5 @@
 import { Screen } from "@/components/Screen";
-import { GlassCard } from "@/components/ui/glass-card";
+import { GlassCard } from "@/components/ui/GlassCard";
 import { Colors } from "@/constants/Colors";
 import { useColorScheme } from "react-native";
 import { useEffect, useState } from "react";
@@ -8,7 +8,7 @@ import { AppConsent, getAppConsent, saveAppConsent, withdrawAllConsent } from "@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getBackendBaseUrl } from "@/lib/backend";
 
-const VERSION = "2026-02-28";
+const VERSION = "2026-04-16";
 
 type ConsentFlags = AppConsent["items"];
 

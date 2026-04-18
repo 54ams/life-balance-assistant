@@ -7,7 +7,9 @@ import { getPlanAdherenceSummary, listDailyRecords, listEmotions, listPlans } fr
 import type { EmotionValue } from "@/lib/types";
 import { quadrantOf } from "@/lib/emotion";
 import { NUDGE_ENABLED_KEY, STREAKS_ENABLED_KEY, getBooleanSetting } from "@/lib/privacy";
-import { Spacing, BorderRadius } from "@/constants/Spacing";
+import { Spacing } from "@/constants/Spacing";
+import { Typography } from "@/constants/Typography";
+import { physioScore, mentalScore } from "@/lib/bridge";
 
 function quadrantLabel(q: string): string {
   if (q === "pleasantCalm") return "calm and positive";
@@ -29,6 +31,7 @@ export default function WeeklyInsights() {
   const [adherenceLine, setAdherenceLine] = useState<string>("");
   const [adherenceVsLbi, setAdherenceVsLbi] = useState<string>("");
   const [weeklyMeaning, setWeeklyMeaning] = useState<string>("");
+  const [bridgeNarrative, setBridgeNarrative] = useState<string>("");
 
   useEffect(() => {
     (async () => {
@@ -80,6 +83,42 @@ export default function WeeklyInsights() {
         else setAdherenceVsLbi("There's no clear link yet between completing your plan and your score. More data will help clarify this.");
       } else {
         setAdherenceVsLbi("We need a few more days of data before we can spot any patterns here.");
+      }
+
+      // Bridge narrative — body vs mind weekly summary
+      const weekRecords = await listDailyRecords(7);
+      const physioVals = weekRecords.map((r) => physioScore(r)).filter((v): v is number => v != null);
+      const mentalVals = weekRecords.map((r) => mentalScore(r)).filter((v): v is number => v != null);
+      if (physioVals.length >= 3 && mentalVals.length >= 3) {
+        const avgP = Math.round(physioVals.reduce((a, b) => a + b, 0) / physioVals.length);
+        const avgM = Math.round(mentalVals.reduce((a, b) => a + b, 0) / mentalVals.length);
+        const gap = avgP - avgM;
+        if (Math.abs(gap) <= 8) {
+          setBridgeNarrative(`Your body and mind averaged within ${Math.abs(gap)} points of each other this week — well aligned.`);
+        } else if (gap > 0) {
+          setBridgeNarrative(`Your body led your mind by an average of ${gap} points this week. Mental recovery might be lagging behind physical recovery.`);
+        } else {
+          setBridgeNarrative(`Your mind was ahead of your body by ${Math.abs(gap)} points on average. Physical rest or movement could help close the gap.`);
+        }
+
+        // Find best tag correlation
+        const tagCounts: Record<string, { days: number; totalLbi: number }> = {};
+        for (const r of weekRecords) {
+          if (typeof r.lbi !== "number") continue;
+          const tags = r.checkIn?.lifeContext ?? [];
+          for (const t of tags) {
+            if (!tagCounts[t.id]) tagCounts[t.id] = { days: 0, totalLbi: 0 };
+            tagCounts[t.id].days++;
+            tagCounts[t.id].totalLbi += r.lbi;
+          }
+        }
+        const best = Object.entries(tagCounts)
+          .filter(([, v]) => v.days >= 2)
+          .sort((a, b) => b[1].totalLbi / b[1].days - a[1].totalLbi / a[1].days)[0];
+        if (best) {
+          const avgLbi = Math.round(best[1].totalLbi / best[1].days);
+          setBridgeNarrative((prev) => prev + ` Your balance was highest (avg ${avgLbi}) on days you tagged "${best[0]}".`);
+        }
       }
 
       const recentRecords = await listDailyRecords(14);
@@ -137,6 +176,24 @@ export default function WeeklyInsights() {
         <Text style={{ color: c.text.tertiary }}>{adherenceLine || "No plan data yet."}</Text>
         <Text style={{ color: c.text.tertiary, marginTop: 8 }}>{adherenceVsLbi}</Text>
       </GlassCard>
+
+      {/* Mind-body bridge narrative */}
+      {bridgeNarrative ? (
+        <GlassCard>
+          <Text style={{ color: c.text.primary, fontWeight: "800", fontSize: 17, marginBottom: 4 }}>Mind–body bridge</Text>
+          <Text
+            style={{
+              color: c.text.secondary,
+              fontSize: 14,
+              lineHeight: 20,
+              fontFamily: Typography.fontFamily.serifItalic,
+              marginTop: 4,
+            }}
+          >
+            {bridgeNarrative}
+          </Text>
+        </GlassCard>
+      ) : null}
 
       {/* Weekly trend */}
       <GlassCard>

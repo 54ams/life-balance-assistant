@@ -46,6 +46,24 @@ function regulationCopy(r: DailyRecord["emotion"]): string | null {
   }
 }
 
+/** Count consecutive days with a check-in ending at today. */
+function computeStreak(sorted: DailyRecord[]): number {
+  const today = todayISO();
+  let streak = 0;
+  const cursor = new Date(today + "T00:00:00");
+  const dateSet = new Set(sorted.map((r) => r.date));
+  for (let i = 0; i < 365; i++) {
+    const iso = cursor.toISOString().slice(0, 10);
+    if (dateSet.has(iso as any)) {
+      streak++;
+      cursor.setDate(cursor.getDate() - 1);
+    } else {
+      break;
+    }
+  }
+  return streak;
+}
+
 export default function CheckInsTab() {
   const scheme = useColorScheme();
   const isDark = scheme === "dark";
@@ -53,6 +71,7 @@ export default function CheckInsTab() {
 
   const [records, setRecords] = useState<DailyRecord[]>([]);
   const [todayDone, setTodayDone] = useState(false);
+  const [streak, setStreak] = useState(0);
 
   useFocusEffect(
     useCallback(() => {
@@ -66,6 +85,7 @@ export default function CheckInsTab() {
           .sort((a, b) => (a.date < b.date ? 1 : -1));
         setRecords(withCheckIn);
         setTodayDone(withCheckIn.some((r) => r.date === todayISO()));
+        setStreak(computeStreak(withCheckIn));
       })();
       return () => {
         alive = false;
@@ -119,6 +139,54 @@ export default function CheckInsTab() {
         before it. The more often you check in, the more the app can
         notice alongside you.
       </Text>
+
+      {/* Summary stats */}
+      {records.length > 0 && (
+        <View
+          style={{
+            flexDirection: "row",
+            gap: 12,
+            marginTop: Spacing.base,
+          }}
+        >
+          <View
+            style={{
+              flex: 1,
+              backgroundColor: isDark ? "rgba(255,255,255,0.04)" : "rgba(255,255,255,0.55)",
+              borderWidth: 1,
+              borderColor: c.border.light,
+              borderRadius: BorderRadius.xl,
+              paddingVertical: 14,
+              alignItems: "center",
+            }}
+          >
+            <Text style={{ color: c.accent.primary, fontSize: 28, fontWeight: "900" }}>
+              {streak}
+            </Text>
+            <Text style={{ color: c.text.tertiary, fontSize: 10, fontWeight: "800", letterSpacing: 1, marginTop: 2 }}>
+              DAY STREAK
+            </Text>
+          </View>
+          <View
+            style={{
+              flex: 1,
+              backgroundColor: isDark ? "rgba(255,255,255,0.04)" : "rgba(255,255,255,0.55)",
+              borderWidth: 1,
+              borderColor: c.border.light,
+              borderRadius: BorderRadius.xl,
+              paddingVertical: 14,
+              alignItems: "center",
+            }}
+          >
+            <Text style={{ color: c.accent.primary, fontSize: 28, fontWeight: "900" }}>
+              {records.length}
+            </Text>
+            <Text style={{ color: c.text.tertiary, fontSize: 10, fontWeight: "800", letterSpacing: 1, marginTop: 2 }}>
+              TOTAL CHECK-INS
+            </Text>
+          </View>
+        </View>
+      )}
 
       {/* Primary CTA — new check-in for today, or a gentle "done" note. */}
       <View style={{ marginTop: Spacing.lg }}>
@@ -272,6 +340,8 @@ export default function CheckInsTab() {
             {records.map((r) => {
               const physio = physioScore(r);
               const mental = mentalScore(r);
+              const gap = physio != null && mental != null ? Math.abs(physio - mental) : 0;
+              const isDivergent = gap >= 25;
               const reg = regulationCopy(r.emotion);
               const note =
                 r.emotion?.reflection?.trim() || r.checkIn?.notes?.trim() || "";
@@ -302,30 +372,54 @@ export default function CheckInsTab() {
                       >
                         {labelFor(r.date)}
                       </Text>
-                      {reg ? (
-                        <View
-                          style={[
-                            styles.regChip,
-                            {
-                              borderColor: c.border.light,
-                              backgroundColor: isDark
-                                ? "rgba(255,255,255,0.04)"
-                                : "rgba(255,255,255,0.55)",
-                            },
-                          ]}
-                        >
-                          <Text
-                            style={{
-                              color: c.text.secondary,
-                              fontSize: 11,
-                              fontWeight: "700",
-                              letterSpacing: 0.4,
-                            }}
+                      <View style={{ flexDirection: "row", gap: 6, alignItems: "center" }}>
+                        {isDivergent && (
+                          <View
+                            style={[
+                              styles.regChip,
+                              {
+                                borderColor: c.warning + "40",
+                                backgroundColor: c.warning + "14",
+                              },
+                            ]}
                           >
-                            {reg}
-                          </Text>
-                        </View>
-                      ) : null}
+                            <Text
+                              style={{
+                                color: c.warning,
+                                fontSize: 11,
+                                fontWeight: "700",
+                                letterSpacing: 0.4,
+                              }}
+                            >
+                              Gap {gap}
+                            </Text>
+                          </View>
+                        )}
+                        {reg ? (
+                          <View
+                            style={[
+                              styles.regChip,
+                              {
+                                borderColor: c.border.light,
+                                backgroundColor: isDark
+                                  ? "rgba(255,255,255,0.04)"
+                                  : "rgba(255,255,255,0.55)",
+                              },
+                            ]}
+                          >
+                            <Text
+                              style={{
+                                color: c.text.secondary,
+                                fontSize: 11,
+                                fontWeight: "700",
+                                letterSpacing: 0.4,
+                              }}
+                            >
+                              {reg}
+                            </Text>
+                          </View>
+                        ) : null}
+                      </View>
                     </View>
 
                     {/* Mind/Body mini bars */}

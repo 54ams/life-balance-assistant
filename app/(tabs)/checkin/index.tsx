@@ -63,6 +63,7 @@ export default function DailyCheckInScreen() {
 
   const [step, setStep] = useState(0);
   const fade = useRef(new Animated.Value(1)).current;
+  const slideX = useRef(new Animated.Value(0)).current;
 
   // --- State ---------------------------------------------------
   const [valence, setValence] = useState(0); // -1..1
@@ -111,9 +112,17 @@ export default function DailyCheckInScreen() {
 
   const animateStep = (next: number) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-    Animated.timing(fade, { toValue: 0, duration: 140, useNativeDriver: true }).start(() => {
+    const direction = next > step ? 1 : -1;
+    Animated.parallel([
+      Animated.timing(fade, { toValue: 0, duration: 150, useNativeDriver: true }),
+      Animated.timing(slideX, { toValue: direction * -20, duration: 150, useNativeDriver: true }),
+    ]).start(() => {
       setStep(next);
-      Animated.timing(fade, { toValue: 1, duration: 180, useNativeDriver: true }).start();
+      slideX.setValue(direction * 20);
+      Animated.parallel([
+        Animated.timing(fade, { toValue: 1, duration: 200, useNativeDriver: true }),
+        Animated.timing(slideX, { toValue: 0, duration: 200, useNativeDriver: true }),
+      ]).start();
     });
   };
 
@@ -289,7 +298,7 @@ export default function DailyCheckInScreen() {
         </View>
       </View>
 
-      <Animated.View style={{ opacity: fade }}>
+      <Animated.View style={{ opacity: fade, transform: [{ translateX: slideX }] }}>
         {/* ------------------------------ STEP 0 · Affect canvas */}
         {step === 0 && (
           <GlassCard padding="lg">
@@ -333,7 +342,7 @@ export default function DailyCheckInScreen() {
             </View>
 
             <Text style={[styles.fieldLabel, { color: c.text.primary, marginTop: Spacing.md }]}>
-              How are you coping?
+              How are you managing right now?
             </Text>
             <View style={styles.chipWrap}>
               {(["handled", "manageable", "overwhelmed"] as const).map((r) => {
@@ -367,7 +376,7 @@ export default function DailyCheckInScreen() {
               })}
             </View>
 
-            <Text style={[styles.fieldLabel, { color: c.text.primary }]}>A value showing up today</Text>
+            <Text style={[styles.fieldLabel, { color: c.text.primary }]}>Which of your values felt present today?</Text>
             <View style={styles.chipWrap}>
               {activeValues.map((v) => {
                 const active = valueChosen === v;

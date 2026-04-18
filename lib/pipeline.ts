@@ -3,6 +3,8 @@ import { calculateLBI, type LbiOutput } from "./lbi";
 import { trainIfReady } from "./ml/models";
 import { generatePlan, type GeneratedPlan } from "./plan";
 import { getActiveValues, getDay, getLifeContexts, loadPlan, savePlan, upsertLBI } from "./storage";
+import { getPrimaryGoals } from "./privacy";
+import { sendBalanceDropNow } from "./notifications";
 import type { ISODate } from "./types";
 
 export type DerivedRefreshResult = {
@@ -32,8 +34,11 @@ export async function refreshDerivedForDate(date: ISODate): Promise<DerivedRefre
   });
 
   const baseline = await computeBaseline(7);
-  const values = await getActiveValues();
-  const lifeContexts = await getLifeContexts();
+  const [values, lifeContexts, goals] = await Promise.all([
+    getActiveValues(),
+    getLifeContexts(),
+    getPrimaryGoals(),
+  ]);
   const generated = generatePlan({
     lbi: lbi.lbi,
     baseline,
@@ -43,6 +48,7 @@ export async function refreshDerivedForDate(date: ISODate): Promise<DerivedRefre
     checkIn: day.checkIn ?? null,
     values,
     lifeContexts,
+    goals,
   });
 
   const existing = await loadPlan(date);
@@ -62,6 +68,13 @@ export async function refreshDerivedForDate(date: ISODate): Promise<DerivedRefre
   });
 
   await trainIfReady();
+
+  // Alert if LBI dropped significantly from baseline
+  if (baseline != null && lbi.lbi <= baseline - 15) {
+    sendBalanceDropNow(
+      `Your balance dropped to ${lbi.lbi} — that's ${Math.round(baseline - lbi.lbi)} points below your baseline. Worth checking in.`,
+    ).catch(() => {});
+  }
 
   return { lbi, baseline, plan: generated };
 }

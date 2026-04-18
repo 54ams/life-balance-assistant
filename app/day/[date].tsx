@@ -254,6 +254,45 @@ export default function DayDetailsScreen() {
               <Text style={{ color: c.text.primary, fontWeight: "800", fontSize: 16, marginBottom: Spacing.sm }}>
                 Emotional state
               </Text>
+
+              {/* Affect canvas thumbnail — shows where the user placed themselves */}
+              <View
+                style={{
+                  width: 100,
+                  height: 100,
+                  borderRadius: 12,
+                  backgroundColor: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.03)",
+                  alignSelf: "center",
+                  marginBottom: Spacing.sm,
+                  position: "relative",
+                  borderWidth: 1,
+                  borderColor: c.border.light,
+                }}
+              >
+                {/* Axis labels */}
+                <Text style={{ position: "absolute", top: 2, left: 0, right: 0, textAlign: "center", fontSize: 8, color: c.text.tertiary }}>Activated</Text>
+                <Text style={{ position: "absolute", bottom: 2, left: 0, right: 0, textAlign: "center", fontSize: 8, color: c.text.tertiary }}>Calm</Text>
+                <Text style={{ position: "absolute", left: 4, top: 0, bottom: 0, textAlignVertical: "center", fontSize: 8, color: c.text.tertiary, lineHeight: 100 }}>−</Text>
+                <Text style={{ position: "absolute", right: 4, top: 0, bottom: 0, textAlignVertical: "center", fontSize: 8, color: c.text.tertiary, lineHeight: 100 }}>+</Text>
+                {/* Crosshair */}
+                <View style={{ position: "absolute", left: 50, top: 10, bottom: 10, width: 1, backgroundColor: c.border.light }} />
+                <View style={{ position: "absolute", top: 50, left: 10, right: 10, height: 1, backgroundColor: c.border.light }} />
+                {/* Dot — valence is x (-1..1 → 10..90), arousal is y (1..-1 → 10..90) */}
+                <View
+                  style={{
+                    position: "absolute",
+                    left: 10 + (record.emotion.valence + 1) * 40 - 6,
+                    top: 10 + (1 - record.emotion.arousal) * 40 - 6,
+                    width: 12,
+                    height: 12,
+                    borderRadius: 6,
+                    backgroundColor: c.accent.primary,
+                    borderWidth: 2,
+                    borderColor: c.lime,
+                  }}
+                />
+              </View>
+
               <View style={{ gap: 8 }}>
                 <View style={{ flexDirection: "row", gap: 8 }}>
                   <MetricPill label="Valence" value={record.emotion.valence > 0 ? "Positive" : record.emotion.valence < 0 ? "Negative" : "Neutral"} c={c} isDark={isDark} />

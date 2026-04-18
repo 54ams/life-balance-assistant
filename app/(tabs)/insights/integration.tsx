@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Text, View } from "react-native";
 
 import { Screen } from "@/components/Screen";
-import { GlassCard } from "@/components/ui/glass-card";
+import { GlassCard } from "@/components/ui/GlassCard";
 import { FlipCard } from "@/components/ui/FlipCard";
 import { WorkingPanel } from "@/components/ui/WorkingPanel";
 import { ShowWorkingToggle } from "@/components/ui/ShowWorkingToggle";

@@ -5,7 +5,7 @@ import { Calendar } from "react-native-calendars";
 import type { ISODate } from "@/lib/types";
 import { formatDisplayDate } from "@/lib/date";
 import { Button } from "@/components/ui/button";
-import { GlassCard } from "@/components/ui/glass-card";
+import { GlassCard } from "@/components/ui/GlassCard";
 import { Colors } from "@/constants/Colors";
 import { useColorScheme } from "react-native";
 

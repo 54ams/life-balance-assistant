@@ -56,6 +56,27 @@ function valueAction(value: string, category: PlanCategory): { action: string; r
   return null;
 }
 
+/** Map a user's stated goal to a concrete action */
+function goalAction(goal: string, category: PlanCategory): { action: string; reason: string } | null {
+  const g = goal.toLowerCase();
+  if (category === "RECOVERY") {
+    if (g.includes("sleep")) return { action: "Set your bedroom up for a great night — dark, cool, screens away by 9pm", reason: "Sleep quality is your stated goal, and recovery days are the best time to invest in it." };
+    if (g.includes("stress")) return { action: "Try a 5-minute body scan before bed tonight", reason: "Stress recovery is your goal — gentle wind-down techniques help the most on low days." };
+    if (g.includes("energy")) return { action: "Keep meals regular today — no skipping, even if appetite is low", reason: "Consistent energy starts with consistent fuel, especially on recovery days." };
+    if (g.includes("emotional")) return { action: "Name one emotion you felt strongly today — just notice it", reason: "Emotional awareness grows by practising it on quieter days too." };
+    if (g.includes("physical") || g.includes("activity")) return { action: "Gentle stretching or a short walk — nothing more", reason: "Your physical activity goal is best served by active recovery today." };
+    if (g.includes("eating") || g.includes("mindful")) return { action: "Eat one meal slowly today — no screen, just the food", reason: "Recovery days are perfect for practising mindful eating." };
+  } else {
+    if (g.includes("sleep")) return { action: "Start your wind-down routine 30 minutes earlier tonight", reason: "Protecting sleep on good days builds the habit your goal depends on." };
+    if (g.includes("stress")) return { action: "Take 3 slow breaths between tasks today — reset before the next thing", reason: "Small stress-recovery moments throughout the day compound over time." };
+    if (g.includes("energy")) return { action: "Take a 10-minute walk after lunch to sustain your afternoon energy", reason: "A midday movement break is one of the best energy regulators." };
+    if (g.includes("emotional")) return { action: "Check in with yourself at midday — how are you actually feeling?", reason: "Building emotional awareness means checking in when things are fine, not just when they're not." };
+    if (g.includes("physical") || g.includes("activity")) return { action: "Get at least 20 minutes of purposeful movement today", reason: "Your energy supports physical activity — make the most of it." };
+    if (g.includes("eating") || g.includes("mindful")) return { action: "Prepare one meal from scratch today — connect with what you're eating", reason: "Mindful eating is easiest to practise when you're not depleted." };
+  }
+  return null;
+}
+
 /** Map life contexts to relevant plan tweaks */
 function contextTweak(contexts: string[], category: PlanCategory): { action: string; reason: string } | null {
   if (contexts.includes("Student")) {
@@ -86,8 +107,9 @@ export function generatePlan(input: {
   checkIn: DailyCheckIn | null;
   values?: string[];
   lifeContexts?: string[];
+  goals?: string[];
 }): GeneratedPlan {
-  const { lbi, baseline, classification, wearable, checkIn, confidence, values, lifeContexts } = input;
+  const { lbi, baseline, classification, wearable, checkIn, confidence, values, lifeContexts, goals } = input;
 
   const sc = stressCount(checkIn);
   const lowSleep = wearable.sleepHours < 6.5;
@@ -141,16 +163,29 @@ export function generatePlan(input: {
     }
   }
 
-  // Wire in the user's top value
+  // Wire in user goals — shape actions around what they said matters most
+  if (goals?.length) {
+    for (const goal of goals) {
+      const ga = goalAction(goal, category);
+      if (ga) {
+        actions.push(ga.action);
+        actionReasons.push(ga.reason);
+      }
+    }
+  }
+
+  // Wire in the user's values — rotate through them across days
   if (values?.length) {
-    const va = valueAction(values[0], category);
+    // Use day-of-year to cycle through values so plans feel fresh
+    const dayIndex = Math.floor(Date.now() / 86400000) % values.length;
+    const va = valueAction(values[dayIndex], category);
     if (va) {
       actions.push(va.action);
       actionReasons.push(va.reason);
     }
   }
 
-  // Wire in life context
+  // Wire in all matching life contexts
   if (lifeContexts?.length) {
     const ct = contextTweak(lifeContexts, category);
     if (ct) {

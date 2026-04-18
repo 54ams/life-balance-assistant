@@ -10,7 +10,7 @@ interface StrengthIndicatorProps {
 function strengthLabel(r: number): { text: string; color: string; isDark: string } {
   const abs = Math.abs(r);
   if (abs >= 0.6) return { text: "Strong", color: "#2FA37A", isDark: "#57D6A4" };
-  if (abs >= 0.4) return { text: "Moderate", color: "#D97706", isDark: "#FBBF24" };
+  if (abs >= 0.4) return { text: "Moderate", color: "#C2824A", isDark: "#E0B278" };
   if (abs >= 0.2) return { text: "Weak", color: "#9CA3AF", isDark: "#737373" };
   return { text: "Very weak", color: "#9CA3AF", isDark: "#737373" };
 }

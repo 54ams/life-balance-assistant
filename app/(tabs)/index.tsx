@@ -19,8 +19,8 @@ import { Ribbon7, type RibbonDay } from "@/components/ui/Ribbon7";
 import { RealignCard } from "@/components/ui/RealignCard";
 import { AnchorCard } from "@/components/ui/AnchorCard";
 import { BreathSession } from "@/components/ui/BreathSession";
-import { EmptyState } from "@/components/ui/EmptyState";
 import { GlassCard } from "@/components/ui/GlassCard";
+import { HeatmapCalendar } from "@/components/ui/HeatmapCalendar";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 
 import { Colors, bridgeStateFrom, type BridgeState } from "@/constants/Colors";
@@ -30,8 +30,9 @@ import { getAllDays, getDay, getUserName, listDailyRecords, loadPlan, setPlanAct
 import { todayISO } from "@/lib/util/todayISO";
 import type { DailyRecord, ISODate } from "@/lib/types";
 import { refreshDerivedForDate } from "@/lib/pipeline";
-import { mentalScore, physioScore, narrativeFor } from "@/lib/bridge";
+import { mentalScore, physioScore, narrativeFor, type NarrativeTone } from "@/lib/bridge";
 import { getDemoModeChoice, kioskReset } from "@/lib/demo";
+import { getPreferredTone } from "@/lib/privacy";
 import { realignFor } from "@/lib/realign";
 import { getAnchorsForDate, isDawnWindow, isDuskWindow, listAnchors, type AnchorRecord } from "@/lib/anchors";
 import { getActiveLift } from "@/lib/lift";
@@ -61,8 +62,9 @@ export default function HomeScreen() {
   const [activeLift, setActiveLift] = useState<number>(0);
   const [lbi, setLbi] = useState<LbiOutput | null>(null);
 
-  // Ribbon
+  // Ribbon + heatmap
   const [ribbonDays, setRibbonDays] = useState<RibbonDay[]>([]);
+  const [heatmapData, setHeatmapData] = useState<{ date: string; value: number }[]>([]);
 
   // Anchors
   const [anchorsToday, setAnchorsToday] = useState<AnchorRecord>({ date });
@@ -76,6 +78,7 @@ export default function HomeScreen() {
   const [checkedInToday, setCheckedInToday] = useState(false);
   const [userName, setUserName] = useState("");
   const [isDemoMode, setIsDemoMode] = useState(false);
+  const [tone, setTone] = useState<NarrativeTone>("Gentle");
   const [hasAnyData, setHasAnyData] = useState(true);
   const [breathVisible, setBreathVisible] = useState(false);
   const [rippleKey, setRippleKey] = useState(0);
@@ -202,12 +205,19 @@ export default function HomeScreen() {
           );
           const last7: RibbonDay[] = fillLast7Days(records, anchorDates);
           setRibbonDays(last7);
+
+          // Heatmap — all days with an LBI score
+          const hm = records
+            .filter((r) => typeof r.lbi === "number")
+            .map((r) => ({ date: r.date, value: r.lbi as number }));
+          setHeatmapData(hm);
         }
 
         await refreshAnchors();
         await refreshLift();
 
         setUserName(await getUserName());
+        setTone(await getPreferredTone());
         setIsDemoMode((await getDemoModeChoice()) === "demo");
       } catch (err: any) {
         if (alive) setHasAnyData(false);
@@ -254,7 +264,7 @@ export default function HomeScreen() {
   }, [mentalRaw, activeLift]);
 
   const state: BridgeState = useMemo(() => bridgeStateFrom(physio, mentalForOrb), [physio, mentalForOrb]);
-  const narrative = useMemo(() => narrativeFor(physio, mentalForOrb), [physio, mentalForOrb]);
+  const narrative = useMemo(() => narrativeFor(physio, mentalForOrb, tone), [physio, mentalForOrb, tone]);
   const realign = useMemo(() => realignFor(physio, mentalForOrb), [physio, mentalForOrb]);
 
   // First incomplete action from the plan → "Today's one thing"
@@ -356,18 +366,118 @@ export default function HomeScreen() {
               </Pressable>
             </View>
 
-            <GlassCard style={{ marginTop: Spacing.xl }}>
-              <EmptyState
-                icon="heart.text.square"
-                title="Welcome"
-                description="Start with a short check-in — it's everything you need. If you've got a WHOOP you can connect it later, but nothing here waits on it."
-                actionLabel="Start check-in"
-                onAction={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                  router.push("/checkin" as any);
+            {/* Hero card — first-launch guidance */}
+            <View style={{ marginTop: Spacing.xl, alignItems: "center" }}>
+              <StateOrb physio={null} mental={null} lbi={null} size={160} />
+              <Text
+                style={{
+                  color: c.text.primary,
+                  fontSize: 26,
+                  fontFamily: "CormorantGaramond_500Medium_Italic",
+                  textAlign: "center",
+                  marginTop: Spacing.base,
+                  lineHeight: 32,
                 }}
-              />
-            </GlassCard>
+              >
+                Your balance starts here
+              </Text>
+              <Text
+                style={{
+                  color: c.text.secondary,
+                  fontSize: 14,
+                  textAlign: "center",
+                  marginTop: 6,
+                  lineHeight: 20,
+                  maxWidth: 300,
+                }}
+              >
+                A short check-in is all you need. The orb will reflect how your body and mind are tracking together.
+              </Text>
+            </View>
+
+            {/* CTA */}
+            <Pressable
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                router.push("/checkin" as any);
+              }}
+              style={({ pressed }) => [
+                {
+                  marginTop: Spacing.lg,
+                  backgroundColor: c.accent.primary,
+                  borderRadius: BorderRadius.xl,
+                  paddingVertical: 16,
+                  paddingHorizontal: 24,
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 10,
+                },
+                pressed && { opacity: 0.9, transform: [{ scale: 0.99 }] },
+              ]}
+            >
+              <Text style={{ color: c.lime, fontSize: 16, fontWeight: "900" }}>
+                Start your first check-in
+              </Text>
+              <IconSymbol name="arrow.right" size={16} color={c.lime} />
+            </Pressable>
+
+            {/* Three pillars overview */}
+            <View style={{ marginTop: Spacing.xl, gap: Spacing.sm }}>
+              <Text
+                style={{
+                  color: c.text.tertiary,
+                  fontSize: 10,
+                  fontWeight: "800",
+                  letterSpacing: 1.2,
+                  marginBottom: 4,
+                }}
+              >
+                HOW IT WORKS
+              </Text>
+              {[
+                {
+                  icon: "square.and.pencil" as const,
+                  title: "Check in daily",
+                  desc: "Place yourself on the affect canvas, tag life pressures and resources, add a note if you want.",
+                },
+                {
+                  icon: "heart.fill" as const,
+                  title: "Connect your body",
+                  desc: "Sync a WHOOP band to bring in recovery, sleep, and strain — the physiological side of the bridge.",
+                },
+                {
+                  icon: "chart.line.uptrend.xyaxis" as const,
+                  title: "Watch patterns emerge",
+                  desc: "The app finds relationships between your body and mind over time. No rules — just things to notice.",
+                },
+              ].map((item) => (
+                <GlassCard key={item.title} padding="base">
+                  <View style={{ flexDirection: "row", gap: 14, alignItems: "center" }}>
+                    <View
+                      style={{
+                        width: 40,
+                        height: 40,
+                        borderRadius: 14,
+                        backgroundColor: c.accent.primary + "14",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      <IconSymbol name={item.icon} size={18} color={c.accent.primary} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ color: c.text.primary, fontSize: 15, fontWeight: "800" }}>
+                        {item.title}
+                      </Text>
+                      <Text style={{ color: c.text.secondary, fontSize: 12, marginTop: 2, lineHeight: 17 }}>
+                        {item.desc}
+                      </Text>
+                    </View>
+                  </View>
+                </GlassCard>
+              ))}
+            </View>
           </ScrollView>
         </SafeAreaView>
       </View>
@@ -452,6 +562,18 @@ export default function HomeScreen() {
                 onPress={onOrbPress}
                 onLongPress={onOrbLongPress}
               />
+              <Text
+                style={{
+                  color: c.text.tertiary,
+                  fontSize: 10,
+                  fontWeight: "800",
+                  letterSpacing: 1.4,
+                  marginTop: 10,
+                  textTransform: "uppercase" as const,
+                }}
+              >
+                Mind–Body Balance
+              </Text>
             </View>
 
             {/* 7-day ribbon */}
@@ -460,6 +582,28 @@ export default function HomeScreen() {
                 days={ribbonDays}
                 onPressDay={(d) => router.push(`/day/${d}` as any)}
               />
+            )}
+
+            {/* 8-week heatmap — shows data density at a glance */}
+            {heatmapData.length >= 7 && (
+              <GlassCard style={{ marginTop: Spacing.lg }} padding="base">
+                <Text
+                  style={{
+                    color: c.text.tertiary,
+                    fontSize: 10,
+                    fontWeight: "800",
+                    letterSpacing: 1.2,
+                    marginBottom: 10,
+                  }}
+                >
+                  YOUR LAST 8 WEEKS
+                </Text>
+                <HeatmapCalendar
+                  data={heatmapData}
+                  weeks={8}
+                  onDayPress={(d) => router.push(`/day/${d}` as any)}
+                />
+              </GlassCard>
             )}
 
             {/* Realign — matched micro-intervention when divergent */}
@@ -607,9 +751,10 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.xs,
   },
   greeting: {
-    fontSize: 15,
-    fontWeight: "600",
-    letterSpacing: 0.2,
+    fontSize: 11,
+    fontWeight: "800",
+    letterSpacing: 1.4,
+    textTransform: "uppercase" as const,
   },
   avatar: {
     width: 40,
@@ -633,10 +778,10 @@ const styles = StyleSheet.create({
   },
   narrative: {
     marginTop: Spacing.lg,
-    fontSize: 26,
-    fontWeight: "300",
-    letterSpacing: -0.4,
-    lineHeight: 34,
+    fontSize: 30,
+    fontFamily: "CormorantGaramond_500Medium_Italic",
+    letterSpacing: -0.3,
+    lineHeight: 38,
   },
   eyebrow: {
     fontSize: 10,
@@ -668,7 +813,7 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.full,
   },
   oneThingBtnText: {
-    color: "#fff",
+    color: "#EFE8D9",
     fontWeight: "800",
     fontSize: 13,
     letterSpacing: 0.4,
