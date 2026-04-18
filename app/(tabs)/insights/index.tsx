@@ -19,6 +19,7 @@ import { TabSwipe } from "@/components/TabSwipe";
 import { getDay, listDailyRecords } from "@/lib/storage";
 import { mentalScore, physioScore, narrativeFor } from "@/lib/bridge";
 import { calculateLBI, type LbiOutput } from "@/lib/lbi";
+import { agreementForDay, type AgreementResult } from "@/lib/triangulation";
 import * as Haptics from "expo-haptics";
 
 type InsightCategory = {
@@ -41,6 +42,7 @@ export default function InsightsHome() {
   const [mental, setMental] = useState<number | null>(null);
   const [lbi, setLbi] = useState<LbiOutput | null>(null);
   const [orbFlipped, setOrbFlipped] = useState(false);
+  const [agreement, setAgreement] = useState<AgreementResult | null>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -65,6 +67,9 @@ export default function InsightsHome() {
         } else if (alive) {
           setLbi(null);
         }
+
+        // Triangulation across the four modalities captured so far.
+        if (alive) setAgreement(day ? agreementForDay(day) : null);
       })();
       return () => { alive = false; };
     }, [today])
@@ -146,6 +151,47 @@ export default function InsightsHome() {
                       size={200}
                     />
                   </View>
+                  {agreement && agreement.modalities >= 2 ? (
+                    <View
+                      style={{
+                        marginTop: Spacing.base,
+                        alignSelf: "center",
+                        flexDirection: "row",
+                        alignItems: "center",
+                        gap: 8,
+                        paddingVertical: 6,
+                        paddingHorizontal: 12,
+                        borderRadius: 999,
+                        borderWidth: 1,
+                        borderColor: c.border.light,
+                        backgroundColor: isDark ? "rgba(255,255,255,0.04)" : "rgba(255,255,255,0.55)",
+                      }}
+                    >
+                      <View
+                        style={{
+                          width: 6,
+                          height: 6,
+                          borderRadius: 3,
+                          backgroundColor:
+                            agreement.label === "converging"
+                              ? c.lime
+                              : agreement.label === "mostly agreeing"
+                                ? c.accent.primaryLight
+                                : c.warning,
+                        }}
+                      />
+                      <Text
+                        style={{
+                          color: c.text.secondary,
+                          fontSize: 11,
+                          fontWeight: "800",
+                          letterSpacing: 0.6,
+                        }}
+                      >
+                        {agreement.label.toUpperCase()} · {agreement.modalities}/4 SIGNALS
+                      </Text>
+                    </View>
+                  ) : null}
                   <Text style={{ color: c.text.tertiary, fontSize: 11, marginTop: Spacing.base, textAlign: "center", fontWeight: "600" }}>
                     Tap to show the maths
                   </Text>

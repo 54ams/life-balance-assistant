@@ -19,8 +19,51 @@ export type ContextTag =
   | "acute_stress"
   | "menstrual_cycle";
 
+/**
+ * Life-context tag — the thing the user is actually carrying today.
+ * Taxonomy grounded in Lazarus & Folkman's (1984) transactional model:
+ * "demand" tags are stressors (things asking something of the person),
+ * "resource" tags are supports (things replenishing the person). This
+ * keeps the check-in short while letting downstream code compute
+ * appraisal-style balance rather than just an aggregate negative score.
+ *
+ * `kind` is carried alongside the id so new tags can be added without
+ * a schema migration. Keep `id` snake_case and stable — it persists.
+ */
+export type LifeContextTag = {
+  id: string;
+  kind: "demand" | "resource";
+  /** Optional free-text specifier the user typed (e.g. "viva" for exam). */
+  detail?: string;
+};
+
+/**
+ * Post-save accuracy signal. Users can tap "yes / not really" after
+ * saving a check-in — feeds the reliability story for the dissertation
+ * and gently calibrates future suggestions.
+ */
+export type ReliabilitySignal = {
+  feelsAccurate: boolean;
+  at: string; // ISO datetime of the tap
+};
+
 export type DailyCheckIn = {
-  // Core scales (1–5)
+  // --- Canvas-based capture (Russell 1980 circumplex) ------------
+  // `valence` and `arousal` are the primary capture on the redesigned
+  // check-in screen. Legacy 1–5 fields below are derived from these
+  // for back-compat with LBI + history views.
+  valence?: number; // -1..1 unpleasant → pleasant
+  arousal?: number; // -1..1 calm → activated
+
+  // --- Life context ---------------------------------------------
+  // Replaces free-text context with a short structured list. At most
+  // ~4 tags surfaced in UI, but the type allows more for future use.
+  lifeContext?: LifeContextTag[];
+
+  // --- Legacy 1–5 scales ----------------------------------------
+  // Preserved so historical records keep rendering and LBI keeps
+  // working. New check-ins populate these by DERIVING from valence,
+  // arousal, and the life-context balance (see lib/derive.ts).
   mood: 1 | 2 | 3 | 4 | 5;
   energy: 1 | 2 | 3 | 4 | 5;
   stressLevel: 1 | 2 | 3 | 4 | 5;
@@ -38,6 +81,9 @@ export type DailyCheckIn = {
 
   contextTags?: ContextTag[];
   notes?: string;
+
+  // --- Reliability micro-signal ---------------------------------
+  reliability?: ReliabilitySignal;
 };
 
 export type WearableMetrics = {

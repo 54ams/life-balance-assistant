@@ -1,18 +1,15 @@
 // constants/Colors.ts
 //
-// Nocturnal aurora palette, dark-first.
+// "Rival"-inspired palette — cream canvas, deep forest ink, lime accent.
+// Serif italic display over warm off-white. Dark mode inverts to deep
+// forest with cream text.
 //
-// The app has three *state* gradients driven by the Mind–Body bridge:
+// State gradients (Mind–Body bridge) kept but retuned so they live
+// comfortably on cream: sage for aligned, warm terracotta for body,
+// muted teal for mind, soft olive-violet for neutral.
 //
-//   - aligned  → soft violet / periwinkle  (body + mind in step)
-//   - body     → warm amber / rust          (body ahead — regulate down)
-//   - mind     → cool teal / pale jade      (mind ahead — come into body)
-//   - neutral  → deep indigo / violet       (no strong signal yet)
-//
-// The State Orb, the AuroraBackground, and any future "ripple" effects
-// derive their colours from `Colors.state[<stateKey>]`. Categorical
-// green/purple dichotomies are avoided — the UI itself blends to reflect
-// the user's current state.
+// Every palette key from the previous file is preserved so the rest of
+// the app keeps compiling — only the hex values change.
 
 export type BridgeState = "aligned" | "body" | "mind" | "neutral";
 
@@ -25,119 +22,121 @@ type StateGradient = {
 
 const stateGradients: Record<BridgeState, StateGradient> = {
   aligned: {
-    start: "#9B8FD6",
-    end: "#B7AEE3",
-    accent: "#9B8FD6",
-    glow: "rgba(155, 143, 214, 0.45)",
+    start: "#9CB08A",
+    end: "#C2D0A8",
+    accent: "#8FA672",
+    glow: "rgba(156, 176, 138, 0.42)",
   },
   body: {
-    start: "#E8A87C",
-    end: "#C38D6E",
-    accent: "#D99575",
-    glow: "rgba(232, 168, 124, 0.40)",
+    start: "#C88A6B",
+    end: "#D9A988",
+    accent: "#B87C5E",
+    glow: "rgba(200, 138, 107, 0.40)",
   },
   mind: {
-    start: "#7FC5B8",
-    end: "#A8D0C4",
-    accent: "#8ECCBF",
-    glow: "rgba(127, 197, 184, 0.40)",
+    start: "#7AA49B",
+    end: "#A4BFB5",
+    accent: "#6F9A90",
+    glow: "rgba(122, 164, 155, 0.38)",
   },
   neutral: {
-    start: "#6B5DD3",
-    end: "#9B8FD6",
-    accent: "#7C6FDC",
-    glow: "rgba(108, 99, 214, 0.35)",
+    start: "#7A8470",
+    end: "#A4AD96",
+    accent: "#8A947E",
+    glow: "rgba(138, 148, 126, 0.32)",
   },
 };
 
 export const Colors = {
   light: {
-    // Backgrounds — soft graphite with a subtle violet tint
-    background: "#EFECF7",
-    backgroundSecondary: "#F5F3FA",
-    backgroundTertiary: "#FFFFFF",
+    // Canvas — warm cream, the "paper" of the app
+    background: "#EFE8D9",
+    backgroundSecondary: "#F4EFE2",
+    backgroundTertiary: "#F9F5EA",
 
-    // Glass morphism — lower opacity, no hard borders, feels like mist
+    // Glass morphism on cream — barely visible, warm white
     glass: {
-      primary: "rgba(255, 255, 255, 0.58)",
-      secondary: "rgba(255, 255, 255, 0.42)",
-      elevated: "rgba(255, 255, 255, 0.82)",
-      border: "rgba(255, 255, 255, 0.70)",
+      primary: "rgba(255, 252, 244, 0.62)",
+      secondary: "rgba(255, 252, 244, 0.42)",
+      elevated: "rgba(255, 252, 244, 0.88)",
+      border: "rgba(44, 54, 42, 0.10)",
     },
 
-    // Accent colors
+    // Accent — lime chartreuse for primary action, forest for emphasis
     accent: {
-      primary: "#6B5DD3",
-      primaryLight: "#8479DD",
-      primaryDark: "#5A4EC0",
+      primary: "#2C362A",
+      primaryLight: "#4A5648",
+      primaryDark: "#1B241A",
     },
 
-    // Text
+    // Lime highlight — used for buttons, active states, "action" moments
+    lime: "#C7E86A",
+    limeMuted: "#B8D95C",
+    limeDark: "#8FA83C",
+
+    // Text — warm charcoal on cream
     text: {
-      primary: "#1A1D28",
-      secondary: "#50556B",
-      tertiary: "#8B8FA3",
-      inverse: "#FFFFFF",
+      primary: "#2C362A",
+      secondary: "#5E6858",
+      tertiary: "#8A9086",
+      inverse: "#EFE8D9",
     },
 
-    // Borders — softer, nearly invisible unless needed
+    // Borders — barely-there forest tint
     border: {
-      light: "rgba(26, 29, 40, 0.05)",
-      medium: "rgba(26, 29, 40, 0.08)",
-      heavy: "rgba(26, 29, 40, 0.13)",
+      light: "rgba(44, 54, 42, 0.06)",
+      medium: "rgba(44, 54, 42, 0.10)",
+      heavy: "rgba(44, 54, 42, 0.16)",
     },
 
-    // Status
-    danger: "#D64550",
-    success: "#2FA37A",
-    warning: "#D97706",
+    // Status — tuned to the cream world
+    danger: "#B2423A",
+    success: "#5B7A3E",
+    warning: "#C2824A",
 
-    // Shared state gradients (same palette light + dark, just the base shifts)
     state: stateGradients,
   },
 
   dark: {
-    // Backgrounds — deep ink with a blue undertone
-    background: "#0A0E1A",
-    backgroundSecondary: "#141826",
-    backgroundTertiary: "#1A1F30",
+    // Deep forest, the "night" of the app
+    background: "#1B241A",
+    backgroundSecondary: "#222D20",
+    backgroundTertiary: "#2C362A",
 
-    // Glass morphism — soft, nearly borderless
     glass: {
-      primary: "rgba(255, 255, 255, 0.045)",
-      secondary: "rgba(255, 255, 255, 0.03)",
-      elevated: "rgba(26, 31, 48, 0.75)",
-      border: "rgba(255, 255, 255, 0.08)",
+      primary: "rgba(239, 232, 217, 0.06)",
+      secondary: "rgba(239, 232, 217, 0.04)",
+      elevated: "rgba(44, 54, 42, 0.82)",
+      border: "rgba(239, 232, 217, 0.10)",
     },
 
-    // Accent colors — aligned violet
     accent: {
-      primary: "#9B8FD6",
-      primaryLight: "#B7AEE3",
-      primaryDark: "#7C6FDC",
+      primary: "#EFE8D9",
+      primaryLight: "#F4EFE2",
+      primaryDark: "#D9D2C2",
     },
 
-    // Text — soft off-white, never pure white
+    lime: "#C7E86A",
+    limeMuted: "#A8C854",
+    limeDark: "#8FA83C",
+
     text: {
-      primary: "#EDEFF7",
-      secondary: "#A1A6BD",
-      tertiary: "#6B708A",
-      inverse: "#0A0E1A",
+      primary: "#EFE8D9",
+      secondary: "#BFB8A8",
+      tertiary: "#8A8578",
+      inverse: "#1B241A",
     },
 
-    // Borders — barely-there
     border: {
-      light: "rgba(255, 255, 255, 0.05)",
-      medium: "rgba(255, 255, 255, 0.08)",
-      heavy: "rgba(255, 255, 255, 0.12)",
+      light: "rgba(239, 232, 217, 0.06)",
+      medium: "rgba(239, 232, 217, 0.10)",
+      heavy: "rgba(239, 232, 217, 0.16)",
     },
 
-    // Status
-    danger: "#FF7A86",
-    success: "#8ECCBF",
-    warning: "#F4C07A",
+    danger: "#E08078",
+    success: "#A8C872",
+    warning: "#E0B278",
 
-    // Shared state gradients
     state: stateGradients,
   },
 };

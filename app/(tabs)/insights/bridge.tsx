@@ -14,8 +14,15 @@ import { sliceRecordsUpTo } from "@/lib/range";
 import { buildAnalyticsSummary } from "@/lib/analytics";
 import { todayISO } from "@/lib/util/todayISO";
 import { mentalScore, physioScore } from "@/lib/bridge";
+import { cognitiveLoadScore } from "@/lib/derive";
+import { agreementForDay } from "@/lib/triangulation";
 
-type BridgePoint = { date: ISODate; physio: number | null; mental: number | null };
+type BridgePoint = {
+  date: ISODate;
+  physio: number | null;
+  mental: number | null;
+  load: number | null;
+};
 
 function buildPoints(days: DailyRecord[]): BridgePoint[] {
   const sorted = [...days].sort((a, b) => (a.date < b.date ? -1 : 1));
@@ -23,6 +30,7 @@ function buildPoints(days: DailyRecord[]): BridgePoint[] {
     date: d.date,
     physio: physioScore(d),
     mental: mentalScore(d),
+    load: cognitiveLoadScore(d),
   }));
 }
 
@@ -34,11 +42,13 @@ function DualTrackChart({
   points,
   physioColor,
   mentalColor,
+  loadColor,
   height = 140,
 }: {
   points: BridgePoint[];
   physioColor: string;
   mentalColor: string;
+  loadColor: string;
   height?: number;
 }) {
   const scheme = useColorScheme();
@@ -70,10 +80,14 @@ function DualTrackChart({
         />
       ))}
 
-      {/* Tracks rendered as dots + connectors */}
+      {/* Tracks rendered as dots + connectors. Cognitive load sits
+          alongside body + mind — per Thayer & Lane (2000), prefrontal
+          load often leads physiological response, so showing the
+          third line makes lag visible. */}
       {[
         { key: "physio", color: physioColor, get: (p: BridgePoint) => p.physio },
         { key: "mental", color: mentalColor, get: (p: BridgePoint) => p.mental },
+        { key: "load", color: loadColor, get: (p: BridgePoint) => p.load },
       ].map((track) => (
         <View key={track.key} style={{ position: "absolute", left: 0, right: 0, top: 0, bottom: 0 }}>
           {points.map((p, i) => {
@@ -136,6 +150,9 @@ export default function BridgeScreen() {
 
   const physioColor = isDark ? "#57D6A4" : "#2FA37A";
   const mentalColor = isDark ? "#8B7FE8" : "#6B5DD3";
+  // Load track uses the terracotta from the body-state gradient — it
+  // reads as "the work your mind is doing", distinct from mood.
+  const loadColor = isDark ? "#E0A088" : "#B87C5E";
 
   const [days, setDays] = useState<DailyRecord[]>([]);
 
@@ -181,6 +198,17 @@ export default function BridgeScreen() {
   }, [bestLag]);
 
   const haveData = points.some((p) => p.physio != null) && points.some((p) => p.mental != null);
+  const haveLoad = points.some((p) => p.load != null);
+
+  // Today's triangulation across the four modalities.
+  const todayRecord = useMemo(
+    () => windowed.find((d) => d.date === todayISO()) ?? windowed[windowed.length - 1] ?? null,
+    [windowed],
+  );
+  const agreement = useMemo(
+    () => (todayRecord ? agreementForDay(todayRecord) : null),
+    [todayRecord],
+  );
 
   return (
     <Screen title="Mind–Body Bridge" subtitle="How your body and mind track together">
@@ -202,16 +230,61 @@ export default function BridgeScreen() {
                 14-day bridge
               </Text>
               <Text style={{ color: c.text.secondary, fontSize: 13, marginTop: 4, marginBottom: 12 }}>
-                Green = physiological (recovery). Purple = mental (mood, energy, stress indicators).
+                Body (recovery), Mind (mood, energy, stress indicators), and
+                Cognitive load (what your day was demanding) — watch how they
+                lead or lag each other.
               </Text>
 
-              <DualTrackChart points={points} physioColor={physioColor} mentalColor={mentalColor} />
+              <DualTrackChart
+                points={points}
+                physioColor={physioColor}
+                mentalColor={mentalColor}
+                loadColor={loadColor}
+              />
 
-              <View style={{ flexDirection: "row", gap: 16, marginTop: 10 }}>
+              <View style={{ flexDirection: "row", gap: 16, marginTop: 10, flexWrap: "wrap" }}>
                 <LegendDot color={physioColor} label="Body" />
                 <LegendDot color={mentalColor} label="Mind" />
+                {haveLoad ? <LegendDot color={loadColor} label="Cognitive load" /> : null}
               </View>
             </GlassCard>
+
+            {agreement && agreement.modalities >= 2 ? (
+              <GlassCard padding="base">
+                <Text style={{ color: c.text.primary, fontWeight: "800", fontSize: 17 }}>
+                  How much the signals agree
+                </Text>
+                <Text style={{ color: c.text.secondary, fontSize: 13, marginTop: 4, lineHeight: 18 }}>
+                  {agreement.label === "converging"
+                    ? "All the ways you logged today tell the same story."
+                    : agreement.label === "mostly agreeing"
+                      ? "Mostly pointing the same way, with a little variation."
+                      : "The signals are telling different stories — worth a second look at the working."}
+                </Text>
+                <View
+                  style={{
+                    marginTop: 10,
+                    height: 6,
+                    borderRadius: 3,
+                    backgroundColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)",
+                    overflow: "hidden",
+                  }}
+                >
+                  <View
+                    style={{
+                      width: `${Math.round(agreement.score * 100)}%`,
+                      height: "100%",
+                      backgroundColor: c.lime,
+                    }}
+                  />
+                </View>
+                <Text style={{ color: c.text.tertiary, fontSize: 11, marginTop: 6 }}>
+                  Agreement {Math.round(agreement.score * 100)} / 100 across{" "}
+                  {agreement.modalities} source{agreement.modalities > 1 ? "s" : ""}:{" "}
+                  {Object.keys(agreement.components).join(", ")}.
+                </Text>
+              </GlassCard>
+            ) : null}
 
             <GlassCard padding="base">
               <Text style={{ color: c.text.primary, fontWeight: "800", fontSize: 17 }}>

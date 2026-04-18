@@ -16,6 +16,8 @@
     "test:unit": "node --no-warnings --import tsx tests/errors.test.ts && node --no-warnings --import tsx tests/privacy.test.ts && node --no-warnings --import tsx tests/retention.test.ts && node --no-warnings --import tsx tests/whoop-normalize.test.ts && node --no-warnings --import tsx tests/baseline.test.ts && node --no-warnings --import tsx tests/analytics.test.ts && node --no-warnings --import tsx tests/ml-eval.test.ts && node --no-warnings --import tsx tests/plan.test.ts && node --no-warnings --import tsx tests/report.test.ts && node --no-warnings --import tsx tests/transparency.test.ts && node --no-warnings --import tsx tests/counterfactual.test.ts && node --no-warnings --import tsx tests/viva-smoke.test.ts"
   },
   "dependencies": {
+    "@expo-google-fonts/cormorant-garamond": "^0.4.1",
+    "@expo-google-fonts/inter": "^0.4.2",
     "@expo/vector-icons": "^15.0.3",
     "@react-native-async-storage/async-storage": "2.2.0",
     "@react-navigation/bottom-tabs": "^7.4.0",
@@ -56,8 +58,8 @@
     "babel-plugin-module-resolver": "^5.0.2",
     "eslint": "^9.25.0",
     "eslint-config-expo": "~10.0.0",
-    "typescript": "~5.9.2",
-    "tsx": "^4.21.0"
+    "tsx": "^4.21.0",
+    "typescript": "~5.9.2"
   },
   "private": true
 }
