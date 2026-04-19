@@ -24,7 +24,7 @@ const DATA_DIR = path.resolve(process.cwd(), ".data");
 const TOKENS_PATH = path.join(DATA_DIR, "whoopTokens.json");
 const CACHE_PATH = path.join(DATA_DIR, "whoopDayCache.json");
 const WHOOP_TOKEN_URL = "https://api.prod.whoop.com/oauth/oauth2/token";
-const WHOOP_CYCLES_URL = "https://api.prod.whoop.com/developer/v1/cycles";
+const WHOOP_API_BASE = "https://api.prod.whoop.com/developer/v1";
 const REQUEST_TIMEOUT_MS = 12_000;
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 const SESSION_TTL_MS = 14 * 24 * 60 * 60 * 1000;
@@ -225,6 +225,19 @@ async function persistCacheToDisk() {
 
 loadCacheFromDisk();
 
+async function whoopGet(accessToken: string, path: string): Promise<any> {
+  const res = await fetchWithTimeout(`${WHOOP_API_BASE}${path}`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!res.ok) {
+    const errBody = await res.text().catch(() => "");
+    console.error(`WHOOP API error ${res.status} ${path}:`, errBody);
+    if (res.status === 401) throw Object.assign(new Error("unauthorized"), { statusCode: 401 });
+    throw new Error(`WHOOP API error ${res.status}: ${errBody.slice(0, 200)}`);
+  }
+  return res.json();
+}
+
 export async function getWhoopDay(sessionId: string, date: string, clientId: string, clientSecret: string): Promise<WearableDay | null> {
   const key = cacheKey(sessionId, date);
   const cached = dayCache.get(key);
@@ -240,27 +253,45 @@ export async function getWhoopDay(sessionId: string, date: string, clientId: str
   }
   if (!record) throw new Error("Token missing after refresh");
 
-  const start = `${date}T00:00:00Z`;
-  const end = `${date}T23:59:59Z`;
-  const url = `${WHOOP_CYCLES_URL}?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`;
-  const res = await fetchWithTimeout(url, {
-    headers: { Authorization: `Bearer ${record.accessToken}` },
-  });
-  if (!res.ok) {
-    if (res.status === 401) {
+  try {
+    const start = `${date}T00:00:00Z`;
+    const end = `${date}T23:59:59Z`;
+    const qs = `?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`;
+
+    // Fetch cycle, recovery, and sleep in parallel
+    const [cycleJson, recoveryJson, sleepJson] = await Promise.all([
+      whoopGet(record.accessToken, `/cycle${qs}`),
+      whoopGet(record.accessToken, `/recovery${qs}`),
+      whoopGet(record.accessToken, `/activity/sleep${qs}`),
+    ]);
+
+    const cycle = Array.isArray(cycleJson?.records) ? cycleJson.records[0] : null;
+    const recovery = Array.isArray(recoveryJson?.records) ? recoveryJson.records[0] : null;
+    const sleep = Array.isArray(sleepJson?.records) ? sleepJson.records[0] : null;
+
+    const recoveryScore = recovery?.score?.recovery_score ?? null;
+    const sleepMs = sleep?.score?.total_sleep_duration ?? sleep?.score?.stage_summary?.total_in_bed_time_milli ?? null;
+    const sleepHours = sleepMs != null ? Math.round((sleepMs / 3_600_000) * 10) / 10 : null;
+    const strain = cycle?.score?.strain ?? null;
+
+    if (recoveryScore == null && sleepHours == null && strain == null) return null;
+
+    const wearable: WearableDay = {
+      recovery: recoveryScore != null ? Math.max(0, Math.min(100, Math.round(recoveryScore))) : null,
+      sleepHours,
+      strain: strain != null ? Number(strain) : null,
+      source: "WHOOP",
+      syncedAt: new Date().toISOString(),
+    };
+
+    dayCache.set(key, { data: wearable, cachedAt: Date.now() });
+    await persistCacheToDisk();
+    return wearable;
+  } catch (err: any) {
+    if (err?.statusCode === 401) {
       await refreshToken(sessionId, clientId, clientSecret);
       return getWhoopDay(sessionId, date, clientId, clientSecret);
     }
-    const errBody = await res.text().catch(() => "");
-    console.error(`WHOOP API error ${res.status}:`, errBody);
-    throw new Error(`WHOOP API error ${res.status}: ${errBody.slice(0, 200)}`);
+    throw err;
   }
-  const json = (await res.json()) as any;
-  const cycle = Array.isArray(json?.records) ? json.records[0] : Array.isArray(json?.data) ? json.data[0] : json;
-  const wearable = normalizeCycleToWearable(cycle);
-  if (wearable) {
-    dayCache.set(key, { data: wearable, cachedAt: Date.now() });
-    await persistCacheToDisk();
-  }
-  return wearable;
 }
