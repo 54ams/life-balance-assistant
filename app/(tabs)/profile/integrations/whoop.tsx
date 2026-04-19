@@ -112,9 +112,15 @@ export default function WhoopScreen() {
     }
 
     const params = new URL(result.url).searchParams;
+    const error = params.get("error");
+    if (error) {
+      const desc = params.get("error_description") || error;
+      Alert.alert("WHOOP", `Auth error: ${desc}`);
+      return;
+    }
     const code = params.get("code");
     if (!code) {
-      Alert.alert("WHOOP", "No authorization code received.");
+      Alert.alert("WHOOP", `No authorization code received.\n\nRedirect: ${result.url}`);
       return;
     }
 
