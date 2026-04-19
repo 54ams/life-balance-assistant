@@ -103,8 +103,6 @@ export async function upsertEmotion(entry: EmotionalDiaryEntry) {
   });
 }
 
-export const saveEmotion = upsertEmotion;
-
 export async function getEmotion(date: ISODate): Promise<EmotionalDiaryEntry | null> {
   const store = await loadStore();
   return store[date]?.emotion ?? null;

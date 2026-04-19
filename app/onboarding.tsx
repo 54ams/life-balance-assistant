@@ -19,8 +19,9 @@ import {
   type PrimaryGoal,
   type SleepWindow,
 } from "@/lib/privacy";
-import { saveActiveValues, saveLifeContexts } from "@/lib/storage";
+import { saveActiveValues, saveLifeContexts, saveUserName } from "@/lib/storage";
 import { defaultValuesSet } from "@/lib/emotion";
+import { TextInput } from "react-native";
 
 const VERSION = "2026-04-16";
 
@@ -76,6 +77,7 @@ export default function OnboardingScreen() {
   const [goals, setGoals] = useState<PrimaryGoal[]>([]);
   const [tone, setTone] = useState<PreferredTone>("Gentle");
   const [sleepWindow, setSleepWin] = useState<SleepWindow | null>(null);
+  const [userName, setUserName] = useState("");
   const [flags, setFlags] = useState<ConsentFlags>(INITIAL_FLAGS);
   const fadeAnim = useRef(new Animated.Value(1)).current;
 
@@ -134,6 +136,7 @@ export default function OnboardingScreen() {
       Alert.alert("Consent required", "You must accept all items to continue.");
       return;
     }
+    if (userName.trim()) await saveUserName(userName.trim());
     await saveActiveValues(selectedValues);
     await saveLifeContexts(selectedContexts);
     await setPrimaryGoals(goals);
@@ -170,7 +173,7 @@ export default function OnboardingScreen() {
       </Text>
 
       <Animated.View style={{ opacity: fadeAnim }}>
-        {step === 0 && <WelcomeStep c={c} />}
+        {step === 0 && <WelcomeStep c={c} userName={userName} setUserName={setUserName} />}
         {step === 1 && (
           <ValuesStep c={c} selected={selectedValues} toggle={toggleValue} />
         )}
@@ -213,7 +216,7 @@ export default function OnboardingScreen() {
 
 /* --- Step Components --- */
 
-function WelcomeStep({ c }: { c: typeof Colors.light }) {
+function WelcomeStep({ c, userName, setUserName }: { c: typeof Colors.light; userName: string; setUserName: (n: string) => void }) {
   return (
     <>
       <Text style={[styles.h1, { color: c.accent.primary }]}>Life Balance{"\n"}Assistant</Text>
@@ -222,6 +225,30 @@ function WelcomeStep({ c }: { c: typeof Colors.light }) {
       </Text>
 
       <GlassCard style={{ marginTop: 20 }}>
+        <Text style={[styles.cardTitle, { color: c.text.primary }]}>What should we call you?</Text>
+        <Text style={[styles.hint, { color: c.text.secondary }]}>Optional — just for your greeting. Stays on this device.</Text>
+        <TextInput
+          value={userName}
+          onChangeText={setUserName}
+          placeholder="e.g. Ami"
+          placeholderTextColor={c.text.tertiary}
+          style={{
+            marginTop: 10,
+            padding: 14,
+            borderRadius: BorderRadius.lg,
+            borderWidth: 1.5,
+            borderColor: c.border.medium,
+            color: c.text.primary,
+            fontSize: 16,
+            fontWeight: "600",
+          }}
+          maxLength={30}
+          autoCapitalize="words"
+          returnKeyType="done"
+        />
+      </GlassCard>
+
+      <GlassCard style={{ marginTop: 12 }}>
         <Text style={[styles.cardTitle, { color: c.text.primary }]}>How it works</Text>
         <View style={{ gap: 12, marginTop: 12 }}>
           <StepItem num="1" text="Take a short daily check-in — a minute or two" c={c} />
@@ -233,7 +260,7 @@ function WelcomeStep({ c }: { c: typeof Colors.light }) {
       <GlassCard style={{ marginTop: 12 }}>
         <Text style={[styles.cardTitle, { color: c.text.primary }]}>Your privacy, up front</Text>
         <Text style={[styles.body, { color: c.text.secondary, marginTop: 8 }]}>
-          LBA never asks for your name, email, phone, address, or anything that identifies you. All data stays on this device. You can export or delete it at any time.
+          All data stays on this device. You can export or delete it at any time. Your name above is optional and never leaves your phone.
         </Text>
       </GlassCard>
     </>

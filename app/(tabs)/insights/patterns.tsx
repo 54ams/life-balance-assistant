@@ -59,7 +59,7 @@ export default function PatternsScreen() {
 
   return (
     <Screen scroll>
-      <Stack.Screen options={{ title: "Patterns", headerShown: false }} />
+      <Stack.Screen options={{ title: "Patterns", headerShown: false, gestureEnabled: true }} />
 
       <Text style={{ fontSize: 26, fontWeight: "800", color: c.text.primary }}>
         Patterns

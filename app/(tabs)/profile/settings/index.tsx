@@ -12,6 +12,7 @@ import { useColorScheme } from "react-native";
 type SettingsItem = { title: string; subtitle: string; icon: string; route: string };
 
 const YOUR_APP: SettingsItem[] = [
+  { title: "Edit profile", subtitle: "Name, values, goals, and preferences", icon: "person.fill", route: "/profile/settings/edit-profile" },
   { title: "Reminders", subtitle: "A gentle nudge for your daily check-in", icon: "bell.fill", route: "/profile/settings/notifications" },
   { title: "Reflection tone", subtitle: "Gentle, direct, or a bit playful", icon: "text.quote", route: "/profile/settings/reflection" },
   { title: "What matters to you", subtitle: "Pick the values that guide your week", icon: "heart.fill", route: "/profile/settings/values" },

@@ -1,7 +1,7 @@
-import { Stack } from "expo-router";
+import { Stack, router } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useFocusEffect } from "expo-router";
-import { Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 
 import { Screen } from "@/components/Screen";
 import { GlassCard } from "@/components/ui/GlassCard";
@@ -99,7 +99,7 @@ export default function CorrelationsScreen() {
 
   return (
     <Screen title="Correlations" subtitle="How your signals relate to each other">
-      <Stack.Screen options={{ headerShown: false }} />
+      <Stack.Screen options={{ headerShown: false, gestureEnabled: true }} />
 
       <View style={{ gap: 12 }}>
         <InsightsDatePicker
@@ -177,8 +177,8 @@ export default function CorrelationsScreen() {
                           `${prettyVar(x.a)} across ${x.n ?? "—"} days`,
                           `${prettyVar(x.b)} across the same days`,
                         ]}
-                        method={`Spearman rank correlation, with a bootstrap to estimate a likely range.`}
-                        result={`Strength ${strength} (between −1 and +1) · likely range ${ciLower} to ${ciUpper}`}
+                        method={`We look at how your daily numbers move together over time. Stronger links mean they tend to go up and down in sync. We checked this pattern multiple times to be sure.`}
+                        result={`${correlationToHuman(x.a, x.b, x.r ?? 0)} · usually between ${ciLower} and ${ciUpper}`}
                         footnote={`${reliability}${lagNote}`}
                       />
                     }
@@ -195,6 +195,13 @@ export default function CorrelationsScreen() {
             </View>
           </>
         )}
+
+        <Pressable onPress={() => router.push("/insights/weekly" as any)} style={({ pressed }) => [{ marginTop: Spacing.md, flexDirection: "row", alignItems: "center", gap: 8 }, pressed && { opacity: 0.6 }]}>
+          <Text style={{ color: c.accent.primary, fontWeight: "700", fontSize: 14 }}>See your weekly patterns →</Text>
+        </Pressable>
+        <Pressable onPress={() => router.push("/insights/risk" as any)} style={({ pressed }) => [{ marginTop: Spacing.md, flexDirection: "row", alignItems: "center", gap: 8 }, pressed && { opacity: 0.6 }]}>
+          <Text style={{ color: c.accent.primary, fontWeight: "700", fontSize: 14 }}>Check tomorrow's outlook →</Text>
+        </Pressable>
       </View>
     </Screen>
   );

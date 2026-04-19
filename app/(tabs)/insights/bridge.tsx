@@ -1,6 +1,6 @@
-import { Stack, useFocusEffect } from "expo-router";
+import { Stack, router, useFocusEffect } from "expo-router";
 import React, { useCallback, useMemo, useState } from "react";
-import { Text, View, useColorScheme } from "react-native";
+import { Pressable, Text, View, useColorScheme } from "react-native";
 
 import { Screen } from "@/components/Screen";
 import { GlassCard } from "@/components/ui/GlassCard";
@@ -56,7 +56,14 @@ function DualTrackChart({
   const axisColor = isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)";
 
   const n = points.length;
-  if (n < 2) return null;
+  if (n < 2)
+    return (
+      <View style={{ height, alignItems: "center", justifyContent: "center" }}>
+        <Text style={{ color: isDark ? "rgba(255,255,255,0.4)" : "rgba(0,0,0,0.3)", fontSize: 13 }}>
+          Need at least 2 days of data to show the chart.
+        </Text>
+      </View>
+    );
 
   const yOf = (v: number | null) => {
     if (v == null) return null;
@@ -155,6 +162,7 @@ export default function BridgeScreen() {
   const loadColor = isDark ? "#E0A088" : "#B87C5E";
 
   const [days, setDays] = useState<DailyRecord[]>([]);
+  const [expanded, setExpanded] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -212,7 +220,7 @@ export default function BridgeScreen() {
 
   return (
     <Screen title="Mind–Body Bridge" subtitle="How your body and mind track together">
-      <Stack.Screen options={{ headerShown: false }} />
+      <Stack.Screen options={{ headerShown: false, gestureEnabled: true }} />
 
       <View style={{ gap: 12 }}>
         {!haveData ? (
@@ -225,29 +233,37 @@ export default function BridgeScreen() {
           </GlassCard>
         ) : (
           <>
-            <GlassCard padding="base">
-              <Text style={{ color: c.text.primary, fontWeight: "800", fontSize: 17 }}>
-                14-day bridge
-              </Text>
-              <Text style={{ color: c.text.secondary, fontSize: 13, marginTop: 4, marginBottom: 12 }}>
-                Body (recovery), Mind (mood, energy, stress indicators), and
-                Cognitive load (what your day was demanding) — watch how they
-                lead or lag each other.
-              </Text>
+            <Pressable onPress={() => setExpanded((v) => !v)} accessibilityRole="button" accessibilityLabel={expanded ? "Collapse chart" : "Expand chart"}>
+              <GlassCard padding="base">
+                <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+                  <Text style={{ color: c.text.primary, fontWeight: "800", fontSize: 17 }}>
+                    14-day bridge
+                  </Text>
+                  <Text style={{ color: c.text.tertiary, fontSize: 12 }}>
+                    {expanded ? "Tap to collapse ↑" : "Tap to expand ↓"}
+                  </Text>
+                </View>
+                <Text style={{ color: c.text.secondary, fontSize: 13, marginTop: 4, marginBottom: 12 }}>
+                  Body (recovery), Mind (mood, energy, stress indicators), and
+                  Cognitive load (what your day was demanding) — watch how they
+                  lead or lag each other.
+                </Text>
 
-              <DualTrackChart
-                points={points}
-                physioColor={physioColor}
-                mentalColor={mentalColor}
-                loadColor={loadColor}
-              />
+                <DualTrackChart
+                  points={points}
+                  physioColor={physioColor}
+                  mentalColor={mentalColor}
+                  loadColor={loadColor}
+                  height={expanded ? 280 : 140}
+                />
 
-              <View style={{ flexDirection: "row", gap: 16, marginTop: 10, flexWrap: "wrap" }}>
-                <LegendDot color={physioColor} label="Body" />
-                <LegendDot color={mentalColor} label="Mind" />
-                {haveLoad ? <LegendDot color={loadColor} label="Cognitive load" /> : null}
-              </View>
-            </GlassCard>
+                <View style={{ flexDirection: "row", gap: 16, marginTop: 10, flexWrap: "wrap" }}>
+                  <LegendDot color={physioColor} label="Body" />
+                  <LegendDot color={mentalColor} label="Mind" />
+                  {haveLoad ? <LegendDot color={loadColor} label="Cognitive load" /> : null}
+                </View>
+              </GlassCard>
+            </Pressable>
 
             {agreement && agreement.modalities >= 2 ? (
               <GlassCard padding="base">
@@ -324,6 +340,13 @@ export default function BridgeScreen() {
             </View>
           </>
         )}
+
+        <Pressable onPress={() => router.push("/checkin/grounding" as any)} style={({ pressed }) => [{ marginTop: Spacing.md, flexDirection: "row", alignItems: "center", gap: 8 }, pressed && { opacity: 0.6 }]}>
+          <Text style={{ color: c.accent.primary, fontWeight: "700", fontSize: 14 }}>Try a grounding exercise →</Text>
+        </Pressable>
+        <Pressable onPress={() => router.push("/insights/weekly" as any)} style={({ pressed }) => [{ marginTop: Spacing.md, flexDirection: "row", alignItems: "center", gap: 8 }, pressed && { opacity: 0.6 }]}>
+          <Text style={{ color: c.accent.primary, fontWeight: "700", fontSize: 14 }}>See your weekly reflection →</Text>
+        </Pressable>
       </View>
     </Screen>
   );

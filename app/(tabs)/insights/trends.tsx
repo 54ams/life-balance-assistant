@@ -1,6 +1,6 @@
 import { useFocusEffect, router } from "expo-router";
 import { useCallback, useMemo, useState } from "react";
-import { StyleSheet, Text, View, useColorScheme } from "react-native";
+import { Pressable, StyleSheet, Text, View, useColorScheme } from "react-native";
 
 import { Screen } from "@/components/Screen";
 import { GlassCard } from "@/components/ui/GlassCard";
@@ -235,6 +235,13 @@ export default function TrendsScreen() {
               </View>
             </GlassCard>
           )}
+
+          <Pressable onPress={() => router.push("/insights/explain" as any)} style={({ pressed }) => [{ marginTop: Spacing.md, flexDirection: "row", alignItems: "center", gap: 8 }, pressed && { opacity: 0.6 }]}>
+            <Text style={{ color: c.accent.primary, fontWeight: "700", fontSize: 14 }}>Why this score? →</Text>
+          </Pressable>
+          <Pressable onPress={() => router.push("/insights/correlations" as any)} style={({ pressed }) => [{ marginTop: Spacing.md, flexDirection: "row", alignItems: "center", gap: 8 }, pressed && { opacity: 0.6 }]}>
+            <Text style={{ color: c.accent.primary, fontWeight: "700", fontSize: 14 }}>See what's connected →</Text>
+          </Pressable>
         </>
       )}
     </Screen>

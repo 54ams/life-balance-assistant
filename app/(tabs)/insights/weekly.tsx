@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { Text, View, useColorScheme } from "react-native";
+import { Pressable, Text, View, useColorScheme } from "react-native";
+import { router } from "expo-router";
 import { Screen } from "@/components/Screen";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { Colors } from "@/constants/Colors";
@@ -142,6 +143,7 @@ export default function WeeklyInsights() {
 
   return (
     <Screen scroll title="Your week" subtitle="A look at how your week has gone">
+      <View style={{ gap: 14 }}>
       {/* Values */}
       <GlassCard>
         <Text style={{ color: c.text.primary, fontWeight: "800", fontSize: 17, marginBottom: 4 }}>Values you showed up for</Text>
@@ -204,6 +206,14 @@ export default function WeeklyInsights() {
       <Text style={{ color: c.text.tertiary, fontSize: 12, textAlign: "center", marginTop: Spacing.lg, lineHeight: 16 }}>
         These patterns are observational — they show what happened, not what caused it.
       </Text>
+
+      <Pressable onPress={() => router.push("/insights/correlations" as any)} style={({ pressed }) => [{ marginTop: Spacing.md, flexDirection: "row", alignItems: "center", gap: 8 }, pressed && { opacity: 0.6 }]}>
+        <Text style={{ color: c.accent.primary, fontWeight: "700", fontSize: 14 }}>See your correlations →</Text>
+      </Pressable>
+      <Pressable onPress={() => router.push("/checkin/grounding" as any)} style={({ pressed }) => [{ marginTop: Spacing.md, flexDirection: "row", alignItems: "center", gap: 8 }, pressed && { opacity: 0.6 }]}>
+        <Text style={{ color: c.accent.primary, fontWeight: "700", fontSize: 14 }}>Try a grounding exercise →</Text>
+      </Pressable>
+      </View>
     </Screen>
   );
 }

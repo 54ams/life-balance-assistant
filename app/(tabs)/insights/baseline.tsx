@@ -1,51 +1,174 @@
 import React, { useEffect, useState } from "react";
-import { Text, View, useColorScheme } from "react-native";
+import { Pressable, Text, View, useColorScheme } from "react-native";
+import { router } from "expo-router";
 import { Screen } from "@/components/Screen";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { Colors } from "@/constants/Colors";
 import { Spacing } from "@/constants/Spacing";
 import { computeBaselineMeta, type BaselineMeta } from "@/lib/baseline";
 
+type Stat = BaselineMeta["baseline"];
+
+function humanSummary(signal: string, stat: Stat): string {
+  if (stat.median == null) return "Not enough data yet";
+  if (!stat.stable) {
+    const label = signal.toLowerCase();
+    return `Still building your ${label} baseline...`;
+  }
+  const m = stat.median;
+  switch (signal) {
+    case "balance":
+      return `Your balance is typically around ${m}`;
+    case "recovery":
+      return `Your recovery usually sits at ${m}%`;
+    case "sleepHours":
+      return `You typically sleep about ${m} hours`;
+    case "strain":
+      return `Your daily strain averages ${m}`;
+    case "mood":
+      return `Your mood usually rates ${m} out of 5`;
+    case "stress":
+      return `Your stress level typically sits at ${m} out of 5`;
+    default:
+      return `Typically around ${m}`;
+  }
+}
+
+function humanLabel(signal: string): string {
+  switch (signal) {
+    case "balance":
+      return "Balance";
+    case "recovery":
+      return "Recovery";
+    case "sleepHours":
+      return "Sleep hours";
+    case "strain":
+      return "Strain";
+    case "mood":
+      return "Mood";
+    case "stress":
+      return "Stress";
+    default:
+      return signal;
+  }
+}
+
 function SignalCard({
-  label,
+  signal,
   stat,
   c,
   isDark,
 }: {
-  label: string;
-  stat: BaselineMeta["baseline"];
+  signal: string;
+  stat: Stat;
   c: typeof Colors.light;
   isDark: boolean;
 }) {
+  const [flipped, setFlipped] = useState(false);
   const hasData = stat.median != null;
+  const statusColor = !hasData
+    ? c.text.tertiary
+    : stat.stable
+    ? c.success
+    : c.warning;
+
   return (
-    <View
+    <Pressable
+      onPress={() => setFlipped((f) => !f)}
       style={{
         paddingVertical: 12,
         borderBottomWidth: 1,
         borderBottomColor: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.03)",
       }}
     >
-      <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "baseline" }}>
-        <Text style={{ color: c.text.primary, fontWeight: "700", fontSize: 15 }}>{label}</Text>
-        <Text style={{ color: hasData ? c.accent.primary : c.text.tertiary, fontWeight: "900", fontSize: 18 }}>
-          {stat.median ?? "—"}
-        </Text>
-      </View>
-      {hasData && (
-        <View style={{ flexDirection: "row", gap: 12, marginTop: 4 }}>
-          <Text style={{ color: c.text.tertiary, fontSize: 11 }}>IQR {stat.iqr ?? "—"}</Text>
-          <Text style={{ color: c.text.tertiary, fontSize: 11 }}>n = {stat.n}</Text>
-          <Text style={{ color: c.text.tertiary, fontSize: 11 }}>{stat.coverage}% coverage</Text>
-          <Text style={{ color: stat.stable ? c.success : c.warning, fontSize: 11, fontWeight: "700" }}>
-            {stat.stable ? "Stable" : "Calibrating"}
+      {!flipped ? (
+        /* FRONT */
+        <View>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+            <View
+              style={{
+                width: 8,
+                height: 8,
+                borderRadius: 4,
+                backgroundColor: statusColor,
+              }}
+            />
+            <Text style={{ color: c.text.primary, fontWeight: "700", fontSize: 15 }}>
+              {humanLabel(signal)}
+            </Text>
+          </View>
+          <Text
+            style={{
+              color: c.text.secondary,
+              fontSize: 14,
+              marginTop: 6,
+              lineHeight: 20,
+            }}
+          >
+            {humanSummary(signal, stat)}
+          </Text>
+          <Text
+            style={{
+              color: c.text.tertiary,
+              fontSize: 11,
+              marginTop: 6,
+              textAlign: "right",
+            }}
+          >
+            Tap for details
+          </Text>
+        </View>
+      ) : (
+        /* BACK */
+        <View>
+          <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "baseline" }}>
+            <Text style={{ color: c.text.primary, fontWeight: "700", fontSize: 15 }}>
+              {humanLabel(signal)}
+            </Text>
+            <Text
+              style={{
+                color: hasData ? c.accent.primary : c.text.tertiary,
+                fontWeight: "900",
+                fontSize: 18,
+              }}
+            >
+              {stat.median ?? "\u2014"}
+            </Text>
+          </View>
+          {hasData && (
+            <View style={{ flexDirection: "row", gap: 12, marginTop: 4 }}>
+              <Text style={{ color: c.text.tertiary, fontSize: 11 }}>IQR {stat.iqr ?? "\u2014"}</Text>
+              <Text style={{ color: c.text.tertiary, fontSize: 11 }}>n = {stat.n}</Text>
+              <Text style={{ color: c.text.tertiary, fontSize: 11 }}>{stat.coverage}% coverage</Text>
+              <Text
+                style={{
+                  color: stat.stable ? c.success : c.warning,
+                  fontSize: 11,
+                  fontWeight: "700",
+                }}
+              >
+                {stat.stable ? "Stable" : "Calibrating"}
+              </Text>
+            </View>
+          )}
+          {!hasData && (
+            <Text style={{ color: c.text.tertiary, fontSize: 12, marginTop: 2 }}>
+              Not enough data yet
+            </Text>
+          )}
+          <Text
+            style={{
+              color: c.text.tertiary,
+              fontSize: 11,
+              marginTop: 6,
+              textAlign: "right",
+            }}
+          >
+            Tap to go back
           </Text>
         </View>
       )}
-      {!hasData && (
-        <Text style={{ color: c.text.tertiary, fontSize: 12, marginTop: 2 }}>Not enough data yet</Text>
-      )}
-    </View>
+    </Pressable>
   );
 }
 
@@ -70,7 +193,7 @@ export default function BaselineScreen() {
       ) : !meta ? (
         <GlassCard padding="base">
           <Text style={{ color: c.text.primary, fontSize: 14 }}>
-            Calibrating baselines… keep logging to build your personal ranges.
+            Calibrating baselines... keep logging to build your personal ranges.
           </Text>
         </GlassCard>
       ) : (
@@ -93,19 +216,7 @@ export default function BaselineScreen() {
             <Text style={{ color: c.text.secondary, fontSize: 13, marginTop: 6, lineHeight: 18 }}>
               {meta.status === "stable"
                 ? `Your baselines are built from the last ${meta.targetDays} days. Coverage is high enough and variance is low enough to call them stable.`
-                : `The app is still learning your personal ranges. Keep logging — baselines stabilise once coverage is high and day-to-day variation settles.`}
-            </Text>
-          </GlassCard>
-
-          {/* How baselines work */}
-          <GlassCard padding="base">
-            <Text style={{ color: c.text.tertiary, fontSize: 10, fontWeight: "800", letterSpacing: 1.2, marginBottom: 4 }}>
-              HOW IT WORKS
-            </Text>
-            <Text style={{ color: c.text.secondary, fontSize: 13, lineHeight: 18 }}>
-              Each signal's baseline is the median of your last {meta.targetDays} days. The IQR (interquartile range)
-              shows how much you typically vary. Coverage is the percentage of days with data. A signal is "stable"
-              when coverage is high and the IQR-to-median ratio is low.
+                : `The app is still learning your personal ranges. Keep logging \u2014 baselines stabilise once coverage is high and day-to-day variation settles.`}
             </Text>
           </GlassCard>
 
@@ -114,17 +225,24 @@ export default function BaselineScreen() {
             <Text style={{ color: c.text.tertiary, fontSize: 10, fontWeight: "800", letterSpacing: 1.2, marginBottom: 4 }}>
               YOUR SIGNALS
             </Text>
-            <SignalCard label="Balance (LBI)" stat={meta.baseline} c={c} isDark={isDark} />
-            <SignalCard label="Recovery" stat={meta.recovery} c={c} isDark={isDark} />
-            <SignalCard label="Sleep hours" stat={meta.sleepHours} c={c} isDark={isDark} />
-            <SignalCard label="Strain" stat={meta.strain} c={c} isDark={isDark} />
-            <SignalCard label="Mood" stat={meta.mood} c={c} isDark={isDark} />
-            <SignalCard label="Stress" stat={meta.stress} c={c} isDark={isDark} />
+            <SignalCard signal="balance" stat={meta.baseline} c={c} isDark={isDark} />
+            <SignalCard signal="recovery" stat={meta.recovery} c={c} isDark={isDark} />
+            <SignalCard signal="sleepHours" stat={meta.sleepHours} c={c} isDark={isDark} />
+            <SignalCard signal="strain" stat={meta.strain} c={c} isDark={isDark} />
+            <SignalCard signal="mood" stat={meta.mood} c={c} isDark={isDark} />
+            <SignalCard signal="stress" stat={meta.stress} c={c} isDark={isDark} />
           </GlassCard>
 
           <Text style={{ color: c.text.tertiary, fontSize: 12, textAlign: "center", marginTop: Spacing.md, lineHeight: 16 }}>
-            Baselines are personal — they describe your range, not a clinical standard.
+            Baselines are personal \u2014 they describe your range, not a clinical standard.
           </Text>
+
+          <Pressable onPress={() => router.push("/insights/explain" as any)} style={({ pressed }) => [{ marginTop: Spacing.md, flexDirection: "row", alignItems: "center", gap: 8 }, pressed && { opacity: 0.6 }]}>
+            <Text style={{ color: c.accent.primary, fontWeight: "700", fontSize: 14 }}>What drives your score? \u2192</Text>
+          </Pressable>
+          <Pressable onPress={() => router.push("/insights/trends" as any)} style={({ pressed }) => [{ marginTop: Spacing.md, flexDirection: "row", alignItems: "center", gap: 8 }, pressed && { opacity: 0.6 }]}>
+            <Text style={{ color: c.accent.primary, fontWeight: "700", fontSize: 14 }}>See your trends \u2192</Text>
+          </Pressable>
         </View>
       )}
     </Screen>

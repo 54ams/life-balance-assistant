@@ -18,6 +18,7 @@ import { IconSymbol } from "@/components/ui/icon-symbol";
 import { AffectCanvas } from "@/components/ui/AffectCanvas";
 import { Colors } from "@/constants/Colors";
 import { Spacing, BorderRadius } from "@/constants/Spacing";
+import { formatDateLong } from "@/lib/util/formatDate";
 import { Typography } from "@/constants/Typography";
 import { todayISO } from "@/lib/util/todayISO";
 import {
@@ -255,9 +256,7 @@ export default function DailyCheckInScreen() {
               fontWeight: "800",
             }}
           >
-            {new Date()
-              .toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })
-              .toUpperCase()}
+            {formatDateLong(todayISO()).toUpperCase()}
           </Text>
           <Text
             style={{

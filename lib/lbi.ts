@@ -106,7 +106,7 @@ export function calculateLBI(input: LbiInput): LbiOutput {
 
   const hasCheckIn = !!input.checkIn;
 
-  const mood = input.checkIn?.mood ?? 2;
+  const mood = input.checkIn?.mood ?? 3;
   const moodS = moodScore(mood);
 
   const stressS = stressScoreFromIndicators(input.checkIn?.stressIndicators, input.checkIn?.stressLevel);

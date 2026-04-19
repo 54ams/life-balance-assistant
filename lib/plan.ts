@@ -203,6 +203,12 @@ export function generatePlan(input: {
     triggers.unshift("Data is limited today — complete your check-in to improve accuracy");
   }
 
+  // Fallback: guarantee at least one action
+  if (actions.length === 0) {
+    actions.push("Take a few minutes to check in with how you're feeling today");
+    actionReasons.push("Even a brief pause for self-awareness supports your wellbeing.");
+  }
+
   // Cap actions to keep it digestible
   const limitedActions = actions.slice(0, 4);
   const limitedActionReasons = actionReasons.slice(0, 4);

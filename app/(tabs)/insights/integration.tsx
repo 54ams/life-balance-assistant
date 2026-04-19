@@ -106,7 +106,7 @@ export default function IntegrationScreen() {
   const hasAnyData = !!(record?.checkIn || record?.wearable);
 
   return (
-    <Screen title="Integration" subtitle="Mental + physiological signal coverage for a specific date">
+    <Screen title="Integration" subtitle="How complete your data is for a specific date">
       <View style={{ gap: 12 }}>
         <InsightsDatePicker
           date={date}
@@ -177,7 +177,7 @@ export default function IntegrationScreen() {
                     {computed.lbi.classification} • confidence {computed.lbi.confidence}
                   </Text>
                   <Text style={{ color: c.text.tertiary, marginTop: 6 }}>
-                    Baseline: {baselineMeta?.status ?? "calibrating"} ({baselineMeta?.daysUsed ?? 0}/{baselineMeta?.targetDays ?? 7} days)
+                    Building your baseline ({baselineMeta?.daysUsed ?? 0} of {baselineMeta?.targetDays ?? 7} days so far)
                   </Text>
                   <Text style={{ color: c.text.tertiary, fontSize: 11, marginTop: 10, textAlign: "right", fontWeight: "600" }}>
                     Tap to show the maths
@@ -195,7 +195,7 @@ export default function IntegrationScreen() {
                   ]}
                   method="Body side (recovery + sleep, weighted equally) counts for 70%. Mind side (mood + stress, weighted equally) counts for 30%. Add them up, round to a whole number."
                   result={`Balance score ${computed.lbi.lbi} / 100 · ${computed.lbi.classification} · confidence ${computed.lbi.confidence}`}
-                  footnote={`Baseline ${baselineMeta?.status ?? "calibrating"} — using ${baselineMeta?.daysUsed ?? 0} of ${baselineMeta?.targetDays ?? 7} days.`}
+                  footnote={`Building your baseline — using ${baselineMeta?.daysUsed ?? 0} of ${baselineMeta?.targetDays ?? 7} days so far.`}
                 />
               }
             />
@@ -222,9 +222,9 @@ export default function IntegrationScreen() {
             </GlassCard>
 
             <GlassCard style={{ padding: 14 }}>
-              <Text style={{ color: c.text.primary, fontWeight: "800", fontSize: 14 }}>Coverage</Text>
+              <Text style={{ color: c.text.primary, fontWeight: "800", fontSize: 14 }}>Data completeness</Text>
               <Text style={{ color: c.text.tertiary, marginTop: 6 }}>
-                Total: {computed.summary.coveragePct}% • mental: {computed.summary.mentalContributionPct}% • physiology: {computed.summary.physiologicalContributionPct}%
+                Total: {computed.summary.coveragePct}% • mental: {computed.summary.mentalContributionPct}% • physical: {computed.summary.physiologicalContributionPct}%
               </Text>
               <Text style={{ color: c.text.tertiary, marginTop: 6 }}>
                 Note: if signals are missing, confidence is reduced and insights are less certain.

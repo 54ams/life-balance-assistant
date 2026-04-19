@@ -93,7 +93,7 @@ export default function ExplainScoreScreen() {
 
   return (
     <Screen scroll>
-      <Stack.Screen options={{ title: "Why this score", headerShown: false }} />
+      <Stack.Screen options={{ title: "Why this score", headerShown: false, gestureEnabled: true }} />
 
       {/* Header */}
       <View style={{ flexDirection: "row", alignItems: "center", gap: 14 }}>
@@ -228,6 +228,13 @@ export default function ExplainScoreScreen() {
           </View>
         </GlassCard>
       )}
+
+      <Pressable onPress={() => router.push("/insights/correlations" as any)} style={({ pressed }) => [{ marginTop: Spacing.md, flexDirection: "row", alignItems: "center", gap: 8 }, pressed && { opacity: 0.6 }]}>
+        <Text style={{ color: c.accent.primary, fontWeight: "700", fontSize: 14 }}>See all your patterns →</Text>
+      </Pressable>
+      <Pressable onPress={() => router.push("/checkin/grounding" as any)} style={({ pressed }) => [{ marginTop: Spacing.md, flexDirection: "row", alignItems: "center", gap: 8 }, pressed && { opacity: 0.6 }]}>
+        <Text style={{ color: c.accent.primary, fontWeight: "700", fontSize: 14 }}>Try a grounding exercise →</Text>
+      </Pressable>
 
       {/* Disclaimer */}
       <Text style={{ color: c.text.tertiary, fontSize: 12, textAlign: "center", marginTop: Spacing.lg, lineHeight: 16 }}>

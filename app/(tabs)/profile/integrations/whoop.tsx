@@ -17,6 +17,7 @@ import { getAppConsent } from "@/lib/privacy";
 import { AppError, toAppError } from "@/lib/errors";
 import { refreshDerivedForDate } from "@/lib/pipeline";
 import { checkBackendHealth, getBackendBaseUrl, getBackendFeatureMessage } from "@/lib/backend";
+import { formatDateFriendly } from "@/lib/util/formatDate";
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -242,45 +243,39 @@ export default function WhoopScreen() {
 
       <GlassCard style={styles.card}>
         <Text style={[styles.title, { color: c.text.primary }]}>Connection</Text>
-        <Text style={{ color: c.text.secondary, marginTop: 6 }}>
-          Connect your WHOOP account to sync recovery, sleep, and strain.
-        </Text>
-        <Text style={{ color: c.text.secondary, marginTop: 6 }}>
-          Backend: {backendStatus?.ok ? "ready" : "not ready"} • {backendStatus?.url ?? getBackendBaseUrl()}
-        </Text>
-        <Text style={{ color: c.text.secondary, marginTop: 4 }}>
-          WHOOP client ID: {process.env.EXPO_PUBLIC_WHOOP_CLIENT_ID ? "configured" : "missing"} • backend WHOOP: {backendStatus?.whoopConfigured ? "configured" : "missing"}
-        </Text>
-        <Text style={{ color: c.text.secondary, marginTop: 4 }}>
-          WHOOP consent: {whoopConsentGranted ? "granted" : "not granted"}
-        </Text>
-        <Text style={{ color: c.text.secondary, marginTop: 4 }}>
-          LLM reflections: {backendStatus?.llmConfigured ? "configured" : "missing API key"}
-        </Text>
-        {!backendStatus?.ok ? (
-          <Text style={{ color: c.danger ?? c.text.secondary, marginTop: 6 }}>
-            Runtime issue: {backendStatus?.message ?? "Backend unavailable"}.
-          </Text>
-        ) : null}
-        {backendUnavailableMessage ? (
-          <Text style={{ color: c.text.secondary, marginTop: 6 }}>
-            {backendUnavailableMessage}
-          </Text>
-        ) : null}
-        <View
-          style={[
-            styles.checkbox,
-            {
-              borderColor: c.border.medium,
-              backgroundColor: consented ? c.accent.primary : "transparent",
-            },
-          ]}
-        >
-          <Text style={{ color: c.text.primary, fontWeight: "700" }}>
-            {consented ? "☑" : "☐"} WHOOP consent status from Settings
+
+        {/* Status row */}
+        <View style={{ flexDirection: "row", alignItems: "center", marginTop: 10, gap: 8 }}>
+          <View
+            style={{
+              width: 10,
+              height: 10,
+              borderRadius: 5,
+              backgroundColor: connected ? "#34C759" : c.text.tertiary,
+            }}
+          />
+          <Text style={{ color: c.text.primary, fontWeight: "700", fontSize: 15 }}>
+            {connected ? "Connected" : "Not connected"}
           </Text>
         </View>
-        <View style={{ marginTop: 12 }}>
+
+        {lastSynced ? (
+          <Text style={{ color: c.text.secondary, marginTop: 6, fontSize: 13 }}>
+            Last synced: {formatDateFriendly(lastSynced)}
+          </Text>
+        ) : null}
+
+        <Text style={{ color: c.text.secondary, marginTop: 4, fontSize: 13 }}>
+          WHOOP days in last 7: {whoopDaysLast7}/7
+        </Text>
+
+        {!backendStatus?.ok ? (
+          <Text style={{ color: c.danger ?? c.text.secondary, marginTop: 8, fontSize: 13 }}>
+            WHOOP sync is temporarily unavailable. You can still enter numbers manually below.
+          </Text>
+        ) : null}
+
+        <View style={{ marginTop: 14 }}>
           <View style={{ gap: 8 }}>
             <Button
               title={connected ? "Connected" : "Connect WHOOP"}
@@ -299,12 +294,8 @@ export default function WhoopScreen() {
             ) : null}
           </View>
         </View>
-        <Text style={{ color: c.text.secondary, marginTop: 8 }}>Participant: {participantId ?? "Loading…"}</Text>
-        <Text style={{ color: c.text.secondary, marginTop: 4 }}>Status: {connected ? "Connected" : "Not connected"}</Text>
-        <Text style={{ color: c.text.secondary, marginTop: 4 }}>Last synced: {lastSynced ?? "—"}</Text>
-        <Text style={{ color: c.text.secondary, marginTop: 4 }}>WHOOP days in last 7: {whoopDaysLast7}/7</Text>
-        {syncStatus ? <Text style={{ color: c.text.secondary, marginTop: 6 }}>Status: {syncStatus}</Text> : null}
-        <Text style={{ color: c.text.tertiary, marginTop: 6 }}>
+
+        <Text style={{ color: c.text.tertiary, marginTop: 10, fontSize: 12, lineHeight: 17 }}>
           Each day's data is saved for 24 hours to keep WHOOP happy. If WHOOP isn't working, you can always type in the numbers yourself below.
         </Text>
       </GlassCard>
@@ -326,13 +317,13 @@ export default function WhoopScreen() {
             helperText="Past dates only; WHOOP API blocks future days."
           />
           <Button
-            title={busy ? "Syncing…" : `Sync ${selectedDate}`}
+            title={busy ? "Syncing…" : `Sync ${formatDateFriendly(selectedDate)}`}
             onPress={() => syncDate(selectedDate)}
             disabled={!connected || busy || !ready || !backendStatus?.ok}
             accessibilityLabel="Sync selected date"
           />
         </View>
-        <Text style={{ color: c.text.secondary, marginTop: 8 }}>Last synced: {lastSynced ?? "—"}</Text>
+        <Text style={{ color: c.text.secondary, marginTop: 8 }}>Last synced: {lastSynced ? formatDateFriendly(lastSynced) : "—"}</Text>
         <Text style={{ color: c.text.secondary, marginTop: 4 }}>If WHOOP fails, manual wearable entry below uses the same scoring pipeline.</Text>
       </GlassCard>
 
@@ -366,7 +357,7 @@ export default function WhoopScreen() {
             placeholderTextColor={c.text.tertiary}
             style={[styles.input, { borderColor: c.border.medium, color: c.text.primary }]}
           />
-          <Button title={`Save ${selectedDate}`} onPress={saveManual} accessibilityLabel="Save manual wearable data" />
+          <Button title={`Save ${formatDateFriendly(selectedDate)}`} onPress={saveManual} accessibilityLabel="Save manual wearable data" />
         </View>
       </GlassCard>
     </Screen>

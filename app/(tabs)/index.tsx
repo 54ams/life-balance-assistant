@@ -23,6 +23,7 @@ import { GlassCard } from "@/components/ui/GlassCard";
 import { HeatmapCalendar } from "@/components/ui/HeatmapCalendar";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Colors, bridgeStateFrom, type BridgeState } from "@/constants/Colors";
 import { Spacing, BorderRadius } from "@/constants/Spacing";
 
@@ -82,6 +83,7 @@ export default function HomeScreen() {
   const [hasAnyData, setHasAnyData] = useState(true);
   const [breathVisible, setBreathVisible] = useState(false);
   const [rippleKey, setRippleKey] = useState(0);
+  const [milestone, setMilestone] = useState<string | null>(null);
 
   // Reveal animation
   const reveal = useRef(new Animated.Value(0)).current;
@@ -219,6 +221,20 @@ export default function HomeScreen() {
         setUserName(await getUserName());
         setTone(await getPreferredTone());
         setIsDemoMode((await getDemoModeChoice()) === "demo");
+
+        // Milestone detection
+        const checkInCount = records.filter((r) => r.checkIn != null).length;
+        const milestones = [
+          { n: 30, key: "milestone_dismissed_30", msg: "30 days logged! Your baselines are well-established." },
+          { n: 7, key: "milestone_dismissed_7", msg: "One week of check-ins! Patterns are starting to form." },
+          { n: 1, key: "milestone_dismissed_1", msg: "First check-in complete! You've taken the first step." },
+        ];
+        for (const m of milestones) {
+          if (checkInCount >= m.n) {
+            const dismissed = await AsyncStorage.getItem(m.key);
+            if (!dismissed) { if (alive) setMilestone(m.msg); break; }
+          }
+        }
       } catch (err: any) {
         if (alive) setHasAnyData(false);
       }
@@ -501,7 +517,7 @@ export default function HomeScreen() {
               onPress={onGreetingTap}
               onLongPress={armKioskReset}
               delayLongPress={800}
-              accessibilityRole="text"
+              accessibilityRole="none"
               accessibilityLabel={`${headerGreeting}${userName ? `, ${userName}` : ""}`}
             >
               <Text style={[styles.greeting, { color: c.text.secondary }]}>
@@ -543,6 +559,26 @@ export default function HomeScreen() {
               ],
             }}
           >
+            {/* Milestone celebration */}
+            {milestone && (
+              <GlassCard style={{ marginBottom: Spacing.md }} padding="base">
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+                  <Text style={{ fontSize: 22 }}>⭐</Text>
+                  <Text style={{ color: c.text.primary, fontWeight: "700", fontSize: 15, flex: 1 }}>{milestone}</Text>
+                  <Pressable
+                    onPress={async () => {
+                      const key = milestone.startsWith("30") ? "milestone_dismissed_30" : milestone.startsWith("One") ? "milestone_dismissed_7" : "milestone_dismissed_1";
+                      await AsyncStorage.setItem(key, "1");
+                      setMilestone(null);
+                    }}
+                    style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: BorderRadius.full, backgroundColor: c.accent.primary }}
+                  >
+                    <Text style={{ color: "#fff", fontSize: 12, fontWeight: "700" }}>Dismiss</Text>
+                  </Pressable>
+                </View>
+              </GlassCard>
+            )}
+
             {/* Narrative headline — the felt experience, not a number */}
             <Text
               style={[styles.narrative, { color: c.text.primary }]}
@@ -574,36 +610,49 @@ export default function HomeScreen() {
               >
                 Mind–Body Balance
               </Text>
+              <Text style={{ color: c.text.tertiary, fontSize: 11, marginTop: 4 }}>
+                Tap to see your bridge
+              </Text>
             </View>
 
             {/* 7-day ribbon */}
             {ribbonDays.length > 0 && (
-              <Ribbon7
-                days={ribbonDays}
-                onPressDay={(d) => router.push(`/day/${d}` as any)}
-              />
+              <>
+                <Ribbon7
+                  days={ribbonDays}
+                  onPressDay={(d) => router.push(`/day/${d}` as any)}
+                />
+                <Text style={{ color: c.text.tertiary, fontSize: 11, textAlign: "center", marginTop: 4 }}>
+                  Tap a day for details
+                </Text>
+              </>
             )}
 
             {/* 8-week heatmap — shows data density at a glance */}
             {heatmapData.length >= 7 && (
-              <GlassCard style={{ marginTop: Spacing.lg }} padding="base">
-                <Text
-                  style={{
-                    color: c.text.tertiary,
-                    fontSize: 10,
-                    fontWeight: "800",
-                    letterSpacing: 1.2,
-                    marginBottom: 10,
-                  }}
-                >
-                  YOUR LAST 8 WEEKS
-                </Text>
-                <HeatmapCalendar
-                  data={heatmapData}
-                  weeks={8}
-                  onDayPress={(d) => router.push(`/day/${d}` as any)}
-                />
-              </GlassCard>
+              <Pressable onPress={() => router.push("/insights/balance-summary" as any)}>
+                <GlassCard style={{ marginTop: Spacing.lg }} padding="base">
+                  <Text
+                    style={{
+                      color: c.text.tertiary,
+                      fontSize: 10,
+                      fontWeight: "800",
+                      letterSpacing: 1.2,
+                      marginBottom: 10,
+                    }}
+                  >
+                    YOUR LAST 8 WEEKS
+                  </Text>
+                  <HeatmapCalendar
+                    data={heatmapData}
+                    weeks={8}
+                    onDayPress={(d) => router.push(`/day/${d}` as any)}
+                  />
+                  <Text style={{ color: c.accent.primary, fontSize: 12, fontWeight: "700", textAlign: "center", marginTop: 10 }}>
+                    Tap to see your balance summary →
+                  </Text>
+                </GlassCard>
+              </Pressable>
             )}
 
             {/* Realign — matched micro-intervention when divergent */}

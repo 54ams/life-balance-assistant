@@ -14,9 +14,13 @@ import {
   STREAKS_ENABLED_KEY,
   getAppConsent,
   getBooleanSetting,
+  getPreferredTone,
+  getPrimaryGoals,
   getRetentionDays,
+  getSleepWindow,
   hashParticipantId,
 } from "./privacy";
+import { getActiveValues, getLifeContexts } from "./storage";
 
 export function exportModelSensitivity(): string {
   const sens = runSensitivity(
@@ -78,6 +82,11 @@ export async function exportPlans(days: number): Promise<string> {
   const retentionDays = await getRetentionDays();
   const consent = await getAppConsent();
   const adherence = await getPlanAdherenceSummary(Math.min(30, Math.max(7, days)));
+  const tone = await getPreferredTone();
+  const goals = await getPrimaryGoals();
+  const sleepWindow = await getSleepWindow();
+  const values = await getActiveValues();
+  const lifeContexts = await getLifeContexts();
   const participantId = (await AsyncStorage.getItem("whoop_participant_id")) ?? "";
   const participantRef = participantId
     ? anonymize
@@ -113,6 +122,13 @@ export async function exportPlans(days: number): Promise<string> {
       llmEnabled,
       nudgeEnabled,
       streaksEnabled,
+    },
+    personalisation: {
+      tone,
+      goals,
+      sleepWindow,
+      values,
+      lifeContexts,
     },
     adherenceSummary: adherence,
     participantRef,

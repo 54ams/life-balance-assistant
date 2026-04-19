@@ -133,6 +133,33 @@ export default function ProfileScreen() {
 
         {/* Identity card */}
         <GlassCard style={{ marginTop: Spacing.lg }} padding="lg">
+          {/* Edit button */}
+          <Pressable
+            onPress={() => {
+              Haptics.selectionAsync().catch(() => {});
+              router.push("/profile/settings/edit-profile" as any);
+            }}
+            accessibilityLabel="Edit profile"
+            accessibilityRole="button"
+            style={({ pressed }) => [
+              {
+                position: "absolute",
+                top: 14,
+                right: 14,
+                zIndex: 1,
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 4,
+                paddingVertical: 4,
+                paddingHorizontal: 8,
+              },
+              pressed && { opacity: 0.5 },
+            ]}
+          >
+            <IconSymbol name="pencil" size={13} color={c.text.tertiary} />
+            <Text style={{ color: c.text.tertiary, fontSize: 12, fontWeight: "600" }}>Edit</Text>
+          </Pressable>
+
           <View style={{ alignItems: "center" }}>
             {/* Avatar circle with initial */}
             <View

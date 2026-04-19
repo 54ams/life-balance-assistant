@@ -34,9 +34,9 @@ export function buildCounterfactuals(args: {
     }).lbi;
 
     items.push({
-      label: "If you slept ~45 min more",
+      label: "If you had slept about 45 minutes more",
       delta: Math.round(alt - base),
-      detail: "Approximate impact based on your current sleep contribution to the score.",
+      detail: `Your score might have been about ${Math.abs(Math.round(alt - base))} points ${alt >= base ? "higher" : "lower"}.`,
     });
   }
 
@@ -68,9 +68,9 @@ export function buildCounterfactuals(args: {
       }).lbi;
 
       items.push({
-        label: "If stress indicators were 1 lower",
+        label: "If you had one fewer stress sign",
         delta: Math.round(alt - base),
-        detail: "Shows the approximate effect of reducing acute stress signals in the check-in.",
+        detail: `Your score might have been about ${Math.abs(Math.round(alt - base))} points ${alt >= base ? "higher" : "lower"}.`,
       });
     }
 
@@ -84,9 +84,9 @@ export function buildCounterfactuals(args: {
       }).lbi;
 
       items.push({
-        label: "If mood improved by one level",
+        label: "If your mood had been one level better",
         delta: Math.round(alt - base),
-        detail: "Approximate impact of mood on your score.",
+        detail: `Your score might have been about ${Math.abs(Math.round(alt - base))} points ${alt >= base ? "higher" : "lower"}.`,
       });
     }
   }

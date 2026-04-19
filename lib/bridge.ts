@@ -99,6 +99,11 @@ export function narrativeFor(
   }
 
   if (delta > 0) {
+    if (abs >= 60) {
+      if (tone === "Playful") return "Your body's way out front — mind's still looking for its shoes.";
+      if (tone === "Direct") return "Large body-mind gap. Slow down, check in with yourself.";
+      return "Your body and mind are far apart. Pause and reconnect.";
+    }
     if (abs >= 30) {
       if (tone === "Playful") return "Your body's sprinting while your mind's still tying its shoes.";
       if (tone === "Direct") return "Body well ahead of mind. Ease mental load.";
@@ -109,6 +114,11 @@ export function narrativeFor(
     return "Running a little ahead of yourself today.";
   }
 
+  if (abs >= 60) {
+    if (tone === "Playful") return "Major disconnect — mind and body are in different postcodes right now.";
+    if (tone === "Direct") return "Large mind-body gap. Ground yourself: breathe, move, reset.";
+    return "Your mind and body are far apart. Take a moment to reconnect.";
+  }
   if (abs >= 30) {
     if (tone === "Playful") return "Your mind's racing ahead — time to bring the body along for the ride.";
     if (tone === "Direct") return "Mind well ahead of body. Move, hydrate, rest.";

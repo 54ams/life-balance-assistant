@@ -93,6 +93,27 @@ export default function FirstRunScreen() {
         </GlassCard>
       </Pressable>
 
+      <Pressable
+        onPress={() => router.push("/profile/integrations/whoop" as any)}
+        disabled={!!busy}
+        style={{ marginTop: 20 }}
+      >
+        <GlassCard>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+            <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: c.accent.primary + "15", alignItems: "center", justifyContent: "center" }}>
+              <Text style={{ fontSize: 18 }}>⌚</Text>
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.cardTitle, { color: c.text.primary, fontSize: 17 }]}>Connect your WHOOP</Text>
+              <Text style={{ color: c.text.secondary, fontSize: 13, marginTop: 2 }}>
+                Bring in recovery, sleep, and strain data. You can also do this later.
+              </Text>
+            </View>
+            <Text style={{ color: c.text.tertiary, fontSize: 18 }}>›</Text>
+          </View>
+        </GlassCard>
+      </Pressable>
+
       <Text style={[styles.footnote, { color: c.text.tertiary }]}>
         You'll see the same screens either way — only the starting data is different.
       </Text>

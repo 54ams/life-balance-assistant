@@ -10,6 +10,7 @@ import { Colors } from "@/constants/Colors";
 import { Spacing, BorderRadius } from "@/constants/Spacing";
 import { getDay, loadPlan, type StoredPlan } from "@/lib/storage";
 import type { DailyRecord } from "@/lib/types";
+import { formatDateFull } from "@/lib/util/formatDate";
 
 function moodLabel(v: number): string {
   return ["", "Very low", "Low", "Neutral", "Good", "Great"][v] ?? "";
@@ -35,16 +36,24 @@ export default function DayDetailsScreen() {
   const [plan, setPlan] = useState<StoredPlan | null>(null);
   const [record, setRecord] = useState<DailyRecord | null>(null);
 
+  const [error, setError] = useState<string | null>(null);
+
   useFocusEffect(
     useCallback(() => {
       let alive = true;
       (async () => {
         if (!date) return;
-        const p = await loadPlan(date);
-        const day = await getDay(date as any);
-        if (!alive) return;
-        setPlan(p);
-        setRecord(day);
+        try {
+          const p = await loadPlan(date);
+          const day = await getDay(date as any);
+          if (!alive) return;
+          setPlan(p);
+          setRecord(day);
+          setError(null);
+        } catch (e: any) {
+          if (!alive) return;
+          setError(e?.message ?? "Failed to load day data.");
+        }
       })();
       return () => { alive = false; };
     }, [date])
@@ -61,14 +70,14 @@ export default function DayDetailsScreen() {
   }, [plan, c]);
 
   const displayDate = date
-    ? new Date(date + "T12:00:00").toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" })
+    ? formatDateFull(date as string)
     : "No date";
 
   const hasData = record?.checkIn || record?.wearable || record?.lbi != null;
 
   return (
     <Screen scroll>
-      <Stack.Screen options={{ title: "Day details", headerShown: false }} />
+      <Stack.Screen options={{ title: "Day details", headerShown: false, gestureEnabled: true }} />
 
       <Text style={{ fontSize: 28, fontWeight: "900", color: c.text.primary, letterSpacing: -0.3 }}>
         Day details
@@ -77,7 +86,11 @@ export default function DayDetailsScreen() {
         {displayDate}
       </Text>
 
-      {!date ? (
+      {error ? (
+        <GlassCard style={{ marginTop: Spacing.md }}>
+          <EmptyState icon="exclamationmark.triangle" title="Something went wrong" description={error} />
+        </GlassCard>
+      ) : !date ? (
         <GlassCard style={{ marginTop: Spacing.md }}>
           <EmptyState icon="calendar" title="No date selected" description="Navigate here from the home screen or calendar." />
         </GlassCard>
@@ -177,6 +190,9 @@ export default function DayDetailsScreen() {
                   {record.wearable.restingHR != null && <MetricPill label="RHR" value={`${record.wearable.restingHR}bpm`} c={c} isDark={isDark} />}
                 </View>
               )}
+              <Pressable onPress={() => router.push("/profile/integrations/whoop" as any)} style={({ pressed }) => [{ marginTop: Spacing.sm }, pressed && { opacity: 0.6 }]}>
+                <Text style={{ color: c.accent.primary, fontWeight: "700", fontSize: 13 }}>Manage wearable →</Text>
+              </Pressable>
             </GlassCard>
           )}
 
@@ -245,6 +261,9 @@ export default function DayDetailsScreen() {
                     </View>
                   ))}
               </View>
+              <Pressable onPress={() => router.push("/checkin/grounding" as any)} style={({ pressed }) => [{ marginTop: Spacing.sm }, pressed && { opacity: 0.6 }]}>
+                <Text style={{ color: c.accent.primary, fontWeight: "700", fontSize: 13 }}>Try a grounding exercise →</Text>
+              </Pressable>
             </GlassCard>
           )}
 
@@ -320,6 +339,10 @@ export default function DayDetailsScreen() {
                   <Text style={{ color: c.text.secondary, fontSize: 13, lineHeight: 18 }}>{record.emotion.reflection}</Text>
                 </View>
               ) : null}
+
+              <Pressable onPress={() => router.push("/insights/emotions" as any)} style={({ pressed }) => [{ marginTop: Spacing.sm }, pressed && { opacity: 0.6 }]}>
+                <Text style={{ color: c.accent.primary, fontWeight: "700", fontSize: 13 }}>See emotion patterns →</Text>
+              </Pressable>
             </GlassCard>
           )}
 
@@ -362,6 +385,10 @@ export default function DayDetailsScreen() {
                   <Text style={{ color: c.text.secondary, fontSize: 13, lineHeight: 18 }}>{plan.explanation}</Text>
                 </View>
               )}
+
+              <Pressable onPress={() => router.push({ pathname: "/history/plan-details", params: { date } })} style={({ pressed }) => [{ marginTop: Spacing.sm }, pressed && { opacity: 0.6 }]}>
+                <Text style={{ color: c.accent.primary, fontWeight: "700", fontSize: 13 }}>View full plan →</Text>
+              </Pressable>
             </GlassCard>
           )}
         </View>

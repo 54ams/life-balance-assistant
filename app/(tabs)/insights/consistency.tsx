@@ -1,11 +1,12 @@
-import { Stack } from "expo-router";
+import { Stack, router } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useFocusEffect } from "expo-router";
-import { Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 
 import { Screen } from "@/components/Screen";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { Colors } from "@/constants/Colors";
+import { Spacing } from "@/constants/Spacing";
 import { useColorScheme } from "react-native";
 
 import type { ISODate } from "@/lib/types";
@@ -19,7 +20,7 @@ import { todayISO } from "@/lib/util/todayISO";
 
 function Bar({ label, value, c }: { label: string; value: number; c: typeof import("@/constants/Colors").Colors.light }) {
   return (
-    <View style={{ gap: 6 }}>
+    <View style={{ gap: 8 }}>
       <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
         <Text style={{ color: c.text.primary, fontWeight: "700" }}>{label}</Text>
         <Text style={{ color: c.text.tertiary }}>{value}%</Text>
@@ -68,8 +69,8 @@ export default function ConsistencyScreen() {
   const hasAny = windowed.length > 0;
 
   return (
-    <Screen title="Consistency" subtitle="Routine stability and signal regularity (last 14 days)">
-      <Stack.Screen options={{ headerShown: false }} />
+    <Screen title="Consistency" subtitle="How consistent your daily patterns are (last 14 days)">
+      <Stack.Screen options={{ headerShown: false, gestureEnabled: true }} />
 
       <View style={{ gap: 12 }}>
         <InsightsDatePicker
@@ -107,7 +108,7 @@ export default function ConsistencyScreen() {
               ) : null}
             </GlassCard>
 
-            <GlassCard style={{ padding: 14, gap: 14 }}>
+            <GlassCard style={{ padding: 14, gap: 16 }}>
               <Text style={{ color: c.text.primary, fontWeight: "800" }}>Components</Text>
               <Bar label="Sleep consistency" value={out.components.sleepConsistency} c={c} />
               <Bar label="Recovery consistency" value={out.components.recoveryConsistency} c={c} />
@@ -117,6 +118,13 @@ export default function ConsistencyScreen() {
             </GlassCard>
           </>
         )}
+
+        <Pressable onPress={() => router.push("/profile/settings/notifications" as any)} style={({ pressed }) => [{ marginTop: Spacing.md, flexDirection: "row", alignItems: "center", gap: 8 }, pressed && { opacity: 0.6 }]}>
+          <Text style={{ color: c.accent.primary, fontWeight: "700", fontSize: 14 }}>Set up reminders →</Text>
+        </Pressable>
+        <Pressable onPress={() => router.push("/insights/trends" as any)} style={({ pressed }) => [{ marginTop: Spacing.md, flexDirection: "row", alignItems: "center", gap: 8 }, pressed && { opacity: 0.6 }]}>
+          <Text style={{ color: c.accent.primary, fontWeight: "700", fontSize: 14 }}>See your trends →</Text>
+        </Pressable>
       </View>
     </Screen>
   );

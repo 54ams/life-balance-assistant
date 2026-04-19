@@ -5,6 +5,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
 
 import { AuroraBackground } from "@/components/ui/AuroraBackground";
+import { GlassCard } from "@/components/ui/GlassCard";
 import { Colors } from "@/constants/Colors";
 import { Spacing, BorderRadius } from "@/constants/Spacing";
 import { Typography } from "@/constants/Typography";
@@ -313,6 +314,20 @@ export default function CheckInSavedScreen() {
               </>
             )}
           </View>
+
+          <GlassCard style={{ marginTop: Spacing.md }}>
+            <Text style={{ color: c.text.primary, fontWeight: "800", fontSize: 16 }}>What's next?</Text>
+            <View style={{ gap: 8, marginTop: Spacing.sm }}>
+              <Pressable onPress={() => router.replace("/insights/explain" as any)} style={({ pressed }) => [{ flexDirection: "row", alignItems: "center", gap: 10, padding: 12, borderRadius: BorderRadius.lg, backgroundColor: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.02)" }, pressed && { opacity: 0.6 }]}>
+                <Text style={{ color: c.accent.primary, fontWeight: "700", fontSize: 14, flex: 1 }}>See what drives your score</Text>
+                <Text style={{ color: c.text.tertiary }}>›</Text>
+              </Pressable>
+              <Pressable onPress={() => router.replace("/checkin/grounding" as any)} style={({ pressed }) => [{ flexDirection: "row", alignItems: "center", gap: 10, padding: 12, borderRadius: BorderRadius.lg, backgroundColor: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.02)" }, pressed && { opacity: 0.6 }]}>
+                <Text style={{ color: c.accent.primary, fontWeight: "700", fontSize: 14, flex: 1 }}>Try a grounding exercise</Text>
+                <Text style={{ color: c.text.tertiary }}>›</Text>
+              </Pressable>
+            </View>
+          </GlassCard>
         </Animated.View>
       </SafeAreaView>
     </View>

@@ -97,7 +97,7 @@ export default function HistoryScreen() {
               return (
                 <Pressable
                   key={r.date}
-                  onPress={() => router.push({ pathname: "/day/[date]", params: { date: r.date } } as any)}
+                  onPress={() => router.push({ pathname: "/history/plan-details", params: { date: r.date } } as any)}
                   accessibilityLabel={`View ${r.date}`}
                   accessibilityRole="button"
                   style={({ pressed }) => [pressed && { opacity: 0.9 }]}

@@ -56,7 +56,7 @@ export default function PlanDetailsScreen() {
 
   return (
     <Screen scroll>
-      <Stack.Screen options={{ title: "Plan Details", headerShown: false }} />
+      <Stack.Screen options={{ title: "Plan Details", headerShown: false, gestureEnabled: true }} />
 
       <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
         <View>

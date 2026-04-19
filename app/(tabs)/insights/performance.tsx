@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { Text, View, useColorScheme } from "react-native";
+import { Pressable, Text, View, useColorScheme } from "react-native";
+import { router } from "expo-router";
 import { Screen } from "@/components/Screen";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { Colors } from "@/constants/Colors";
@@ -135,6 +136,10 @@ export default function PerformanceScreen() {
               </View>
             ))}
           </GlassCard>
+
+          <Pressable onPress={() => router.push("/insights/correlations" as any)} style={({ pressed }) => [{ marginTop: Spacing.md, flexDirection: "row", alignItems: "center", gap: 8 }, pressed && { opacity: 0.6 }]}>
+            <Text style={{ color: c.accent.primary, fontWeight: "700", fontSize: 14 }}>See your patterns →</Text>
+          </Pressable>
         </View>
       )}
     </Screen>

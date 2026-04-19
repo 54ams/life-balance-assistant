@@ -11,6 +11,7 @@ import { Colors } from "@/constants/Colors";
 import { Spacing, BorderRadius } from "@/constants/Spacing";
 import { listEmotions } from "@/lib/storage";
 import type { EmotionalDiaryEntry } from "@/lib/types";
+import { formatDateFriendly } from "@/lib/util/formatDate";
 
 function valenceLabel(v: number): string {
   if (v > 0.3) return "Positive";
@@ -76,7 +77,7 @@ export default function EmotionHistoryScreen() {
 
   return (
     <Screen scroll>
-      <Stack.Screen options={{ headerShown: false }} />
+      <Stack.Screen options={{ headerShown: false, gestureEnabled: true }} />
 
       <Text style={{ fontSize: 28, fontWeight: "900", color: c.text.primary, letterSpacing: -0.3 }}>
         Emotional Journey
@@ -167,7 +168,7 @@ export default function EmotionHistoryScreen() {
             </Text>
             <View style={{ gap: 2 }}>
               {emotions.slice(0, 7).map((emo, i) => {
-                const dateStr = new Date(emo.date + "T12:00:00").toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
+                const dateStr = formatDateFriendly(emo.date);
                 return (
                   <Pressable
                     key={emo.date}
@@ -218,6 +219,13 @@ export default function EmotionHistoryScreen() {
               })}
             </View>
           </GlassCard>
+
+          <Pressable onPress={() => router.push("/profile/settings/values" as any)} style={({ pressed }) => [{ marginTop: Spacing.md, flexDirection: "row", alignItems: "center", gap: 8 }, pressed && { opacity: 0.6 }]}>
+            <Text style={{ color: c.accent.primary, fontWeight: "700", fontSize: 14 }}>Update your values →</Text>
+          </Pressable>
+          <Pressable onPress={() => router.push("/checkin/grounding" as any)} style={({ pressed }) => [{ marginTop: Spacing.md, flexDirection: "row", alignItems: "center", gap: 8 }, pressed && { opacity: 0.6 }]}>
+            <Text style={{ color: c.accent.primary, fontWeight: "700", fontSize: 14 }}>Try a grounding exercise →</Text>
+          </Pressable>
         </View>
       )}
     </Screen>
