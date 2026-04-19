@@ -63,7 +63,26 @@ export default function WhoopScreen() {
         await AsyncStorage.setItem(PARTICIPANT_KEY, id);
         setParticipantId(id);
       }
-      if (sess) { setSessionToken(sess); setConnected(true); }
+      if (sess && backendUrl) {
+        // Verify the session is still valid before showing as connected
+        try {
+          const res = await fetch(`${backendUrl}/whoop/refresh`, {
+            method: "POST",
+            headers: { Authorization: `Bearer ${sess}` },
+          });
+          if (res.ok) {
+            setSessionToken(sess);
+            setConnected(true);
+          } else {
+            // Session expired — clean up
+            await AsyncStorage.multiRemove([SESSION_KEY, LAST_SYNC_KEY]);
+          }
+        } catch {
+          // Backend unreachable — trust stored session for now
+          setSessionToken(sess);
+          setConnected(true);
+        }
+      }
       if (last) setLastSynced(last);
       if (consent) setConsentGranted(true);
       const days = await getWearableDays();
@@ -134,12 +153,10 @@ export default function WhoopScreen() {
       });
       if (!res.ok) throw new AppError("AUTH", "WHOOP exchange failed.");
       const json = (await res.json()) as any;
-      if (json?.sessionToken) {
-        await AsyncStorage.setItem(SESSION_KEY, json.sessionToken);
-        setSessionToken(json.sessionToken);
-      }
+      if (!json?.sessionToken) throw new AppError("AUTH", "No session token received.");
+      await AsyncStorage.setItem(SESSION_KEY, json.sessionToken);
+      setSessionToken(json.sessionToken);
       setConnected(true);
-      Alert.alert("WHOOP", "Connected! Syncing today\u2019s data\u2026");
       // Auto-sync today after connecting
       const todayDate = todayISO();
       try {
@@ -156,16 +173,16 @@ export default function WhoopScreen() {
             await refreshDerivedForDate(todayDate as any);
             setLastSynced(todayDate);
             await AsyncStorage.setItem(LAST_SYNC_KEY, todayDate);
-            Alert.alert("WHOOP", `Synced ${formatDateFriendly(todayDate)}`);
+            Alert.alert("WHOOP", `Connected and synced ${formatDateFriendly(todayDate)}.`);
           } else {
-            Alert.alert("WHOOP", "Connected! No WHOOP data for today yet \u2014 try syncing later once your cycle completes.");
+            Alert.alert("WHOOP", "Connected! No data for today yet \u2014 your cycle may not have completed. Try syncing later or sync a past date.");
           }
         } else {
           const errJson = await syncRes.json().catch(() => ({}));
           Alert.alert("WHOOP", `Connected, but sync failed: ${(errJson as any)?.error || syncRes.status}`);
         }
       } catch {
-        Alert.alert("WHOOP", "Connected! Auto-sync failed \u2014 try the Sync button manually.");
+        Alert.alert("WHOOP", "Connected! Sync will be available shortly.");
       }
     } catch (err: any) {
       const e = toAppError(err, "Failed to connect WHOOP.");
@@ -233,11 +250,10 @@ export default function WhoopScreen() {
         });
       } catch {}
     }
-    await AsyncStorage.multiRemove([SESSION_KEY, PARTICIPANT_KEY, LAST_SYNC_KEY]);
+    await AsyncStorage.multiRemove([SESSION_KEY, LAST_SYNC_KEY]);
     setSessionToken(null);
     setConnected(false);
     setLastSynced(null);
-    setParticipantId(null);
   };
 
   const saveManual = async () => {
