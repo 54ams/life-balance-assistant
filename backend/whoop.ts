@@ -233,6 +233,7 @@ async function whoopGet(accessToken: string, path: string): Promise<any> {
     const errBody = await res.text().catch(() => "");
     console.error(`WHOOP API error ${res.status} ${path}:`, errBody);
     if (res.status === 401) throw Object.assign(new Error("unauthorized"), { statusCode: 401 });
+    if (res.status === 404) return null; // endpoint returned no data
     throw new Error(`WHOOP API error ${res.status}: ${errBody.slice(0, 200)}`);
   }
   return res.json();
@@ -254,20 +255,25 @@ export async function getWhoopDay(sessionId: string, date: string, clientId: str
   if (!record) throw new Error("Token missing after refresh");
 
   try {
-    const start = `${date}T00:00:00Z`;
-    const end = `${date}T23:59:59Z`;
+    const start = `${date}T00:00:00.000Z`;
+    const end = `${date}T23:59:59.999Z`;
     const qs = `?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`;
 
-    // Fetch cycle, recovery, and sleep in parallel
-    const [cycleJson, recoveryJson, sleepJson] = await Promise.all([
+    // Step 1: Fetch cycle and sleep in parallel
+    const [cycleJson, sleepJson] = await Promise.all([
       whoopGet(record.accessToken, `/cycle${qs}`),
-      whoopGet(record.accessToken, `/recovery${qs}`),
       whoopGet(record.accessToken, `/activity/sleep${qs}`),
     ]);
 
-    const cycle = Array.isArray(cycleJson?.records) ? cycleJson.records[0] : null;
-    const recovery = Array.isArray(recoveryJson?.records) ? recoveryJson.records[0] : null;
-    const sleep = Array.isArray(sleepJson?.records) ? sleepJson.records[0] : null;
+    const cycle = cycleJson?.records?.[0] ?? null;
+
+    // Step 2: If we have a cycle, fetch its recovery
+    let recovery: any = null;
+    if (cycle?.id) {
+      recovery = await whoopGet(record.accessToken, `/cycle/${cycle.id}/recovery`);
+    }
+
+    const sleep = sleepJson?.records?.[0] ?? null;
 
     const recoveryScore = recovery?.score?.recovery_score ?? null;
     const sleepMs = sleep?.score?.total_sleep_duration ?? sleep?.score?.stage_summary?.total_in_bed_time_milli ?? null;
