@@ -22,7 +22,7 @@ import { formatDateFriendly } from "@/lib/util/formatDate";
 WebBrowser.maybeCompleteAuthSession();
 
 const WHOOP_AUTH_URL = "https://api.prod.whoop.com/oauth/oauth2/auth";
-const WHOOP_SCOPES = ["offline", "read:user", "read:recovery", "read:sleep", "read:workout", "read:cycle"].join(" ");
+const WHOOP_SCOPES = ["offline", "read:profile", "read:recovery", "read:sleep", "read:workout", "read:cycles"].join(" ");
 const PARTICIPANT_KEY = "whoop_participant_id";
 const SESSION_KEY = "whoop_session_token";
 const LAST_SYNC_KEY = "whoop_last_sync";
