@@ -1,21 +1,22 @@
 import * as WebBrowser from "expo-web-browser";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { useEffect, useMemo, useState } from "react";
-import { Alert, StyleSheet, Text, TextInput, View } from "react-native";
+import { Alert, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 
 import { Screen } from "@/components/Screen";
 import { Button } from "@/components/ui/button";
 import { GlassCard } from "@/components/ui/GlassCard";
+import { GlassButton } from "@/components/ui/GlassButton";
 import { Colors } from "@/constants/Colors";
+import { BorderRadius, Spacing } from "@/constants/Spacing";
 import { useColorScheme } from "react-native";
 import { upsertWearable } from "@/lib/storage";
 import { todayISO } from "@/lib/util/todayISO";
 import { InsightsDatePicker } from "@/components/InsightsDatePicker";
 import { getWearableDays } from "@/lib/storage";
-import { getAppConsent } from "@/lib/privacy";
 import { AppError, toAppError } from "@/lib/errors";
 import { refreshDerivedForDate } from "@/lib/pipeline";
-import { checkBackendHealth, getBackendBaseUrl, getBackendFeatureMessage } from "@/lib/backend";
+import { getBackendBaseUrl } from "@/lib/backend";
 import { formatDateFriendly } from "@/lib/util/formatDate";
 
 WebBrowser.maybeCompleteAuthSession();
@@ -25,6 +26,7 @@ const WHOOP_SCOPES = ["offline", "read:user", "read:recovery", "read:sleep", "re
 const PARTICIPANT_KEY = "whoop_participant_id";
 const SESSION_KEY = "whoop_session_token";
 const LAST_SYNC_KEY = "whoop_last_sync";
+const CONSENT_KEY = "whoop_consent_v1";
 
 function randomId() {
   return Math.random().toString(36).slice(2);
@@ -32,6 +34,7 @@ function randomId() {
 
 export default function WhoopScreen() {
   const scheme = useColorScheme();
+  const isDark = scheme === "dark";
   const c = Colors[scheme ?? "light"];
 
   const [participantId, setParticipantId] = useState<string | null>(null);
@@ -39,65 +42,63 @@ export default function WhoopScreen() {
   const [connected, setConnected] = useState(false);
   const [lastSynced, setLastSynced] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [consented, setConsented] = useState(false);
   const [selectedDate, setSelectedDate] = useState(todayISO());
   const [whoopDaysLast7, setWhoopDaysLast7] = useState(0);
   const [manualRecovery, setManualRecovery] = useState("");
   const [manualSleep, setManualSleep] = useState("");
   const [manualStrain, setManualStrain] = useState("");
-  const [whoopConsentGranted, setWhoopConsentGranted] = useState(false);
-  const [backendStatus, setBackendStatus] = useState<Awaited<ReturnType<typeof checkBackendHealth>> | null>(null);
-  const [syncStatus, setSyncStatus] = useState<string>("");
+  const [consentGranted, setConsentGranted] = useState(false);
+  const [showConsent, setShowConsent] = useState(false);
   const backendUrl = getBackendBaseUrl();
-  const backendUnavailableMessage = getBackendFeatureMessage();
 
   useEffect(() => {
     (async () => {
       const existing = await AsyncStorage.getItem(PARTICIPANT_KEY);
       const sess = await AsyncStorage.getItem(SESSION_KEY);
       const last = await AsyncStorage.getItem(LAST_SYNC_KEY);
+      const consent = await AsyncStorage.getItem(CONSENT_KEY);
       if (existing) setParticipantId(existing);
       else {
         const id = randomId();
         await AsyncStorage.setItem(PARTICIPANT_KEY, id);
         setParticipantId(id);
       }
-      if (sess) setSessionToken(sess);
-      if (sess) setConnected(true);
+      if (sess) { setSessionToken(sess); setConnected(true); }
       if (last) setLastSynced(last);
+      if (consent) setConsentGranted(true);
       const days = await getWearableDays();
       const recentWhoop = days.filter((d) => String(d.source).startsWith("whoop"));
       setWhoopDaysLast7(recentWhoop.slice(-7).length);
-      const appConsent = await getAppConsent();
-      setConsented(!!appConsent && Object.values(appConsent.items).every(Boolean));
-      setWhoopConsentGranted(!!(await AsyncStorage.getItem("whoop_consent_v1")));
-      setBackendStatus(await checkBackendHealth());
     })();
   }, []);
 
   const redirectUri = useMemo(() => "lifebalanceapp://whoop-auth", []);
   const ready = !!participantId;
 
+  const grantConsentAndConnect = async () => {
+    await AsyncStorage.setItem(CONSENT_KEY, new Date().toISOString());
+    setConsentGranted(true);
+    setShowConsent(false);
+    // Now proceed to OAuth
+    await doConnect();
+  };
+
   const startConnect = async () => {
-    if (!consented) {
-      setSyncStatus("App consent required before connection.");
-      Alert.alert("WHOOP", "Please provide app consent first in Settings > Consent.");
+    if (!consentGranted) {
+      // Show inline consent instead of navigating away
+      setShowConsent(true);
       return;
     }
-    const storedConsent = await AsyncStorage.getItem("whoop_consent_v1");
-    if (!storedConsent) {
-      setSyncStatus("WHOOP-specific consent required before connection.");
-      Alert.alert("WHOOP", "Please grant WHOOP consent in settings before connecting.");
-      return;
-    }
+    await doConnect();
+  };
+
+  const doConnect = async () => {
     if (!process.env.EXPO_PUBLIC_WHOOP_CLIENT_ID) {
-      setSyncStatus("Client configuration missing.");
       Alert.alert("WHOOP", "Client ID not configured.");
       return;
     }
     if (!backendUrl) {
-      setSyncStatus("Backend URL missing for this build.");
-      Alert.alert("WHOOP", "WHOOP connection is unavailable in this build because no backend URL is configured.");
+      Alert.alert("WHOOP", "WHOOP connection is unavailable in this build.");
       return;
     }
     const authUrl = `${WHOOP_AUTH_URL}?client_id=${encodeURIComponent(
@@ -110,7 +111,6 @@ export default function WhoopScreen() {
       return;
     }
 
-    // Extract the authorization code from the redirect URL
     const params = new URL(result.url).searchParams;
     const code = params.get("code");
     if (!code) {
@@ -132,11 +132,9 @@ export default function WhoopScreen() {
         setSessionToken(json.sessionToken);
       }
       setConnected(true);
-      setSyncStatus("WHOOP connected successfully.");
-      Alert.alert("WHOOP", "Connected successfully.");
+      Alert.alert("WHOOP", "Connected successfully!");
     } catch (err: any) {
       const e = toAppError(err, "Failed to connect WHOOP.");
-      setSyncStatus(e.userMessage);
       Alert.alert("WHOOP", e.userMessage);
     } finally {
       setBusy(false);
@@ -145,24 +143,11 @@ export default function WhoopScreen() {
 
   const syncDate = async (date: string) => {
     if (date > todayISO()) {
-      setSyncStatus("Future dates are not allowed.");
       Alert.alert("WHOOP", "Future dates are not allowed.");
       return;
     }
-    if (!sessionToken) {
-      setSyncStatus("WHOOP is not connected.");
+    if (!sessionToken || !backendUrl) {
       Alert.alert("WHOOP", "Not connected yet.");
-      return;
-    }
-    if (!backendUrl) {
-      setSyncStatus("Backend URL missing for this build.");
-      Alert.alert("WHOOP", "WHOOP sync is unavailable in this build because no backend URL is configured.");
-      return;
-    }
-    const consent = await AsyncStorage.getItem("whoop_consent_v1");
-    if (!consent) {
-      setSyncStatus("WHOOP consent is missing.");
-      Alert.alert("WHOOP", "Consent required. Please grant consent in WHOOP settings.");
       return;
     }
     setBusy(true);
@@ -190,11 +175,9 @@ export default function WhoopScreen() {
       await refreshDerivedForDate(date as any);
       setLastSynced(date);
       await AsyncStorage.setItem(LAST_SYNC_KEY, date);
-      setSyncStatus(`Synced wearable data for ${date}.`);
-      Alert.alert("WHOOP", `Synced ${date}`);
+      Alert.alert("WHOOP", `Synced ${formatDateFriendly(date)}`);
     } catch (err: any) {
       const e = toAppError(err, "WHOOP sync failed.");
-      setSyncStatus(e.userMessage);
       Alert.alert("WHOOP", e.userMessage);
     } finally {
       setBusy(false);
@@ -218,7 +201,6 @@ export default function WhoopScreen() {
     setConnected(false);
     setLastSynced(null);
     setParticipantId(null);
-    setSyncStatus("WHOOP disconnected.");
   };
 
   const saveManual = async () => {
@@ -239,111 +221,139 @@ export default function WhoopScreen() {
     }
     await upsertWearable(selectedDate as any, { recovery, sleepHours, strain }, "simulated_stub");
     await refreshDerivedForDate(selectedDate as any);
-    Alert.alert("Saved", `Manual wearable data saved for ${selectedDate}.`);
+    Alert.alert("Saved", `Wearable data saved for ${formatDateFriendly(selectedDate)}.`);
+    setManualRecovery("");
+    setManualSleep("");
+    setManualStrain("");
   };
 
   return (
     <Screen scroll>
       <Text style={[styles.h1, { color: c.text.primary }]}>WHOOP</Text>
-      <Text style={[styles.sub, { color: c.text.secondary }]}>Connect your WHOOP to bring in recovery, sleep, and strain — or skip this and type the numbers in yourself.</Text>
+      <Text style={[styles.sub, { color: c.text.secondary }]}>
+        Connect your WHOOP to bring in recovery, sleep, and strain — or type the numbers in yourself.
+      </Text>
 
-      <GlassCard style={styles.card}>
-        <Text style={[styles.title, { color: c.text.primary }]}>Connection</Text>
-
-        {/* Status row */}
-        <View style={{ flexDirection: "row", alignItems: "center", marginTop: 10, gap: 8 }}>
-          <View
-            style={{
-              width: 10,
-              height: 10,
-              borderRadius: 5,
-              backgroundColor: connected ? "#34C759" : c.text.tertiary,
-            }}
-          />
-          <Text style={{ color: c.text.primary, fontWeight: "700", fontSize: 15 }}>
-            {connected ? "Connected" : "Not connected"}
+      {/* ── Inline consent prompt ── */}
+      {showConsent && !consentGranted && (
+        <GlassCard style={styles.card}>
+          <Text style={{ color: c.text.primary, fontWeight: "800", fontSize: 17 }}>
+            Allow WHOOP data access?
           </Text>
+          <Text style={{ color: c.text.secondary, fontSize: 14, lineHeight: 20, marginTop: 8 }}>
+            Life Balance Assistant will connect to your WHOOP account to read your recovery, sleep, and strain scores. This data is used only for your personal insights.
+          </Text>
+          <View style={{ marginTop: 10, padding: 12, borderRadius: BorderRadius.lg, backgroundColor: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.03)" }}>
+            <Text style={{ color: c.text.secondary, fontSize: 13, lineHeight: 18 }}>
+              • Recovery, sleep hours, and strain are read daily{"\n"}
+              • Data stays on this device — nothing is shared{"\n"}
+              • You can disconnect and clear data at any time
+            </Text>
+          </View>
+          <View style={{ flexDirection: "row", gap: 10, marginTop: Spacing.sm }}>
+            <GlassButton
+              title="Allow and connect"
+              variant="primary"
+              onPress={grantConsentAndConnect}
+              style={{ flex: 1 }}
+            />
+            <GlassButton
+              title="Not now"
+              variant="secondary"
+              onPress={() => setShowConsent(false)}
+              style={{ flex: 1 }}
+            />
+          </View>
+        </GlassCard>
+      )}
+
+      {/* ── Connection card ── */}
+      <GlassCard style={styles.card}>
+        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+          <Text style={[styles.title, { color: c.text.primary }]}>Connection</Text>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+            <View
+              style={{
+                width: 8,
+                height: 8,
+                borderRadius: 4,
+                backgroundColor: connected ? "#34C759" : c.text.tertiary,
+              }}
+            />
+            <Text style={{ color: connected ? "#34C759" : c.text.tertiary, fontWeight: "700", fontSize: 13 }}>
+              {connected ? "Connected" : "Not connected"}
+            </Text>
+          </View>
         </View>
 
         {lastSynced ? (
-          <Text style={{ color: c.text.secondary, marginTop: 6, fontSize: 13 }}>
+          <Text style={{ color: c.text.secondary, marginTop: 8, fontSize: 13 }}>
             Last synced: {formatDateFriendly(lastSynced)}
           </Text>
         ) : null}
 
-        <Text style={{ color: c.text.secondary, marginTop: 4, fontSize: 13 }}>
-          WHOOP days in last 7: {whoopDaysLast7}/7
-        </Text>
-
-        {backendStatus && !backendStatus.ok ? (
-          <Text style={{ color: c.text.tertiary, marginTop: 8, fontSize: 13 }}>
-            {backendStatus.message}
-          </Text>
-        ) : null}
-
-        <View style={{ marginTop: 14 }}>
-          <View style={{ gap: 8 }}>
+        <View style={{ marginTop: 12, gap: 8 }}>
+          {!connected ? (
             <Button
-              title={connected ? "Connected" : busy ? "Connecting…" : "Connect WHOOP"}
+              title={busy ? "Connecting…" : "Connect WHOOP"}
               onPress={startConnect}
               disabled={busy || !ready}
               accessibilityLabel="Connect WHOOP"
             />
-            {connected ? (
+          ) : (
+            <>
               <Button
-                title="Disconnect WHOOP"
+                title={busy ? "Syncing…" : "Sync today"}
+                onPress={() => syncDate(today)}
+                disabled={busy}
+                accessibilityLabel="Sync today's WHOOP data"
+              />
+              <Button
+                title="Disconnect"
                 variant="secondary"
                 onPress={disconnect}
                 disabled={busy}
                 accessibilityLabel="Disconnect WHOOP"
               />
-            ) : null}
+            </>
+          )}
+        </View>
+      </GlassCard>
+
+      {/* ── Sync past dates (only when connected) ── */}
+      {connected && (
+        <GlassCard style={styles.card}>
+          <Text style={[styles.title, { color: c.text.primary }]}>Sync a past date</Text>
+          <View style={{ gap: 10, marginTop: 10 }}>
+            <InsightsDatePicker
+              date={selectedDate as any}
+              onChange={(d) => setSelectedDate(d)}
+              allowToday={true}
+              title="Pick a date"
+              helperText="Past dates only."
+            />
+            <Button
+              title={busy ? "Syncing…" : `Sync ${formatDateFriendly(selectedDate)}`}
+              onPress={() => syncDate(selectedDate)}
+              disabled={busy}
+              accessibilityLabel="Sync selected date"
+            />
           </View>
-        </View>
+        </GlassCard>
+      )}
 
-        <Text style={{ color: c.text.tertiary, marginTop: 10, fontSize: 12, lineHeight: 17 }}>
-          Each day's data is saved for 24 hours to keep WHOOP happy. If WHOOP isn't working, you can always type in the numbers yourself below.
-        </Text>
-      </GlassCard>
-
-      <GlassCard style={styles.card}>
-        <Text style={[styles.title, { color: c.text.primary }]}>Sync</Text>
-        <View style={{ gap: 10, marginTop: 10 }}>
-          <Button
-            title={busy ? "Syncing…" : "Sync today"}
-            onPress={() => syncDate(today)}
-            disabled={!connected || busy || !ready}
-            accessibilityLabel="Sync today's WHOOP data"
-          />
-          <InsightsDatePicker
-            date={selectedDate as any}
-            onChange={(d) => setSelectedDate(d)}
-            allowToday={true}
-            title="Pick a past date"
-            helperText="Past dates only; WHOOP API blocks future days."
-          />
-          <Button
-            title={busy ? "Syncing…" : `Sync ${formatDateFriendly(selectedDate)}`}
-            onPress={() => syncDate(selectedDate)}
-            disabled={!connected || busy || !ready}
-            accessibilityLabel="Sync selected date"
-          />
-        </View>
-        <Text style={{ color: c.text.secondary, marginTop: 8 }}>Last synced: {lastSynced ? formatDateFriendly(lastSynced) : "—"}</Text>
-        <Text style={{ color: c.text.secondary, marginTop: 4 }}>If WHOOP fails, manual wearable entry below uses the same scoring pipeline.</Text>
-      </GlassCard>
-
+      {/* ── Manual entry ── */}
       <GlassCard style={styles.card}>
         <Text style={[styles.title, { color: c.text.primary }]}>Type in numbers yourself</Text>
-        <Text style={{ color: c.text.secondary, marginTop: 6 }}>
-          If you don't have a WHOOP, or it's not syncing, pop your numbers in here and the app will treat them the same way.
+        <Text style={{ color: c.text.secondary, marginTop: 6, fontSize: 13, lineHeight: 18 }}>
+          No WHOOP? No problem. Enter your recovery, sleep, and strain manually — same scoring pipeline.
         </Text>
         <View style={{ gap: 10, marginTop: 10 }}>
           <TextInput
             value={manualRecovery}
             onChangeText={setManualRecovery}
             keyboardType="number-pad"
-            placeholder="Recovery (0-100)"
+            placeholder="Recovery (0–100)"
             placeholderTextColor={c.text.tertiary}
             style={[styles.input, { borderColor: c.border.medium, color: c.text.primary }]}
           />
@@ -359,13 +369,43 @@ export default function WhoopScreen() {
             value={manualStrain}
             onChangeText={setManualStrain}
             keyboardType="decimal-pad"
-            placeholder="Strain (optional)"
+            placeholder="Strain (optional, 0–21)"
             placeholderTextColor={c.text.tertiary}
             style={[styles.input, { borderColor: c.border.medium, color: c.text.primary }]}
           />
-          <Button title={`Save ${formatDateFriendly(selectedDate)}`} onPress={saveManual} accessibilityLabel="Save manual wearable data" />
+          <Button title={`Save for ${formatDateFriendly(selectedDate)}`} onPress={saveManual} accessibilityLabel="Save manual wearable data" />
         </View>
       </GlassCard>
+
+      {/* ── Consent management ── */}
+      {consentGranted && (
+        <Pressable
+          onPress={async () => {
+            Alert.alert(
+              "Withdraw WHOOP consent?",
+              "This will disconnect your WHOOP and clear all stored tokens.",
+              [
+                { text: "Cancel", style: "cancel" },
+                {
+                  text: "Withdraw",
+                  style: "destructive",
+                  onPress: async () => {
+                    await disconnect();
+                    await AsyncStorage.removeItem(CONSENT_KEY);
+                    setConsentGranted(false);
+                    Alert.alert("Done", "WHOOP consent withdrawn and data cleared.");
+                  },
+                },
+              ],
+            );
+          }}
+          style={{ paddingVertical: 12 }}
+        >
+          <Text style={{ color: c.text.tertiary, fontSize: 12, textAlign: "center" }}>
+            Withdraw WHOOP consent
+          </Text>
+        </Pressable>
+      )}
     </Screen>
   );
 }
@@ -375,13 +415,6 @@ const styles = StyleSheet.create({
   sub: { marginTop: 6, marginBottom: 14 },
   card: { padding: 16, marginBottom: 12 },
   title: { fontSize: 16, fontWeight: "800" },
-  link: { paddingVertical: 8 },
-  checkbox: {
-    marginTop: 10,
-    padding: 10,
-    borderRadius: 12,
-    borderWidth: 1,
-  },
   input: {
     borderWidth: 1,
     borderRadius: 12,
