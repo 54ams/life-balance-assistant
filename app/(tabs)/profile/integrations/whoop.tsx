@@ -101,9 +101,10 @@ export default function WhoopScreen() {
       Alert.alert("WHOOP", "WHOOP connection is unavailable in this build.");
       return;
     }
+    const state = randomId() + randomId();
     const authUrl = `${WHOOP_AUTH_URL}?client_id=${encodeURIComponent(
       process.env.EXPO_PUBLIC_WHOOP_CLIENT_ID
-    )}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${encodeURIComponent(WHOOP_SCOPES)}`;
+    )}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${encodeURIComponent(WHOOP_SCOPES)}&state=${encodeURIComponent(state)}`;
 
     const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUri);
     if (result.type !== "success" || !result.url) {
@@ -138,7 +139,34 @@ export default function WhoopScreen() {
         setSessionToken(json.sessionToken);
       }
       setConnected(true);
-      Alert.alert("WHOOP", "Connected successfully!");
+      Alert.alert("WHOOP", "Connected! Syncing today\u2019s data\u2026");
+      // Auto-sync today after connecting
+      const todayDate = todayISO();
+      try {
+        const syncUrl = `${backendUrl}/whoop/day?date=${encodeURIComponent(todayDate)}`;
+        const syncRes = await fetch(syncUrl, {
+          method: "GET",
+          headers: { Authorization: `Bearer ${json.sessionToken}` },
+        });
+        if (syncRes.ok) {
+          const syncJson = (await syncRes.json()) as any;
+          const wearable = syncJson?.data;
+          if (wearable) {
+            await upsertWearable(todayDate as any, wearable, "whoop_export");
+            await refreshDerivedForDate(todayDate as any);
+            setLastSynced(todayDate);
+            await AsyncStorage.setItem(LAST_SYNC_KEY, todayDate);
+            Alert.alert("WHOOP", `Synced ${formatDateFriendly(todayDate)}`);
+          } else {
+            Alert.alert("WHOOP", "Connected! No WHOOP data for today yet \u2014 try syncing later once your cycle completes.");
+          }
+        } else {
+          const errJson = await syncRes.json().catch(() => ({}));
+          Alert.alert("WHOOP", `Connected, but sync failed: ${(errJson as any)?.error || syncRes.status}`);
+        }
+      } catch {
+        Alert.alert("WHOOP", "Connected! Auto-sync failed \u2014 try the Sync button manually.");
+      }
     } catch (err: any) {
       const e = toAppError(err, "Failed to connect WHOOP.");
       Alert.alert("WHOOP", e.userMessage);
@@ -173,7 +201,10 @@ export default function WhoopScreen() {
           headers: { Authorization: `Bearer ${sessionToken}` },
         });
       }
-      if (!res.ok) throw new AppError("NETWORK", `Sync failed (${res.status}).`);
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}));
+        throw new AppError("NETWORK", `Sync failed: ${(errJson as any)?.error || res.status}`);
+      }
       const json = (await res.json()) as any;
       const wearable = json?.data;
       if (!wearable) throw new AppError("NOT_FOUND", "No WHOOP data returned for that day.");

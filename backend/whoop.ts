@@ -251,7 +251,9 @@ export async function getWhoopDay(sessionId: string, date: string, clientId: str
       await refreshToken(sessionId, clientId, clientSecret);
       return getWhoopDay(sessionId, date, clientId, clientSecret);
     }
-    throw new Error(`WHOOP fetch failed ${res.status}`);
+    const errBody = await res.text().catch(() => "");
+    console.error(`WHOOP API error ${res.status}:`, errBody);
+    throw new Error(`WHOOP API error ${res.status}: ${errBody.slice(0, 200)}`);
   }
   const json = (await res.json()) as any;
   const cycle = Array.isArray(json?.records) ? json.records[0] : Array.isArray(json?.data) ? json.data[0] : json;
