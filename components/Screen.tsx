@@ -16,6 +16,22 @@ type Props = {
   contentStyle?: ViewStyle;
 };
 
+/** Subtle top wash that echoes the aurora on the home screen. */
+function ScreenWash({ isDark }: { isDark: boolean }) {
+  return (
+    <View
+      pointerEvents="none"
+      style={{
+        ...StyleSheet.absoluteFillObject,
+        height: 260,
+        backgroundColor: isDark ? "rgba(156,176,138,0.06)" : "rgba(156,176,138,0.08)",
+        borderBottomLeftRadius: 80,
+        borderBottomRightRadius: 80,
+      }}
+    />
+  );
+}
+
 export function Screen({
   children,
   title,
@@ -26,7 +42,8 @@ export function Screen({
   contentStyle,
 }: Props) {
   const scheme = useColorScheme();
-  const c = scheme === "dark" ? Colors.dark : Colors.light;
+  const isDark = scheme === "dark";
+  const c = isDark ? Colors.dark : Colors.light;
   const insets = useSafeAreaInsets();
 
   const basePadding: ViewStyle = padded
@@ -52,6 +69,7 @@ export function Screen({
   if (scroll) {
     return (
       <SafeAreaView style={[s.safe, { backgroundColor: c.background }]}>
+        <ScreenWash isDark={isDark} />
         <ScrollView
           style={[s.fill, style]}
           contentContainerStyle={[
@@ -71,6 +89,7 @@ export function Screen({
 
   return (
     <SafeAreaView style={[s.safe, { backgroundColor: c.background }]}>
+      <ScreenWash isDark={isDark} />
       <View
         style={[
           s.fill,

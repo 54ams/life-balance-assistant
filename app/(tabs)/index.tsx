@@ -2,10 +2,13 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
   Alert,
   Animated,
+  LayoutAnimation,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
+  UIManager,
   View,
   useColorScheme,
 } from "react-native";
@@ -48,6 +51,10 @@ function greetingForHour(h: number) {
 function clamp01to100(n: number | null): number | null {
   if (n == null || !Number.isFinite(n)) return null;
   return Math.max(0, Math.min(100, Math.round(n)));
+}
+
+if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
 export default function HomeScreen() {
@@ -569,6 +576,7 @@ export default function HomeScreen() {
                     onPress={async () => {
                       const key = milestone.startsWith("30") ? "milestone_dismissed_30" : milestone.startsWith("One") ? "milestone_dismissed_7" : "milestone_dismissed_1";
                       await AsyncStorage.setItem(key, "1");
+                      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
                       setMilestone(null);
                     }}
                     style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: BorderRadius.full, backgroundColor: c.accent.primary }}
