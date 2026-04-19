@@ -1,3 +1,4 @@
+// LBA Backend — WHOOP OAuth proxy + LLM explain endpoint
 import "dotenv/config";
 import { createServer } from "http";
 import { explainPlan } from "./api/explain.js";
