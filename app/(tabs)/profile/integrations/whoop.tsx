@@ -275,18 +275,18 @@ export default function WhoopScreen() {
           WHOOP days in last 7: {whoopDaysLast7}/7
         </Text>
 
-        {!backendStatus?.ok ? (
-          <Text style={{ color: c.danger ?? c.text.secondary, marginTop: 8, fontSize: 13 }}>
-            WHOOP sync is temporarily unavailable. You can still enter numbers manually below.
+        {backendStatus && !backendStatus.ok ? (
+          <Text style={{ color: c.text.tertiary, marginTop: 8, fontSize: 13 }}>
+            {backendStatus.message}
           </Text>
         ) : null}
 
         <View style={{ marginTop: 14 }}>
           <View style={{ gap: 8 }}>
             <Button
-              title={connected ? "Connected" : "Connect WHOOP"}
+              title={connected ? "Connected" : busy ? "Connecting…" : "Connect WHOOP"}
               onPress={startConnect}
-              disabled={busy || !ready || !backendStatus?.ok}
+              disabled={busy || !ready}
               accessibilityLabel="Connect WHOOP"
             />
             {connected ? (
@@ -312,7 +312,7 @@ export default function WhoopScreen() {
           <Button
             title={busy ? "Syncing…" : "Sync today"}
             onPress={() => syncDate(today)}
-            disabled={!connected || busy || !ready || !backendStatus?.ok}
+            disabled={!connected || busy || !ready}
             accessibilityLabel="Sync today's WHOOP data"
           />
           <InsightsDatePicker
@@ -325,7 +325,7 @@ export default function WhoopScreen() {
           <Button
             title={busy ? "Syncing…" : `Sync ${formatDateFriendly(selectedDate)}`}
             onPress={() => syncDate(selectedDate)}
-            disabled={!connected || busy || !ready || !backendStatus?.ok}
+            disabled={!connected || busy || !ready}
             accessibilityLabel="Sync selected date"
           />
         </View>

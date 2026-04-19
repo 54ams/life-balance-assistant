@@ -68,7 +68,7 @@ export async function checkBackendHealth(): Promise<{
   }
   try {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 5000);
+    const timeout = setTimeout(() => controller.abort(), 30000);
     const res = await fetch(`${url}/health`, { signal: controller.signal });
     clearTimeout(timeout);
     if (!res.ok) {
@@ -83,7 +83,7 @@ export async function checkBackendHealth(): Promise<{
       llmConfigured: json.llmConfigured,
     };
   } catch (e: any) {
-    const msg = e?.name === "AbortError" ? "Backend timed out (5s)" : (e?.message ?? "Backend unreachable");
+    const msg = e?.name === "AbortError" ? "Backend is waking up — try again in a moment" : (e?.message ?? "Backend unreachable");
     return { ok: false, url, message: msg };
   }
 }
