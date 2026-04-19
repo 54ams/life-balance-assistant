@@ -1,5 +1,6 @@
 // lib/plan.ts
-import type { DailyCheckIn, WearableMetrics } from "./types";
+import type { DailyCheckIn, FutureEvent, WearableMetrics } from "./types";
+import type { RecurringItem } from "./schedule";
 
 export type PlanCategory = "RECOVERY" | "NORMAL";
 
@@ -108,8 +109,10 @@ export function generatePlan(input: {
   values?: string[];
   lifeContexts?: string[];
   goals?: string[];
+  schedule?: RecurringItem[];
+  upcomingEvents?: FutureEvent[];
 }): GeneratedPlan {
-  const { lbi, baseline, classification, wearable, checkIn, confidence, values, lifeContexts, goals } = input;
+  const { lbi, baseline, classification, wearable, checkIn, confidence, values, lifeContexts, goals, schedule, upcomingEvents } = input;
 
   const sc = stressCount(checkIn);
   const lowSleep = wearable.sleepHours < 6.5;
@@ -191,6 +194,43 @@ export function generatePlan(input: {
     if (ct) {
       actions.push(ct.action);
       actionReasons.push(ct.reason);
+    }
+  }
+
+  // Wire in schedule-aware actions
+  if (schedule?.length) {
+    const demandCount = schedule.filter((s) => s.kind === "demand").length;
+    const resourceCount = schedule.filter((s) => s.kind === "resource").length;
+    if (demandCount >= 2 && category === "RECOVERY") {
+      actions.push(`Heavy day ahead (${schedule.filter((s) => s.kind === "demand").map((s) => s.label).join(", ")}) — pace yourself and take breaks`);
+      actionReasons.push("Multiple demands on a recovery day means energy management is key.");
+    } else if (resourceCount > 0 && category === "NORMAL") {
+      const res = schedule.find((s) => s.kind === "resource");
+      if (res) {
+        actions.push(`Make the most of ${res.label} today — lean into what recharges you`);
+        actionReasons.push("Scheduled recovery activities amplify a good-energy day.");
+      }
+    }
+  }
+
+  // Wire in upcoming event awareness
+  if (upcomingEvents?.length) {
+    const tomorrow = upcomingEvents.find((e) => {
+      const daysAway = Math.ceil((Date.parse(e.dateISO) - Date.now()) / 86400000);
+      return daysAway === 1;
+    });
+    const soon = upcomingEvents.find((e) => {
+      const daysAway = Math.ceil((Date.parse(e.dateISO) - Date.now()) / 86400000);
+      return daysAway > 1 && daysAway <= 3 && e.impactLevel === "high";
+    });
+
+    if (tomorrow && tomorrow.impactLevel === "high") {
+      actions.push(`${tomorrow.title} is tomorrow — wind down early tonight and prepare what you can now`);
+      actionReasons.push("Protecting tonight's sleep before a high-impact day makes a measurable difference.");
+      why.push(`${tomorrow.title} is coming up tomorrow.`);
+    } else if (soon) {
+      const daysAway = Math.ceil((Date.parse(soon.dateISO) - Date.now()) / 86400000);
+      triggers.push(`${soon.title} in ${daysAway} days — start preparing gradually`);
     }
   }
 

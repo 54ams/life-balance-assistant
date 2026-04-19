@@ -2,9 +2,11 @@ import { computeBaseline } from "./baseline";
 import { calculateLBI, type LbiOutput } from "./lbi";
 import { trainIfReady } from "./ml/models";
 import { generatePlan, type GeneratedPlan } from "./plan";
-import { getActiveValues, getDay, getLifeContexts, loadPlan, savePlan, upsertLBI } from "./storage";
+import { getActiveValues, getDay, getLifeContexts, listUpcomingEvents, loadPlan, savePlan, upsertLBI } from "./storage";
 import { getPrimaryGoals } from "./privacy";
 import { sendBalanceDropNow } from "./notifications";
+import { getScheduleForToday } from "./schedule";
+import { generateSmartRecommendation, invalidateRecommendation } from "./smartRecommendation";
 import type { ISODate } from "./types";
 
 export type DerivedRefreshResult = {
@@ -34,10 +36,12 @@ export async function refreshDerivedForDate(date: ISODate): Promise<DerivedRefre
   });
 
   const baseline = await computeBaseline(7);
-  const [values, lifeContexts, goals] = await Promise.all([
+  const [values, lifeContexts, goals, schedule, upcomingEvents] = await Promise.all([
     getActiveValues(),
     getLifeContexts(),
     getPrimaryGoals(),
+    getScheduleForToday(),
+    listUpcomingEvents(date, 3),
   ]);
   const generated = generatePlan({
     lbi: lbi.lbi,
@@ -49,6 +53,8 @@ export async function refreshDerivedForDate(date: ISODate): Promise<DerivedRefre
     values,
     lifeContexts,
     goals,
+    schedule,
+    upcomingEvents,
   });
 
   const existing = await loadPlan(date);
@@ -68,6 +74,19 @@ export async function refreshDerivedForDate(date: ISODate): Promise<DerivedRefre
   });
 
   await trainIfReady();
+
+  // Generate smart recommendation (invalidate stale cache first)
+  await invalidateRecommendation(date);
+  generateSmartRecommendation({
+    date,
+    wearable: day.wearable,
+    checkIn: day.checkIn ?? null,
+    lbi: lbi.lbi,
+    lifeContexts,
+    schedule,
+    upcomingEvents,
+    values,
+  }).catch(() => {}); // fire and forget — non-blocking
 
   // Alert if LBI dropped significantly from baseline
   if (baseline != null && lbi.lbi <= baseline - 15) {

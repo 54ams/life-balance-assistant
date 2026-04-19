@@ -31,6 +31,7 @@ import { Colors, bridgeStateFrom, type BridgeState } from "@/constants/Colors";
 import { Spacing, BorderRadius } from "@/constants/Spacing";
 
 import { getAllDays, getDay, getUserName, listDailyRecords, loadPlan, setPlanActionCompleted } from "@/lib/storage";
+import { getCachedRecommendation, type SmartRecommendation } from "@/lib/smartRecommendation";
 import { todayISO } from "@/lib/util/todayISO";
 import type { DailyRecord, ISODate } from "@/lib/types";
 import { refreshDerivedForDate } from "@/lib/pipeline";
@@ -81,6 +82,9 @@ export default function HomeScreen() {
   const [todayPlan, setTodayPlan] = useState<
     { focus: string; actions: string[]; actionReasons: string[]; completedActions: boolean[] } | null
   >(null);
+
+  // Smart recommendation (Layer 4)
+  const [smartRec, setSmartRec] = useState<SmartRecommendation | null>(null);
 
   // UI / session
   const [checkedInToday, setCheckedInToday] = useState(false);
@@ -221,6 +225,10 @@ export default function HomeScreen() {
             .map((r) => ({ date: r.date, value: r.lbi as number }));
           setHeatmapData(hm);
         }
+
+        // Load smart recommendation
+        const rec = await getCachedRecommendation(date);
+        if (alive && rec) setSmartRec(rec);
 
         await refreshAnchors();
         await refreshLift();
@@ -594,6 +602,43 @@ export default function HomeScreen() {
             >
               {narrative}
             </Text>
+
+            {/* Smart recommendation — context-aware daily insight */}
+            {smartRec && (
+              <GlassCard style={{ marginTop: Spacing.md }} padding="base">
+                <Text
+                  style={{
+                    color: c.text.tertiary,
+                    fontSize: 10,
+                    fontWeight: "800",
+                    letterSpacing: 1.6,
+                  }}
+                >
+                  TODAY'S INSIGHT
+                </Text>
+                <Text
+                  style={{
+                    color: c.text.primary,
+                    fontSize: 17,
+                    fontWeight: "800",
+                    marginTop: 4,
+                    letterSpacing: -0.2,
+                  }}
+                >
+                  {smartRec.headline}
+                </Text>
+                <Text
+                  style={{
+                    color: c.text.secondary,
+                    fontSize: 14,
+                    marginTop: 4,
+                    lineHeight: 20,
+                  }}
+                >
+                  {smartRec.text}
+                </Text>
+              </GlassCard>
+            )}
 
             {/* State Orb — the single expressive metric */}
             <View style={{ alignItems: "center", marginTop: Spacing.lg }}>

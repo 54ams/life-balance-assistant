@@ -22,6 +22,7 @@ import { getRetentionDays, runRetentionPurgeNow, getAppConsent } from "@/lib/pri
 import { setupNotificationDeepLink } from "@/lib/notifications";
 import { hasSeenWelcome } from "@/app/welcome";
 import { getFirstRunDone } from "@/lib/demo";
+import { useWhoopAutoSync } from "@/hooks/useWhoopAutoSync";
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
@@ -29,6 +30,7 @@ type GateState = "loading" | "welcome" | "onboarding" | "first-run" | "ready";
 
 export default function RootLayout() {
   const [gate, setGate] = useState<GateState>("loading");
+  useWhoopAutoSync();
 
   const [fontsLoaded] = useFonts({
     CormorantGaramond_500Medium,

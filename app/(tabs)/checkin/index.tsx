@@ -24,6 +24,7 @@ import { todayISO } from "@/lib/util/todayISO";
 import {
   getActiveValues,
   getCheckIn,
+  getDay,
   getEmotion,
   upsertCheckIn,
   upsertEmotion,
@@ -32,7 +33,9 @@ import type {
   DailyCheckIn,
   EmotionalDiaryEntry,
   LifeContextTag,
+  WearableMetrics,
 } from "@/lib/types";
+import { suggestContextFromWearable, wearableSummaryLine, recoveryColor } from "@/lib/whoopContext";
 import { deriveIntensity } from "@/lib/emotion";
 import { containsSelfHarmSignals } from "@/lib/privacy";
 import { refreshDerivedForDate } from "@/lib/pipeline";
@@ -76,6 +79,9 @@ export default function DailyCheckInScreen() {
   const [valueChosen, setValueChosen] = useState<string>("Health");
   const [activeValues, setActiveValues] = useState<string[]>([]);
 
+  // WHOOP wearable data for today (Layer 2)
+  const [wearable, setWearable] = useState<WearableMetrics | null>(null);
+
   // Local-matcher suggestions + LLM deeper-read state.
   const [localSuggestions, setLocalSuggestions] = useState<NoteSuggestion[]>([]);
   const [llmSuggestions, setLlmSuggestions] = useState<NoteSuggestion[]>([]);
@@ -89,12 +95,26 @@ export default function DailyCheckInScreen() {
       setActiveValues(values);
       setValueChosen(values[0] ?? "Health");
 
+      // Load today's wearable data for WHOOP context
+      const today = await getDay(date as any);
+      if (today?.wearable) {
+        setWearable(today.wearable);
+      }
+
       const existing = await getCheckIn(date as any);
       if (existing) {
         if (typeof existing.valence === "number") setValence(existing.valence);
         if (typeof existing.arousal === "number") setArousal(existing.arousal);
         if (existing.lifeContext) setTags(existing.lifeContext);
         if (existing.notes) setNote(existing.notes);
+      } else if (today?.wearable) {
+        // Pre-fill tags from WHOOP data for new check-ins only
+        const whoopSuggestions = suggestContextFromWearable(today.wearable);
+        const autoTags: LifeContextTag[] = whoopSuggestions.map((s) => ({
+          id: s.tagId,
+          kind: s.kind,
+        }));
+        setTags(autoTags);
       }
       const existingEmotion = await getEmotion(date as any);
       if (existingEmotion) {
@@ -299,6 +319,31 @@ export default function DailyCheckInScreen() {
 
       <Animated.View style={{ opacity: fade, transform: [{ translateX: slideX }] }}>
         {/* ------------------------------ STEP 0 · Affect canvas */}
+        {step === 0 && wearable && (
+          <GlassCard padding="base" style={{ marginBottom: Spacing.sm }}>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+              <View
+                style={{
+                  width: 10,
+                  height: 10,
+                  borderRadius: 5,
+                  backgroundColor: recoveryColor(wearable.recovery),
+                }}
+              />
+              <Text style={{ color: c.text.primary, fontWeight: "800", fontSize: 14 }}>
+                Your body today
+              </Text>
+            </View>
+            <Text style={{ color: c.text.secondary, fontSize: 13, marginTop: 6, letterSpacing: 0.3 }}>
+              {wearableSummaryLine(wearable)}
+            </Text>
+            {suggestContextFromWearable(wearable).length > 0 && (
+              <Text style={{ color: c.text.tertiary, fontSize: 12, marginTop: 4, fontStyle: "italic" }}>
+                {suggestContextFromWearable(wearable).map((s) => s.reason).join("  ·  ")}
+              </Text>
+            )}
+          </GlassCard>
+        )}
         {step === 0 && (
           <GlassCard padding="lg">
             <Text

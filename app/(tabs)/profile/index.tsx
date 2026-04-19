@@ -18,6 +18,7 @@ const TOOLS: Array<{ title: string; subtitle: string; icon: any; route: string }
   { title: "Calendar", subtitle: "Review past and future days", icon: "calendar", route: "/calendar" },
   { title: "History", subtitle: "Plans, adherence, and outcomes", icon: "clock.fill", route: "/history" },
   { title: "Wearables", subtitle: "Connect WHOOP and manage sources", icon: "heart.fill", route: "/profile/integrations/whoop" },
+  { title: "My Schedule", subtitle: "Recurring commitments and routines", icon: "calendar.badge.clock", route: "/profile/settings/schedule" },
   { title: "Export", subtitle: "Download your data for research", icon: "square.and.arrow.up", route: "/profile/export" },
 ];
 
