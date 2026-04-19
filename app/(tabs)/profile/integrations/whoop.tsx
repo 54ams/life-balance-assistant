@@ -1,4 +1,3 @@
-import * as AuthSession from "expo-auth-session";
 import * as WebBrowser from "expo-web-browser";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { useEffect, useMemo, useState } from "react";
@@ -105,15 +104,22 @@ export default function WhoopScreen() {
       process.env.EXPO_PUBLIC_WHOOP_CLIENT_ID
     )}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${encodeURIComponent(WHOOP_SCOPES)}`;
 
-    const result = await (AuthSession as any).startAsync({ authUrl });
-    if (result.type !== "success" || !(result as any).params?.code) {
+    const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUri);
+    if (result.type !== "success" || !result.url) {
       Alert.alert("WHOOP", "Authentication was cancelled or failed.");
+      return;
+    }
+
+    // Extract the authorization code from the redirect URL
+    const params = new URL(result.url).searchParams;
+    const code = params.get("code");
+    if (!code) {
+      Alert.alert("WHOOP", "No authorization code received.");
       return;
     }
 
     setBusy(true);
     try {
-      const code = (result as any).params.code as string;
       const res = await fetch(`${backendUrl}/whoop/exchange`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
