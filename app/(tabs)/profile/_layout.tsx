@@ -6,6 +6,7 @@ export default function ProfileLayout() {
     <Stack
       screenOptions={{
         headerShown: false,
+        gestureEnabled: true,
         animation: "slide_from_right",
       }}
     />

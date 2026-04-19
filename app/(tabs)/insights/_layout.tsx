@@ -21,6 +21,7 @@ export default function InsightsLayout() {
     <Stack
       screenOptions={{
         headerShown: false,
+        gestureEnabled: true,
         animation: "slide_from_right",
       }}
     />

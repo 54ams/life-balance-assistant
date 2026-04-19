@@ -14,22 +14,18 @@ import { listDailyRecords } from "@/lib/storage";
 import { mentalScore, physioScore } from "@/lib/bridge";
 import { todayISO } from "@/lib/util/todayISO";
 import type { DailyRecord } from "@/lib/types";
+import { formatDateFriendly } from "@/lib/util/formatDate";
 
 // Human-readable label for an ISO date. "Today" / "Yesterday" / weekday +
 // day + month for anything further back. Keeps the history list scannable.
 function labelFor(iso: string): string {
   const today = todayISO();
   if (iso === today) return "Today";
-  const d = new Date(iso + "T00:00:00");
   const yesterday = new Date();
   yesterday.setDate(yesterday.getDate() - 1);
   const yISO = yesterday.toISOString().slice(0, 10);
   if (iso === yISO) return "Yesterday";
-  return d.toLocaleDateString("en-GB", {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-  });
+  return formatDateFriendly(iso);
 }
 
 function regulationCopy(r: DailyRecord["emotion"]): string | null {

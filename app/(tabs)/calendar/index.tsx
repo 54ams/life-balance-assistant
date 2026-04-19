@@ -11,12 +11,12 @@ import { Spacing, BorderRadius } from "@/constants/Spacing";
 import { listDailyRecords, listFutureEventsByDate, listUpcomingEvents } from "@/lib/storage";
 import type { ISODate } from "@/lib/types";
 import { todayISO } from "@/lib/util/todayISO";
+import { formatDateLong } from "@/lib/util/formatDate";
 
 type Marked = Record<string, any>;
 
 function formatSelected(iso: string) {
-  const d = new Date(iso + "T00:00:00");
-  return d.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" });
+  return formatDateLong(iso);
 }
 
 export default function CalendarScreen() {

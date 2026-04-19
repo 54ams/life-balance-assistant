@@ -9,6 +9,7 @@ import { Spacing, BorderRadius } from "@/constants/Spacing";
 import { TAB_ORDER } from "@/constants/navigation";
 import { useColorScheme } from "react-native";
 import { loadPlan, type StoredPlan } from "@/lib/storage";
+import { formatDateFriendly } from "@/lib/util/formatDate";
 import { TabSwipe } from "@/components/TabSwipe";
 
 function lastNDates(n: number) {
@@ -33,8 +34,7 @@ function categoryLabel(cat: StoredPlan["category"]) {
 }
 
 function formatDate(iso: string) {
-  const d = new Date(iso + "T00:00:00");
-  return d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
+  return formatDateFriendly(iso);
 }
 
 export default function HistoryScreen() {
