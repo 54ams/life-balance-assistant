@@ -1,6 +1,6 @@
 import { Redirect, Tabs, router, useSegments } from "expo-router";
-import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Animated, StyleSheet } from "react-native";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Animated, Dimensions, StyleSheet } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import * as Haptics from "expo-haptics";
 
@@ -12,9 +12,10 @@ import { getFirstRunDone } from "@/lib/demo";
 
 type GateState = "loading" | "welcome" | "onboarding" | "first-run" | "ok";
 
-// Swipe order for the tab ring. I wanted swiping between tabs to feel native,
-// so this defines which tab is "next" in each direction.
 const SWIPE_ORDER = ["index", "checkin", "insights", "profile"] as const;
+const SCREEN_WIDTH = Dimensions.get("window").width;
+// Dead zone on left/right edges to avoid fighting with iOS system back gesture
+const EDGE_DEAD_ZONE = 35;
 
 export default function TabLayout() {
   const [gate, setGate] = useState<GateState>("loading");
@@ -34,7 +35,6 @@ export default function TabLayout() {
     })();
   }, []);
 
-  // Figure out which tab we're on from the URL segments.
   const activeRoute = useMemo(() => {
     const tabSeg = segments.find((s) => SWIPE_ORDER.includes(s as any));
     return (tabSeg as (typeof SWIPE_ORDER)[number]) ?? "index";
@@ -42,29 +42,35 @@ export default function TabLayout() {
   const activeRouteRef = useRef(activeRoute);
   activeRouteRef.current = activeRoute;
 
-  // Edge bounce — when you swipe past the last tab, the screen nudges
-  // and vibrates slightly. Without this it just feels like nothing happened.
+  // Check if user is on a nested screen (not the tab root). If so, disable
+  // swipe so it doesn't interfere with stack back gestures.
+  const isNested = useMemo(() => {
+    // If segments has more than 2 parts (e.g. ["(tabs)", "checkin", "habits"]),
+    // the user is inside a nested stack screen.
+    const tabIdx = (segments as string[]).indexOf("(tabs)");
+    return tabIdx >= 0 && segments.length > tabIdx + 2;
+  }, [segments]);
+
   const nudge = useRef(new Animated.Value(0)).current;
-  const bounce = (direction: 1 | -1) => {
+  const bounce = useCallback((direction: 1 | -1) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-    // direction=1 → swiped left (forward) → nudge content left
     const peak = direction === 1 ? -18 : 18;
     Animated.sequence([
       Animated.timing(nudge, {
         toValue: peak,
-        duration: 120,
+        duration: 100,
         useNativeDriver: true,
       }),
       Animated.spring(nudge, {
         toValue: 0,
-        friction: 5,
-        tension: 60,
+        friction: 6,
+        tension: 80,
         useNativeDriver: true,
       }),
     ]).start();
-  };
+  }, [nudge]);
 
-  const navigateBy = (dir: 1 | -1) => {
+  const navigateBy = useCallback((dir: 1 | -1) => {
     const cur = activeRouteRef.current;
     const idx = SWIPE_ORDER.indexOf(cur as any);
     if (idx < 0) return;
@@ -77,24 +83,35 @@ export default function TabLayout() {
     Haptics.selectionAsync().catch(() => {});
     if (nextRoute === "index") router.navigate("/" as any);
     else router.navigate(`/${nextRoute}` as any);
-  };
+  }, [bounce]);
 
-  // Horizontal swipe gesture. The 30px threshold + failOffsetY stops it from
-  // hijacking vertical scrolling inside tabs — took a while to get right.
+  // Swipe gesture with protections:
+  // - Wide failOffsetY so vertical scrolling works reliably
+  // - Ignore swipes starting near screen edges (iOS back gesture zone)
+  // - Disabled when inside a nested stack screen
+  const startXRef = useRef(0);
   const pan = useMemo(
     () =>
       Gesture.Pan()
-        .activeOffsetX([-30, 30])
-        .failOffsetY([-14, 14])
+        .activeOffsetX([-40, 40])
+        .failOffsetY([-25, 25])
+        .onBegin((e) => {
+          startXRef.current = e.absoluteX;
+        })
         .onEnd((e) => {
+          // Don't swipe if started in edge dead zone (system gesture area)
+          if (startXRef.current < EDGE_DEAD_ZONE || startXRef.current > SCREEN_WIDTH - EDGE_DEAD_ZONE) {
+            return;
+          }
           const { translationX, velocityX } = e;
           const strongEnough =
-            Math.abs(translationX) > 80 || Math.abs(velocityX) > 700;
+            Math.abs(translationX) > 90 || Math.abs(velocityX) > 800;
           if (!strongEnough) return;
           if (translationX < 0) navigateBy(1);
           else navigateBy(-1);
-        }),
-    [],
+        })
+        .enabled(!isNested),
+    [isNested, navigateBy],
   );
 
   if (gate === "loading") return null;
@@ -110,7 +127,14 @@ export default function TabLayout() {
           { transform: [{ translateX: nudge }] },
         ]}
       >
-        <Tabs tabBar={(props) => <FloatingTabBar {...props} />} screenOptions={{ headerShown: false }}>
+        <Tabs
+          tabBar={(props) => <FloatingTabBar {...props} />}
+          screenOptions={{
+            headerShown: false,
+            // Smooth fade transition between tabs instead of instant swap
+            animation: "fade",
+          }}
+        >
           <Tabs.Screen
             name="index"
             options={{
@@ -151,7 +175,7 @@ export default function TabLayout() {
             }}
           />
 
-          {/* These screens live under the tab navigator but aren't shown in the bar */}
+          {/* Hidden screens — accessible via push, not tab bar */}
           <Tabs.Screen name="checkins" options={{ href: null }} />
           <Tabs.Screen name="calendar" options={{ href: null }} />
           <Tabs.Screen name="history" options={{ href: null }} />

@@ -7,7 +7,8 @@ export default function HistoryLayout() {
       screenOptions={{
         headerShown: false,
         gestureEnabled: true,
-        animation: "slide_from_right",
+        animation: "fade_from_bottom",
+        animationDuration: 200,
       }}
     />
   );
