@@ -1,4 +1,6 @@
-// lib/schedule.ts — Recurring weekly schedule items (Layer 3).
+// schedule.ts — recurring weekly commitments (Layer 3 in the architecture).
+// I went with a simple weekly model because most students have repeating
+// timetables. Doesn't need to handle one-off events — that's FutureEvent.
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export type RecurringItem = {
@@ -35,12 +37,12 @@ export async function removeScheduleItem(id: string): Promise<void> {
   await saveSchedule(items.filter((i) => i.id !== id));
 }
 
-/** Get schedule items active for a given day of the week. */
+// Filter to just the items that apply on a given day.
 export function getScheduleForDay(items: RecurringItem[], dayOfWeek: number): RecurringItem[] {
   return items.filter((i) => i.daysOfWeek.includes(dayOfWeek));
 }
 
-/** Get schedule items for today. */
+// Convenience wrapper — most callers just need "what's on today?"
 export async function getScheduleForToday(): Promise<RecurringItem[]> {
   const items = await getSchedule();
   const today = new Date().getDay(); // 0=Sun

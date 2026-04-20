@@ -1,4 +1,6 @@
-// lib/whoopContext.ts — Derive life-context tag suggestions from WHOOP wearable data.
+// whoopContext.ts — this is part of the "Mind-Body Bridge" idea (H8 in the diss).
+// It translates raw WHOOP numbers into life-context tags so the check-in
+// can pre-populate suggestions like "poor sleep" or "well rested".
 import type { WearableMetrics } from "./types";
 
 export type WhoopContextSuggestion = {
@@ -7,10 +9,8 @@ export type WhoopContextSuggestion = {
   reason: string;
 };
 
-/**
- * Given today's wearable data, suggest life-context tags that should be
- * pre-populated in the check-in flow. Users can dismiss these.
- */
+// Suggests context tags from wearable data. Users can always dismiss these —
+// the point is to reduce friction, not override their judgement.
 export function suggestContextFromWearable(w: WearableMetrics): WhoopContextSuggestion[] {
   const suggestions: WhoopContextSuggestion[] = [];
 
@@ -47,9 +47,7 @@ export function suggestContextFromWearable(w: WearableMetrics): WhoopContextSugg
   return suggestions;
 }
 
-/**
- * Build a one-line summary of today's WHOOP data for display in the check-in.
- */
+// One-liner shown in the check-in UI so users can see their WHOOP data at a glance.
 export function wearableSummaryLine(w: WearableMetrics): string {
   const parts: string[] = [];
   parts.push(`Recovery ${Math.round(w.recovery)}%`);
@@ -58,9 +56,7 @@ export function wearableSummaryLine(w: WearableMetrics): string {
   return parts.join("  ·  ");
 }
 
-/**
- * Return a colour hint for the recovery score.
- */
+// Traffic-light colour for recovery — matches WHOOP's own green/amber/red scheme.
 export function recoveryColor(recovery: number): string {
   if (recovery >= 67) return "#34C759"; // green
   if (recovery >= 34) return "#FF9500"; // amber

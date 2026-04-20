@@ -42,6 +42,11 @@ import { realignFor } from "@/lib/realign";
 import { getAnchorsForDate, isDawnWindow, isDuskWindow, listAnchors, type AnchorRecord } from "@/lib/anchors";
 import { getActiveLift } from "@/lib/lift";
 import type { LbiOutput } from "@/lib/lbi";
+import { getTodayProgress, getLongestActiveStreak } from "@/lib/habits";
+import { detectDecline, type PatternAlert } from "@/lib/patternInterrupt";
+import { shouldPromptWeeklyReflection } from "@/lib/weeklyReflection";
+import { hasCompletedTour } from "@/lib/tour";
+import { TourOverlay } from "@/components/ui/TourOverlay";
 
 function greetingForHour(h: number) {
   if (h < 12) return "Good morning";
@@ -95,6 +100,13 @@ export default function HomeScreen() {
   const [breathVisible, setBreathVisible] = useState(false);
   const [rippleKey, setRippleKey] = useState(0);
   const [milestone, setMilestone] = useState<string | null>(null);
+
+  // New interconnected features
+  const [habitProgress, setHabitProgress] = useState<{ total: number; completed: number }>({ total: 0, completed: 0 });
+  const [longestStreak, setLongestStreak] = useState(0);
+  const [patternAlert, setPatternAlert] = useState<PatternAlert | null>(null);
+  const [showWeeklyPrompt, setShowWeeklyPrompt] = useState(false);
+  const [showTour, setShowTour] = useState(false);
 
   // Reveal animation
   const reveal = useRef(new Animated.Value(0)).current;
@@ -236,6 +248,18 @@ export default function HomeScreen() {
         setUserName(await getUserName());
         setTone(await getPreferredTone());
         setIsDemoMode((await getDemoModeChoice()) === "demo");
+
+        // New interconnected features
+        const hp = await getTodayProgress();
+        if (alive) setHabitProgress({ total: hp.total, completed: hp.completed });
+        const streak = await getLongestActiveStreak();
+        if (alive) setLongestStreak(streak);
+        const alert = detectDecline(records);
+        if (alive) setPatternAlert(alert.active ? alert : null);
+        const weeklyPrompt = await shouldPromptWeeklyReflection();
+        if (alive) setShowWeeklyPrompt(weeklyPrompt);
+        const tourDone = await hasCompletedTour();
+        if (alive) setShowTour(!tourDone);
 
         // Milestone detection
         const checkInCount = records.filter((r) => r.checkIn != null).length;
@@ -380,7 +404,7 @@ export default function HomeScreen() {
                   onPress={() => router.push("/profile/settings/demo" as any)}
                   style={[styles.demoChip, { backgroundColor: c.accent.primary }]}
                 >
-                  <Text style={styles.demoChipText}>Demo data</Text>
+                  <Text style={[styles.demoChipText, { color: c.onPrimary }]}>Demo data</Text>
                 </Pressable>
               )}
               <Pressable
@@ -547,7 +571,7 @@ export default function HomeScreen() {
                 accessibilityLabel="Demo data indicator. Tap to manage."
                 style={[styles.demoChip, { backgroundColor: c.accent.primary }]}
               >
-                <Text style={styles.demoChipText}>Demo data</Text>
+                <Text style={[styles.demoChipText, { color: c.onPrimary }]}>Demo data</Text>
               </Pressable>
             )}
             <Pressable
@@ -589,7 +613,7 @@ export default function HomeScreen() {
                     }}
                     style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: BorderRadius.full, backgroundColor: c.accent.primary }}
                   >
-                    <Text style={{ color: "#fff", fontSize: 12, fontWeight: "700" }}>Dismiss</Text>
+                    <Text style={{ color: c.onPrimary, fontSize: 12, fontWeight: "700" }}>Dismiss</Text>
                   </Pressable>
                 </View>
               </GlassCard>
@@ -761,34 +785,131 @@ export default function HomeScreen() {
               </View>
             )}
 
-            {/* Quiet entry points */}
-            <View style={styles.quietRow}>
+            {/* Quick Actions — always visible toolkit */}
+            <View style={styles.quickActionsRow}>
+              {[
+                { icon: "wind", label: "Breathe", onPress: () => setBreathVisible(true) },
+                { icon: "square.and.pencil", label: checkedInToday ? "Update" : "Check in", onPress: () => router.push("/checkin" as any) },
+                { icon: "repeat", label: "Habits", onPress: () => router.push("/checkin/habits" as any) },
+                { icon: "lightbulb.fill", label: "Reframe", onPress: () => router.push("/checkin/reframe" as any) },
+              ].map((action) => (
+                <Pressable
+                  key={action.label}
+                  onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {}); action.onPress(); }}
+                  style={({ pressed }) => [styles.quickAction, pressed && { opacity: 0.7, transform: [{ scale: 0.95 }] }]}
+                >
+                  <View style={[styles.quickActionIcon, { backgroundColor: c.accent.primary + "14" }]}>
+                    <IconSymbol name={action.icon as any} size={20} color={c.accent.primary} />
+                  </View>
+                  <Text style={[styles.quickActionLabel, { color: c.text.secondary }]}>{action.label}</Text>
+                </Pressable>
+              ))}
+            </View>
+
+            {/* Pattern Alert — urgent card when declining */}
+            {patternAlert && (
+              <GlassCard style={{ marginTop: Spacing.lg, borderColor: "#ef4444" + "40" }} padding="base">
+                <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 12 }}>
+                  <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: "#ef444420", alignItems: "center", justifyContent: "center" }}>
+                    <IconSymbol name="exclamationmark.triangle.fill" size={18} color="#ef4444" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ color: c.text.primary, fontSize: 14, fontWeight: "700" }}>
+                      {patternAlert.message}
+                    </Text>
+                    <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 10 }}>
+                      {patternAlert.suggestedActions.slice(0, 3).map((action) => (
+                        <Pressable
+                          key={action.id}
+                          onPress={() => {
+                            if (action.route) router.push(action.route as any);
+                            else if (action.tool === "breathe") setBreathVisible(true);
+                          }}
+                          style={[styles.interruptChip, { backgroundColor: c.accent.primary }]}
+                        >
+                          <Text style={{ color: "#fff", fontSize: 12, fontWeight: "700" }}>{action.label}</Text>
+                        </Pressable>
+                      ))}
+                    </View>
+                  </View>
+                </View>
+              </GlassCard>
+            )}
+
+            {/* Habit Progress + Streak */}
+            {habitProgress.total > 0 && (
+              <Pressable onPress={() => router.push("/checkin/habits" as any)}>
+                <GlassCard style={{ marginTop: Spacing.lg }} padding="base">
+                  <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ color: c.text.tertiary, fontSize: 10, fontWeight: "800", letterSpacing: 1.4 }}>TODAY'S HABITS</Text>
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginTop: 6 }}>
+                        <View style={[styles.progressBar, { backgroundColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)" }]}>
+                          <View style={[styles.progressFill, { backgroundColor: c.accent.primary, width: `${habitProgress.total > 0 ? (habitProgress.completed / habitProgress.total) * 100 : 0}%` }]} />
+                        </View>
+                        <Text style={{ color: c.text.secondary, fontSize: 13, fontWeight: "700" }}>
+                          {habitProgress.completed}/{habitProgress.total}
+                        </Text>
+                      </View>
+                    </View>
+                    {longestStreak > 0 && (
+                      <View style={[styles.streakBadge, { backgroundColor: "#f59e0b18" }]}>
+                        <Text style={{ fontSize: 14 }}>🔥</Text>
+                        <Text style={{ color: "#f59e0b", fontSize: 14, fontWeight: "800" }}>{longestStreak}</Text>
+                      </View>
+                    )}
+                  </View>
+                </GlassCard>
+              </Pressable>
+            )}
+
+            {/* Weekly Reflection Prompt */}
+            {showWeeklyPrompt && (
+              <Pressable onPress={() => router.push("/insights/weekly-reflection" as any)}>
+                <GlassCard style={{ marginTop: Spacing.lg }} padding="base">
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+                    <View style={{ width: 40, height: 40, borderRadius: 14, backgroundColor: c.accent.primary + "14", alignItems: "center", justifyContent: "center" }}>
+                      <IconSymbol name="calendar.badge.clock" size={20} color={c.accent.primary} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ color: c.text.primary, fontSize: 15, fontWeight: "700" }}>Time for your weekly reflection</Text>
+                      <Text style={{ color: c.text.secondary, fontSize: 12, marginTop: 2 }}>Review your week, celebrate wins, set intentions</Text>
+                    </View>
+                    <IconSymbol name="chevron.right" size={14} color={c.text.tertiary} />
+                  </View>
+                </GlassCard>
+              </Pressable>
+            )}
+
+            {/* More tools row */}
+            <View style={[styles.moreToolsRow, { marginTop: Spacing.lg }]}>
               <Pressable
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-                  router.push("/checkin" as any);
-                }}
-                style={({ pressed }) => [
-                  styles.quietLink,
-                  pressed && { opacity: 0.6 },
-                ]}
+                onPress={() => router.push("/checkin/sleep-hygiene" as any)}
+                style={({ pressed }) => [styles.toolCard, { backgroundColor: isDark ? "rgba(255,255,255,0.04)" : "rgba(255,255,255,0.6)" }, pressed && { opacity: 0.7 }]}
               >
-                <Text style={[styles.quietLinkText, { color: c.text.secondary }]}>
-                  {checkedInToday ? "Update check-in" : "Check in"}
-                </Text>
-                <IconSymbol name="chevron.right" size={14} color={c.text.tertiary} />
+                <IconSymbol name="moon.fill" size={18} color={c.accent.primary} />
+                <Text style={{ color: c.text.primary, fontSize: 12, fontWeight: "700", marginTop: 4 }}>Sleep</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => router.push("/insights/cycles" as any)}
+                style={({ pressed }) => [styles.toolCard, { backgroundColor: isDark ? "rgba(255,255,255,0.04)" : "rgba(255,255,255,0.6)" }, pressed && { opacity: 0.7 }]}
+              >
+                <IconSymbol name="arrow.triangle.2.circlepath" size={18} color={c.accent.primary} />
+                <Text style={{ color: c.text.primary, fontSize: 12, fontWeight: "700", marginTop: 4 }}>Cycles</Text>
               </Pressable>
               <Pressable
                 onPress={() => router.push("/insights" as any)}
-                style={({ pressed }) => [
-                  styles.quietLink,
-                  pressed && { opacity: 0.6 },
-                ]}
+                style={({ pressed }) => [styles.toolCard, { backgroundColor: isDark ? "rgba(255,255,255,0.04)" : "rgba(255,255,255,0.6)" }, pressed && { opacity: 0.7 }]}
               >
-                <Text style={[styles.quietLinkText, { color: c.text.secondary }]}>
-                  Deeper insights
-                </Text>
-                <IconSymbol name="chevron.right" size={14} color={c.text.tertiary} />
+                <IconSymbol name="sparkles" size={18} color={c.accent.primary} />
+                <Text style={{ color: c.text.primary, fontSize: 12, fontWeight: "700", marginTop: 4 }}>Insights</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => router.push("/checkin/grounding" as any)}
+                style={({ pressed }) => [styles.toolCard, { backgroundColor: isDark ? "rgba(255,255,255,0.04)" : "rgba(255,255,255,0.6)" }, pressed && { opacity: 0.7 }]}
+              >
+                <IconSymbol name="leaf.fill" size={18} color={c.accent.primary} />
+                <Text style={{ color: c.text.primary, fontSize: 12, fontWeight: "700", marginTop: 4 }}>Ground</Text>
               </Pressable>
             </View>
 
@@ -816,6 +937,11 @@ export default function HomeScreen() {
           onClose={() => setBreathVisible(false)}
           onComplete={() => onBreathComplete()}
         />
+
+        {/* App Tour overlay — shown once after onboarding */}
+        {showTour && (
+          <TourOverlay onComplete={() => setShowTour(false)} />
+        )}
       </SafeAreaView>
     </View>
   );
@@ -920,20 +1046,63 @@ const styles = StyleSheet.create({
     fontSize: 13,
     letterSpacing: 0.4,
   },
-  quietRow: {
-    marginTop: Spacing.lg,
+  quickActionsRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    gap: 12,
+    marginTop: Spacing.lg,
+    gap: 8,
   },
-  quietLink: {
-    flexDirection: "row",
+  quickAction: {
     alignItems: "center",
-    gap: 4,
-    paddingVertical: 6,
+    flex: 1,
   },
-  quietLinkText: {
-    fontSize: 14,
-    fontWeight: "600",
+  quickActionIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  quickActionLabel: {
+    fontSize: 11,
+    fontWeight: "700",
+    marginTop: 6,
+  },
+  interruptChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 999,
+  },
+  progressBar: {
+    flex: 1,
+    height: 8,
+    borderRadius: 4,
+    overflow: "hidden" as const,
+  },
+  progressFill: {
+    height: "100%" as const,
+    borderRadius: 4,
+  },
+  streakBadge: {
+    flexDirection: "row" as const,
+    alignItems: "center" as const,
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+    marginLeft: 12,
+  },
+  moreToolsRow: {
+    flexDirection: "row" as const,
+    justifyContent: "space-between" as const,
+    gap: 8,
+  },
+  toolCard: {
+    flex: 1,
+    alignItems: "center" as const,
+    paddingVertical: 14,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+    borderColor: "rgba(0,0,0,0.04)",
   },
 });

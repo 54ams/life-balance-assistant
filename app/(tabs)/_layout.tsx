@@ -12,8 +12,8 @@ import { getFirstRunDone } from "@/lib/demo";
 
 type GateState = "loading" | "welcome" | "onboarding" | "first-run" | "ok";
 
-// Four-tab swipe ring: Home → Check in → Insights → Me.
-// Calendar and history are reachable from within these screens.
+// Swipe order for the tab ring. I wanted swiping between tabs to feel native,
+// so this defines which tab is "next" in each direction.
 const SWIPE_ORDER = ["index", "checkin", "insights", "profile"] as const;
 
 export default function TabLayout() {
@@ -34,7 +34,7 @@ export default function TabLayout() {
     })();
   }, []);
 
-  // Resolve the currently-focused swipe tab from the segments tree.
+  // Figure out which tab we're on from the URL segments.
   const activeRoute = useMemo(() => {
     const tabSeg = segments.find((s) => SWIPE_ORDER.includes(s as any));
     return (tabSeg as (typeof SWIPE_ORDER)[number]) ?? "index";
@@ -42,13 +42,12 @@ export default function TabLayout() {
   const activeRouteRef = useRef(activeRoute);
   activeRouteRef.current = activeRoute;
 
-  // Edge-bounce: when a swipe can't navigate further, nudge the content
-  // and haptic-ping so it feels like a wall, not a broken gesture.
+  // Edge bounce — when you swipe past the last tab, the screen nudges
+  // and vibrates slightly. Without this it just feels like nothing happened.
   const nudge = useRef(new Animated.Value(0)).current;
   const bounce = (direction: 1 | -1) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-    // direction = 1 means user tried to go forward (swiped left → content
-    // pulls left → negative translateX).
+    // direction=1 → swiped left (forward) → nudge content left
     const peak = direction === 1 ? -18 : 18;
     Animated.sequence([
       Animated.timing(nudge, {
@@ -80,9 +79,8 @@ export default function TabLayout() {
     else router.navigate(`/${nextRoute}` as any);
   };
 
-  // Horizontal pan: only engages after a clear 30px horizontal move. Vertical
-  // scrolls remain owned by children because failOffsetY cancels the gesture
-  // on vertical intent.
+  // Horizontal swipe gesture. The 30px threshold + failOffsetY stops it from
+  // hijacking vertical scrolling inside tabs — took a while to get right.
   const pan = useMemo(
     () =>
       Gesture.Pan()
@@ -153,7 +151,7 @@ export default function TabLayout() {
             }}
           />
 
-          {/* Reachable from within the four tabs, but hidden from the tab bar. */}
+          {/* These screens live under the tab navigator but aren't shown in the bar */}
           <Tabs.Screen name="checkins" options={{ href: null }} />
           <Tabs.Screen name="calendar" options={{ href: null }} />
           <Tabs.Screen name="history" options={{ href: null }} />

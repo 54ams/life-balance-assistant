@@ -94,6 +94,9 @@ export const Colors = {
     success: "#5B7A3E",
     warning: "#C2824A",
 
+    // Text on accent.primary buttons — white works on dark green in light mode
+    onPrimary: "#FFFFFF",
+
     state: stateGradients,
   },
 
@@ -136,6 +139,9 @@ export const Colors = {
     danger: "#E08078",
     success: "#A8C872",
     warning: "#E0B278",
+
+    // In dark mode accent.primary is cream, so button text needs to be dark
+    onPrimary: "#2C362A",
 
     state: stateGradients,
   },

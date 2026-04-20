@@ -46,7 +46,7 @@ export default function StudyCompletionScreen() {
         <Text style={[styles.title, { color: c.text.primary }]}>Step 1 — Share feedback</Text>
         <Text style={[styles.body, { color: c.text.secondary }]}>A short survey about how the app felt to use. Takes a minute.</Text>
         <Pressable style={[styles.btn, { backgroundColor: c.accent.primary }]} onPress={() => router.push("/profile/settings/usability" as any)}>
-          <Text style={styles.btnText}>Open survey</Text>
+          <Text style={[styles.btnText, { color: c.onPrimary }]}>Open survey</Text>
         </Pressable>
       </GlassCard>
 
@@ -54,7 +54,7 @@ export default function StudyCompletionScreen() {
         <Text style={[styles.title, { color: c.text.primary }]}>Step 2 — Take a copy</Text>
         <Text style={[styles.body, { color: c.text.secondary }]}>Save your check-ins, plans, and patterns as a file on this device.</Text>
         <Pressable style={[styles.btn, { backgroundColor: c.accent.primary }]} onPress={() => router.push("/profile/export" as any)}>
-          <Text style={styles.btnText}>Open export</Text>
+          <Text style={[styles.btnText, { color: c.onPrimary }]}>Open export</Text>
         </Pressable>
       </GlassCard>
     </Screen>

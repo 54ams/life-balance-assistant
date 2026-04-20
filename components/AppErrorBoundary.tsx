@@ -1,5 +1,9 @@
+// Error boundary — catches any unhandled crash and shows a recovery screen.
+// Added "Return to Home" so users aren't stuck on the error page during demos.
+
 import React from "react";
 import { Alert, Pressable, Text, View } from "react-native";
+import { router } from "expo-router";
 import { Colors } from "@/constants/Colors";
 import { useColorScheme } from "react-native";
 import { clearAll } from "@/lib/storage";
@@ -26,6 +30,11 @@ export class AppErrorBoundary extends React.Component<Props, State> {
     this.setState({ hasError: false, message: "", resetting: false });
   };
 
+  goHome = () => {
+    this.setState({ hasError: false, message: "", resetting: false });
+    try { router.navigate("/" as any); } catch {}
+  };
+
   resetDemo = async () => {
     this.setState({ resetting: true });
     try {
@@ -45,6 +54,7 @@ export class AppErrorBoundary extends React.Component<Props, State> {
         message={this.state.message}
         resetting={this.state.resetting}
         onRetry={this.reset}
+        onGoHome={this.goHome}
         onResetDemo={this.resetDemo}
       />
     );
@@ -55,11 +65,13 @@ function BoundaryFallback({
   message,
   resetting,
   onRetry,
+  onGoHome,
   onResetDemo,
 }: {
   message: string;
   resetting: boolean;
   onRetry: () => void;
+  onGoHome: () => void;
   onResetDemo: () => void;
 }) {
   const scheme = useColorScheme();
@@ -69,16 +81,29 @@ function BoundaryFallback({
       <Text style={{ color: c.text.primary, fontSize: 20, fontWeight: "800" }}>Something went wrong</Text>
       <Text style={{ color: c.text.secondary, marginTop: 8, textAlign: "center" }}>{message}</Text>
       <Pressable
-        onPress={onRetry}
+        onPress={onGoHome}
         style={{
           marginTop: 18,
           borderRadius: 999,
-          paddingHorizontal: 20,
+          paddingHorizontal: 24,
           paddingVertical: 12,
           backgroundColor: c.accent.primary,
         }}
       >
-        <Text style={{ color: "#fff", fontWeight: "800" }}>Try again</Text>
+        <Text style={{ color: c.onPrimary, fontWeight: "800" }}>Return to Home</Text>
+      </Pressable>
+      <Pressable
+        onPress={onRetry}
+        style={{
+          marginTop: 12,
+          borderRadius: 999,
+          paddingHorizontal: 20,
+          paddingVertical: 12,
+          borderWidth: 1.5,
+          borderColor: c.border.medium,
+        }}
+      >
+        <Text style={{ color: c.text.primary, fontWeight: "700" }}>Try again</Text>
       </Pressable>
       <Pressable
         onPress={() => {

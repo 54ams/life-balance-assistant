@@ -1,3 +1,4 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { computeBaseline } from "./baseline";
 import { calculateLBI, type LbiOutput } from "./lbi";
 import { trainIfReady } from "./ml/models";
@@ -88,8 +89,11 @@ export async function refreshDerivedForDate(date: ISODate): Promise<DerivedRefre
     values,
   }).catch(() => {}); // fire and forget — non-blocking
 
-  // Alert if LBI dropped significantly from baseline
-  if (baseline != null && lbi.lbi <= baseline - 15) {
+  // Alert if LBI dropped significantly from baseline (once per day)
+  const dropKey = `balance_drop_sent_${date}`;
+  const alreadySent = await AsyncStorage.getItem(dropKey);
+  if (!alreadySent && baseline != null && lbi.lbi <= baseline - 15) {
+    await AsyncStorage.setItem(dropKey, "1");
     sendBalanceDropNow(
       `Your balance dropped to ${lbi.lbi} — that's ${Math.round(baseline - lbi.lbi)} points below your baseline. Worth checking in.`,
     ).catch(() => {});

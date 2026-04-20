@@ -1,4 +1,5 @@
-// lib/whoopSync.ts — Shared WHOOP sync logic used by both the auto-sync hook and the manual WHOOP screen.
+// whoopSync.ts — I pulled the sync logic out here so both the auto-sync hook
+// and the manual WHOOP screen can reuse it without duplicating fetch/retry code.
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { upsertWearable } from "./storage";
 import { refreshDerivedForDate } from "./pipeline";
@@ -17,12 +18,9 @@ export type SyncResult = {
   error?: string;
 };
 
-/**
- * Sync a single day's WHOOP data from the backend, persist it locally,
- * and re-run the derived pipeline (LBI, plan, etc.).
- *
- * Returns a result object — never throws.
- */
+// Fetches one day of WHOOP data, saves it locally, and recalculates LBI etc.
+// I made this never throw — it always returns a result object so callers
+// don't need try/catch everywhere.
 export async function syncWhoopForDate(
   date: ISODate,
   sessionToken: string,
@@ -35,7 +33,7 @@ export async function syncWhoopForDate(
       headers: { Authorization: `Bearer ${sessionToken}` },
     });
 
-    // If 401, try refreshing the token and retry once
+    // 401 means the WHOOP token expired — try a refresh and retry once
     if (res.status === 401) {
       await fetch(`${backendUrl}/whoop/refresh`, {
         method: "POST",

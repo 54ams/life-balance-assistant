@@ -134,7 +134,7 @@ export function AnchorCard({ kind, existing, onCapture }: Props) {
             { backgroundColor: c.accent.primary, opacity: !custom.trim() || saving ? 0.5 : pressed ? 0.85 : 1 },
           ]}
         >
-          <Text style={styles.saveBtnText}>Save</Text>
+          <Text style={[styles.saveBtnText, { color: c.onPrimary }]}>Save</Text>
         </Pressable>
       </View>
     </View>

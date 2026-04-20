@@ -7,9 +7,8 @@ import { IconSymbol } from "@/components/ui/icon-symbol";
 import { Colors } from "@/constants/Colors";
 import { BorderRadius, Spacing } from "@/constants/Spacing";
 
-// Only these four routes are visible in the tab bar. Everything else
-// (checkins, calendar, history) is reachable from within these screens
-// but hidden from the bar.
+// Only show the four main tabs — sub-screens like calendar and history
+// are navigated to from within these, not from the bar itself.
 const VISIBLE_TABS = new Set(["index", "checkin", "insights", "profile"]);
 
 export function FloatingTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
@@ -35,7 +34,7 @@ export function FloatingTabBar({ state, descriptors, navigation }: BottomTabBarP
         {state.routes.map((route, index) => {
           const { options } = descriptors[route.key];
 
-          // Only render the three primary tabs.
+          // Skip hidden routes
           if (!VISIBLE_TABS.has(route.name)) return null;
 
           const label =

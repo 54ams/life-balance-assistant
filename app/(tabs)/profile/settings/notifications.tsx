@@ -64,7 +64,7 @@ export default function NotificationsSettings() {
 
         <View style={styles.row}>
           <Pressable style={[styles.btn, { backgroundColor: c.accent.primary }]} onPress={onPermissions}>
-            <Text style={styles.btnText}>Enable</Text>
+            <Text style={[styles.btnText, { color: c.onPrimary }]}>Enable</Text>
           </Pressable>
           <Pressable style={[styles.btn, { backgroundColor: c.glass.primary }]} onPress={onSchedule}>
             <Text style={[styles.btnText, { color: c.text.primary }]}>Schedule</Text>

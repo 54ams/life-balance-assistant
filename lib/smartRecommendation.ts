@@ -1,5 +1,8 @@
-// lib/smartRecommendation.ts — Layer 4: Context-aware recommendations combining
-// WHOOP data, life context, schedule, upcoming events, and LBI score.
+// smartRecommendation.ts — the "smart nudge" system (Layer 4).
+// This is where everything comes together: WHOOP data, check-in mood,
+// schedule, upcoming events, and LBI score all feed into one recommendation.
+// I chose a remote-first approach with a local fallback so it still works
+// offline — the local logic covers the most common patterns.
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { generateExplanation } from "./llm";
 import type { DailyCheckIn, FutureEvent, WearableMetrics, ISODate } from "./types";
@@ -178,7 +181,7 @@ function parseResponse(raw: string): { headline: string; text: string } | null {
       text: adviceMatch[1].trim(),
     };
   }
-  // Fallback: use the whole response as text
+  // If the LLM didn't follow the format, just use whatever it gave us
   if (raw.trim().length > 10) {
     const lines = raw.trim().split("\n").filter((l) => l.trim());
     return {
@@ -190,11 +193,11 @@ function parseResponse(raw: string): { headline: string; text: string } | null {
 }
 
 export async function generateSmartRecommendation(input: SmartRecInput): Promise<SmartRecommendation> {
-  // Check cache first
+  // Return cached rec if we already generated one today (avoids repeat LLM calls)
   const cached = await getCachedRecommendation(input.date);
   if (cached) return cached;
 
-  // Try remote LLM
+  // Try the LLM first — gives more personalised advice
   const context = buildPrompt(input);
   const remote = await generateExplanation(SYSTEM_PROMPT, context);
   if (remote) {
@@ -210,13 +213,13 @@ export async function generateSmartRecommendation(input: SmartRecInput): Promise
     }
   }
 
-  // Fall back to local deterministic recommendation
+  // LLM unavailable/failed — fall back to the rule-based version
   const local = localRecommendation(input);
   await cacheRecommendation(input.date, local);
   return local;
 }
 
-/** Invalidate the cached recommendation for a date (call after new data arrives). */
+// Clear the cached rec — call this after new data comes in so we regenerate.
 export async function invalidateRecommendation(date: string): Promise<void> {
   await AsyncStorage.removeItem(cacheKey(date));
 }

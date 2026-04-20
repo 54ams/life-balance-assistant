@@ -75,7 +75,7 @@ export default function ScheduleScreen() {
                     key={d}
                     style={[styles.dayChip, { backgroundColor: c.accent.primary }]}
                   >
-                    <Text style={styles.dayChipText}>{DAYS[d]}</Text>
+                    <Text style={[styles.dayChipText, { color: c.onPrimary }]}>{DAYS[d]}</Text>
                   </View>
                 ))}
                 <View
@@ -135,7 +135,7 @@ export default function ScheduleScreen() {
             >
               <Text
                 style={{
-                  color: newDays.includes(i) ? "#fff" : c.text.secondary,
+                  color: newDays.includes(i) ? c.onPrimary : c.text.secondary,
                   fontWeight: "700",
                   fontSize: 13,
                 }}

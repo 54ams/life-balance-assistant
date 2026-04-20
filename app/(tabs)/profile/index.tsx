@@ -15,11 +15,17 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Haptics from "expo-haptics";
 
 const TOOLS: Array<{ title: string; subtitle: string; icon: any; route: string }> = [
+  { title: "Habits", subtitle: "IF/THEN habits with streaks", icon: "repeat", route: "/checkin/habits" },
+  { title: "Sleep Hygiene", subtitle: "Evening wind-down checklist", icon: "moon.fill", route: "/checkin/sleep-hygiene" },
+  { title: "Thought Reframing", subtitle: "Challenge unhelpful thoughts (CBT)", icon: "lightbulb.fill", route: "/checkin/reframe" },
+  { title: "Weekly Reflection", subtitle: "Review wins, lessons, and intentions", icon: "text.book.closed.fill", route: "/insights/weekly-reflection" },
+  { title: "Behaviour Cycles", subtitle: "See how actions and mood connect", icon: "arrow.triangle.2.circlepath", route: "/insights/cycles" },
+  { title: "Wearables", subtitle: "Connect devices and manage data", icon: "heart.fill", route: "/profile/integrations" },
+  { title: "Show Your GP", subtitle: "Export a 4-week appointment summary", icon: "cross.case.fill", route: "/profile/gp-export" },
   { title: "Calendar", subtitle: "Review past and future days", icon: "calendar", route: "/calendar" },
   { title: "History", subtitle: "Plans, adherence, and outcomes", icon: "clock.fill", route: "/history" },
-  { title: "Wearables", subtitle: "Connect WHOOP and manage sources", icon: "heart.fill", route: "/profile/integrations/whoop" },
   { title: "My Schedule", subtitle: "Recurring commitments and routines", icon: "calendar.badge.clock", route: "/profile/settings/schedule" },
-  { title: "Export", subtitle: "Download your data for research", icon: "square.and.arrow.up", route: "/profile/export" },
+  { title: "Export Data", subtitle: "Download your data for research", icon: "square.and.arrow.up", route: "/profile/export" },
 ];
 
 const SETTINGS: Array<{ title: string; subtitle: string; icon: any; route: string }> = [

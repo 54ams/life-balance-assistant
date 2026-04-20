@@ -148,13 +148,13 @@ export default function DataSettings() {
                   { borderColor: c.border.medium, backgroundColor: active ? c.accent.primary : "transparent" },
                 ]}
               >
-                <Text style={{ color: active ? "#fff" : c.text.primary, fontWeight: "700" }}>{d}d</Text>
+                <Text style={{ color: active ? c.onPrimary : c.text.primary, fontWeight: "700" }}>{d}d</Text>
               </Pressable>
             );
           })}
         </View>
         <Pressable disabled={busy} style={[styles.btn, { backgroundColor: c.accent.primary }]} onPress={onPurgeNow}>
-          <Text style={styles.btnText}>{busy ? "Purging…" : "Purge now"}</Text>
+          <Text style={[styles.btnText, { color: c.onPrimary }]}>{busy ? "Purging…" : "Purge now"}</Text>
         </Pressable>
       </GlassCard>
 
@@ -201,7 +201,7 @@ export default function DataSettings() {
         <Text style={[styles.cardTitle, { color: c.text.primary }]}>Reset demo data</Text>
         <Text style={[styles.cardSub, { color: c.text.secondary }]}>Clears saved plan outputs so you can re-demo from scratch.</Text>
         <Pressable disabled={busy} style={[styles.btn, { backgroundColor: c.accent.primary, opacity: busy ? 0.6 : 1 }]} onPress={onReset}>
-          <Text style={styles.btnText}>{busy ? "Clearing…" : "Clear saved plans"}</Text>
+          <Text style={[styles.btnText, { color: c.onPrimary }]}>{busy ? "Clearing…" : "Clear saved plans"}</Text>
         </Pressable>
       </GlassCard>
 

@@ -261,7 +261,7 @@ export default function DailyCheckInScreen() {
       <View style={styles.headerRow}>
         <Pressable
           accessibilityLabel="Back"
-          onPress={() => (step > 0 ? animateStep(step - 1) : router.back())}
+          onPress={() => (step > 0 ? animateStep(step - 1) : router.navigate("/" as any))}
           style={[styles.backBtn, { borderColor: c.border.medium, backgroundColor: c.glass.primary }]}
         >
           <IconSymbol name="chevron.left" size={18} color={c.text.primary} />

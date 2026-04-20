@@ -271,7 +271,7 @@ function StepItem({ num, text, c }: { num: string; text: string; c: typeof Color
   return (
     <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
       <View style={[styles.stepCircle, { backgroundColor: c.accent.primary }]}>
-        <Text style={{ color: "#fff", fontWeight: "800", fontSize: 13 }}>{num}</Text>
+        <Text style={{ color: c.onPrimary, fontWeight: "800", fontSize: 13 }}>{num}</Text>
       </View>
       <Text style={{ color: c.text.primary, flex: 1, fontSize: 15 }}>{text}</Text>
     </View>
@@ -301,7 +301,7 @@ function ValuesStep({ c, selected, toggle }: { c: typeof Colors.light; selected:
                 },
               ]}
             >
-              <Text style={{ color: active ? "#fff" : c.text.primary, fontWeight: "700", fontSize: 14 }}>
+              <Text style={{ color: active ? (c.onPrimary) : c.text.primary, fontWeight: "700", fontSize: 14 }}>
                 {v}
               </Text>
             </Pressable>
@@ -339,7 +339,7 @@ function ContextStep({ c, selected, toggle }: { c: typeof Colors.light; selected
                 },
               ]}
             >
-              <Text style={{ color: active ? "#fff" : c.text.primary, fontWeight: "700", fontSize: 14 }}>
+              <Text style={{ color: active ? (c.onPrimary) : c.text.primary, fontWeight: "700", fontSize: 14 }}>
                 {v}
               </Text>
             </Pressable>
@@ -347,8 +347,8 @@ function ContextStep({ c, selected, toggle }: { c: typeof Colors.light; selected
         })}
       </View>
 
-      <GlassCard style={{ marginTop: 20 }}>
-        <Text style={[styles.cardTitle, { color: c.text.primary }]}>Important</Text>
+      <GlassCard style={{ marginTop: 20, borderLeftWidth: 3, borderLeftColor: c.warning }}>
+        <Text style={[styles.cardTitle, { color: c.warning }]}>Important</Text>
         <Text style={[styles.body, { color: c.text.secondary, marginTop: 6 }]}>
           This app is observational and non-diagnostic. It does not provide medical advice or crisis support. All analytics are exploratory.
         </Text>
@@ -399,7 +399,7 @@ function PersonaliseStep({
                   },
                 ]}
               >
-                <Text style={{ color: active ? "#fff" : c.text.primary, fontWeight: "700", fontSize: 14 }}>
+                <Text style={{ color: active ? (c.onPrimary) : c.text.primary, fontWeight: "700", fontSize: 14 }}>
                   {g}
                 </Text>
               </Pressable>
@@ -508,8 +508,8 @@ function ConsentStep({ c, flags, toggle }: { c: typeof Colors.light; flags: Cons
         />
       </View>
 
-      <GlassCard style={{ marginTop: 20 }}>
-        <Text style={[styles.cardTitle, { color: c.text.primary }]}>Safety notice</Text>
+      <GlassCard style={{ marginTop: 20, borderLeftWidth: 3, borderLeftColor: c.warning }}>
+        <Text style={[styles.cardTitle, { color: c.warning }]}>Safety notice</Text>
         <Text style={[styles.body, { color: c.text.secondary, marginTop: 6 }]}>
           If you may be at immediate risk, please call 999 for emergency services or Samaritans on 116 123 (free, 24/7). Continue only if this app is appropriate for your situation.
         </Text>
@@ -531,7 +531,7 @@ function ConsentRow({ label, checked, onPress, c }: { label: string; checked: bo
       ]}
     >
       <View style={[styles.checkbox, { borderColor: checked ? c.accent.primary : c.border.heavy, backgroundColor: checked ? c.accent.primary : "transparent" }]}>
-        {checked && <Text style={{ color: "#fff", fontSize: 12, fontWeight: "800" }}>✓</Text>}
+        {checked && <Text style={{ color: c.onPrimary, fontSize: 12, fontWeight: "800" }}>✓</Text>}
       </View>
       <Text style={{ color: c.text.primary, flex: 1, fontSize: 14, lineHeight: 20 }}>{label}</Text>
     </Pressable>

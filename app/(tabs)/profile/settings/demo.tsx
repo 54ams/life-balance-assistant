@@ -92,7 +92,7 @@ export default function DemoToolsScreen() {
               pressed && styles.pressed,
             ]}
           >
-            <Text style={[styles.pillText, { color: demoOn ? "#fff" : c.text.primary }]}>
+            <Text style={[styles.pillText, { color: demoOn ? c.onPrimary : c.text.primary }]}>
               {demoOn ? "On" : "Off"}
             </Text>
           </Pressable>
@@ -105,7 +105,7 @@ export default function DemoToolsScreen() {
           disabled={saving}
           style={({ pressed }) => [styles.primaryBtn, { backgroundColor: c.accent.primary }, pressed && styles.pressed]}
         >
-          <Text style={styles.primaryText}>Seed 14 days demo data</Text>
+          <Text style={[styles.primaryText, { color: c.onPrimary }]}>Seed 14 days demo data</Text>
         </Pressable>
         <View style={{ height: 12 }} />
         <Pressable

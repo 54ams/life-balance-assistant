@@ -1,3 +1,6 @@
+// Primary button with glassmorphism styling. Uses c.onPrimary for text
+// so it works in both light (white on dark green) and dark (dark on cream) modes.
+
 import React from 'react';
 import { 
   TouchableOpacity, 
@@ -98,8 +101,8 @@ export function GlassButton({
             <Text style={[
               styles.text,
               {
-                color: variant === 'primary' 
-                  ? '#FFFFFF'
+                color: variant === 'primary'
+                  ? colors.onPrimary
                   : colors.text.primary,
                 fontSize: Typography.fontSize.base,
                 fontWeight: Typography.fontWeight.bold,

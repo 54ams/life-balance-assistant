@@ -94,8 +94,8 @@ export default function ConsentSafetyScreen() {
         </View>
       </GlassCard>
 
-      <GlassCard style={styles.card}>
-        <Text style={[styles.title, { color: c.text.primary }]}>If things feel too heavy</Text>
+      <GlassCard style={{ ...styles.card, borderLeftWidth: 3, borderLeftColor: c.warning }}>
+        <Text style={[styles.title, { color: c.warning }]}>If things feel too heavy</Text>
         <Text style={[styles.body, { color: c.text.secondary }]}>
           In an emergency, call 999. For someone to talk to any time, call Samaritans on 116 123 (free, 24/7). You'll find more options in Settings → Safety resources.
         </Text>
@@ -103,7 +103,7 @@ export default function ConsentSafetyScreen() {
 
       <View style={{ flexDirection: "row", gap: 10, marginTop: 6 }}>
         <Pressable style={[styles.btn, { backgroundColor: c.accent.primary }]} onPress={save}>
-          <Text style={styles.btnText}>Save consent</Text>
+          <Text style={[styles.btnText, { color: c.onPrimary }]}>Save consent</Text>
         </Pressable>
         <Pressable style={[styles.btn, { backgroundColor: c.danger ?? "#ef4444" }]} onPress={withdraw}>
           <Text style={styles.btnText}>Withdraw consent</Text>

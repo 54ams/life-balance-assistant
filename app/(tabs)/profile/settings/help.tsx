@@ -96,8 +96,8 @@ export default function HelpResourcesScreen() {
       </Text>
 
       {/* Crisis resources — always visible at top */}
-      <GlassCard style={{ marginTop: Spacing.lg }} padding="base">
-        <Text style={{ color: c.text.primary, fontWeight: "800", fontSize: 17 }}>
+      <GlassCard style={{ marginTop: Spacing.lg, borderLeftWidth: 3, borderLeftColor: c.warning }} padding="base">
+        <Text style={{ color: c.warning, fontWeight: "800", fontSize: 17 }}>
           If you need someone right now
         </Text>
         <Text style={{ color: c.text.secondary, fontSize: 13, marginTop: 4, lineHeight: 18 }}>

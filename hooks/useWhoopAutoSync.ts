@@ -1,4 +1,5 @@
-// hooks/useWhoopAutoSync.ts — Silently syncs WHOOP data on app open.
+// useWhoopAutoSync — fires once on app open to pull today's WHOOP data.
+// Runs silently so the user doesn't have to manually sync every morning.
 import { useEffect, useRef, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getBackendBaseUrl } from "@/lib/backend";
@@ -29,13 +30,13 @@ export function useWhoopAutoSync() {
 
         if (lastSync) setLastSynced(lastSync);
 
-        // Only auto-sync if WHOOP is connected and consented
+        // Don't sync unless they've connected WHOOP and given consent
         if (!session || !consent) return;
 
         const backendUrl = getBackendBaseUrl();
         if (!backendUrl) return;
 
-        // Skip if we already synced today
+        // No point hitting the API again if we already synced today
         const today = todayISO();
         if (lastSync === today) return;
 

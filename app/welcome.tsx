@@ -233,7 +233,7 @@ export default function WelcomeScreen() {
               { backgroundColor: c.accent.primary, opacity: pressed ? 0.85 : 1 },
             ]}
           >
-            <Text style={styles.beginText}>Begin</Text>
+            <Text style={[styles.beginText, { color: c.onPrimary }]}>Begin</Text>
           </Pressable>
           <Text style={[styles.hint, { color: c.text.tertiary }]}>Takes less than a minute</Text>
         </Animated.View>

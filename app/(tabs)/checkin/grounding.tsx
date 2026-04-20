@@ -156,7 +156,7 @@ export default function GroundingScreen() {
                 accessibilityRole="button"
                 accessibilityLabel="Begin grounding"
               >
-                <Text style={styles.primaryBtnText}>Begin</Text>
+                <Text style={[styles.primaryBtnText, { color: c.onPrimary }]}>Begin</Text>
               </Pressable>
             </View>
           )}

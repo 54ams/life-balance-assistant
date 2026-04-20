@@ -69,7 +69,7 @@ export function EmptyState({ icon, title, description, actionLabel, onAction }: 
             opacity: pressed ? 0.85 : 1,
           })}
         >
-          <Text style={{ color: "#fff", fontWeight: "700", fontSize: 15 }}>{actionLabel}</Text>
+          <Text style={{ color: c.onPrimary, fontWeight: "700", fontSize: 15 }}>{actionLabel}</Text>
         </Pressable>
       )}
     </View>

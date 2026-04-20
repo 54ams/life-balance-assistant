@@ -1,3 +1,8 @@
+// Insights hub — the main "data explained in plain English" screen.
+// I deliberately avoided showing raw numbers or formulas here. Everything
+// is presented as flip cards: front shows a simple takeaway, back explains
+// what's behind it. This is key to the app being accessible to everyday users.
+
 import { router } from "expo-router";
 import React, { useCallback, useState } from "react";
 import { Pressable, Text, View } from "react-native";
@@ -25,7 +30,8 @@ import { formatDateFriendly } from "@/lib/util/formatDate";
 import type { DailyRecord } from "@/lib/types";
 import * as Haptics from "expo-haptics";
 
-/* ── plain-English helpers ─────────────────────────── */
+// These helper functions translate numeric scores into natural language.
+// The thresholds are based on what felt right during testing — not clinical cutoffs.
 
 function scoreWord(score: number): string {
   if (score >= 75) return "great";
@@ -645,7 +651,7 @@ export default function InsightsHome() {
   );
 }
 
-/* ── Small reusable components ─────────────────────── */
+// Small components used within the flip card backs
 
 function ScoreRow({ label, value, c }: { label: string; value: number; c: typeof Colors.light }) {
   const pct = Math.max(0, Math.min(100, Math.round(value)));

@@ -64,7 +64,7 @@ export default function FirstRunScreen() {
           <View style={styles.cardHead}>
             <Text style={[styles.cardTitle, { color: c.accent.primary }]}>Have a look around first</Text>
             <View style={[styles.pill, { backgroundColor: c.accent.primary }]}>
-              <Text style={styles.pillText}>Recommended for a first look</Text>
+              <Text style={[styles.pillText, { color: c.onPrimary }]}>Recommended for a first look</Text>
             </View>
           </View>
           <Text style={[styles.body, { color: c.text.secondary, marginTop: 8 }]}>

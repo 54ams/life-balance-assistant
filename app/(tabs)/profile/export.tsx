@@ -1,3 +1,8 @@
+// Export & Report screen — generates a readable plain-English report
+// from the user's data. I wanted this to be something you could share
+// with a GP or therapist, not just a JSON dump for developers.
+// Still saves raw JSON alongside for my dissertation research data.
+
 import * as Clipboard from "expo-clipboard";
 import * as FileSystem from "expo-file-system";
 import { useFocusEffect } from "expo-router";
