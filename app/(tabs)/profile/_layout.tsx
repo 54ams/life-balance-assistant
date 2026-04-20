@@ -7,8 +7,7 @@ export default function ProfileLayout() {
       screenOptions={{
         headerShown: false,
         gestureEnabled: true,
-        animation: "fade_from_bottom",
-        animationDuration: 200,
+        animation: "ios_from_right",
       }}
     />
   );

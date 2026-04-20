@@ -61,7 +61,7 @@ export function AnchorCard({ kind, existing, onCapture }: Props) {
         style={[
           styles.wrap,
           {
-            backgroundColor: isDark ? "rgba(255,255,255,0.04)" : "rgba(255,255,255,0.55)",
+            backgroundColor: "rgba(255,255,255,0.55)",
             borderColor: c.border.light,
           },
         ]}
@@ -79,7 +79,7 @@ export function AnchorCard({ kind, existing, onCapture }: Props) {
       style={[
         styles.wrap,
         {
-          backgroundColor: isDark ? "rgba(255,255,255,0.04)" : "rgba(255,255,255,0.55)",
+          backgroundColor: "rgba(255,255,255,0.55)",
           borderColor: c.border.light,
         },
       ]}

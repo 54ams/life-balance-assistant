@@ -92,9 +92,9 @@ export default function WelcomeScreen() {
     router.replace("/onboarding");
   };
 
-  const ringBase = isDark ? "rgba(255,255,255,0.09)" : "rgba(107,93,211,0.15)";
-  const ringInner = isDark ? "rgba(138,124,255,0.28)" : "rgba(107,93,211,0.22)";
-  const markColor = isDark ? "#FFFFFF" : c.accent.primary;
+  const ringBase = "rgba(107,93,211,0.15)";
+  const ringInner = "rgba(107,93,211,0.22)";
+  const markColor = c.accent.primary;
 
   return (
     <View style={{ flex: 1, backgroundColor: c.background }}>
@@ -153,7 +153,7 @@ export default function WelcomeScreen() {
                 styles.ring1,
                 {
                   borderColor: ringInner,
-                  backgroundColor: isDark ? "rgba(124,111,220,0.08)" : "rgba(107,93,211,0.06)",
+                  backgroundColor: "rgba(107,93,211,0.06)",
                   transform: [{ scale: scaleFor(breath1, 0.08) }],
                   opacity: opacityFor(breath1, 0.75, 1),
                 },

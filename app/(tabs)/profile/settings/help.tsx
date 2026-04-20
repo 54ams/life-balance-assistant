@@ -136,7 +136,7 @@ export default function HelpResourcesScreen() {
             </P>
           </Expandable>
 
-          <View style={{ height: 1, backgroundColor: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.03)" }} />
+          <View style={{ height: 1, backgroundColor: "rgba(0,0,0,0.03)" }} />
 
           <Expandable title="How is the balance score calculated?" c={c}>
             <P c={c}>
@@ -146,7 +146,7 @@ export default function HelpResourcesScreen() {
             </P>
           </Expandable>
 
-          <View style={{ height: 1, backgroundColor: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.03)" }} />
+          <View style={{ height: 1, backgroundColor: "rgba(0,0,0,0.03)" }} />
 
           <Expandable title="What is triangulation?" c={c}>
             <P c={c}>
@@ -157,7 +157,7 @@ export default function HelpResourcesScreen() {
             </P>
           </Expandable>
 
-          <View style={{ height: 1, backgroundColor: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.03)" }} />
+          <View style={{ height: 1, backgroundColor: "rgba(0,0,0,0.03)" }} />
 
           <Expandable title="What does 'correlation ≠ causation' mean?" c={c}>
             <P c={c}>
@@ -167,7 +167,7 @@ export default function HelpResourcesScreen() {
             </P>
           </Expandable>
 
-          <View style={{ height: 1, backgroundColor: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.03)" }} />
+          <View style={{ height: 1, backgroundColor: "rgba(0,0,0,0.03)" }} />
 
           <Expandable title="How does privacy work?" c={c}>
             <P c={c}>
@@ -178,7 +178,7 @@ export default function HelpResourcesScreen() {
             </P>
           </Expandable>
 
-          <View style={{ height: 1, backgroundColor: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.03)" }} />
+          <View style={{ height: 1, backgroundColor: "rgba(0,0,0,0.03)" }} />
 
           <Expandable title="What are the breathing exercises based on?" c={c}>
             <P c={c}>
@@ -189,7 +189,7 @@ export default function HelpResourcesScreen() {
             </P>
           </Expandable>
 
-          <View style={{ height: 1, backgroundColor: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.03)" }} />
+          <View style={{ height: 1, backgroundColor: "rgba(0,0,0,0.03)" }} />
 
           <Expandable title="Why does the app ask about values?" c={c}>
             <P c={c}>
@@ -199,7 +199,7 @@ export default function HelpResourcesScreen() {
             </P>
           </Expandable>
 
-          <View style={{ height: 1, backgroundColor: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.03)" }} />
+          <View style={{ height: 1, backgroundColor: "rgba(0,0,0,0.03)" }} />
 
           <Expandable title="Do I need a WHOOP to use this app?" c={c}>
             <P c={c}>

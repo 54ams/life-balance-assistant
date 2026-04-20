@@ -27,6 +27,7 @@ import {
 } from "@/lib/weeklyReflection";
 import { listDailyRecords } from "@/lib/storage";
 import type { ISODate } from "@/lib/types";
+import { FeatureGuide } from "@/components/ui/FeatureGuide";
 
 type Step = "summary" | "reflect" | "intention" | "done";
 
@@ -129,6 +130,15 @@ export default function WeeklyReflectionScreen() {
                 </Text>
               </View>
             </View>
+
+            {/* First-visit guide */}
+            <FeatureGuide
+              featureId="weekly_reflection"
+              title="Weekly Reflection"
+              what="A structured end-of-week review. See your data summary, reflect on wins and challenges, then set one clear intention for next week."
+              why="Regular reflection builds self-awareness and agency (Gibbs, 1988). One intention per week beats ten vague goals."
+              connection="Your reflections influence the smart recommendations you see on your home screen and help the app learn what matters to you."
+            />
 
             {/* STEP 1: Data summary */}
             {step === "summary" && dataSummary && (

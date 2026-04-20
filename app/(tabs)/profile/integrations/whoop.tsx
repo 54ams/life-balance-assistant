@@ -296,7 +296,7 @@ export default function WhoopScreen() {
           <Text style={{ color: c.text.secondary, fontSize: 14, lineHeight: 20, marginTop: 8 }}>
             Life Balance Assistant will connect to your WHOOP account to read your recovery, sleep, and strain scores. This data is used only for your personal insights.
           </Text>
-          <View style={{ marginTop: 10, padding: 12, borderRadius: BorderRadius.lg, backgroundColor: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.03)" }}>
+          <View style={{ marginTop: 10, padding: 12, borderRadius: BorderRadius.lg, backgroundColor: "rgba(0,0,0,0.03)" }}>
             <Text style={{ color: c.text.secondary, fontSize: 13, lineHeight: 18 }}>
               • Recovery, sleep hours, and strain are read daily{"\n"}
               • Data stays on this device — nothing is shared{"\n"}

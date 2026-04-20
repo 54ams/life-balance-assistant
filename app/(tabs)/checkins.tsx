@@ -148,7 +148,7 @@ export default function CheckInsTab() {
           <View
             style={{
               flex: 1,
-              backgroundColor: isDark ? "rgba(255,255,255,0.04)" : "rgba(255,255,255,0.55)",
+              backgroundColor: "rgba(255,255,255,0.55)",
               borderWidth: 1,
               borderColor: c.border.light,
               borderRadius: BorderRadius.xl,
@@ -166,7 +166,7 @@ export default function CheckInsTab() {
           <View
             style={{
               flex: 1,
-              backgroundColor: isDark ? "rgba(255,255,255,0.04)" : "rgba(255,255,255,0.55)",
+              backgroundColor: "rgba(255,255,255,0.55)",
               borderWidth: 1,
               borderColor: c.border.light,
               borderRadius: BorderRadius.xl,

@@ -132,7 +132,7 @@ export default function HabitsScreen() {
                 TODAY'S PROGRESS
               </Text>
               <View style={styles.progressRow}>
-                <View style={[styles.progressBar, { backgroundColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)" }]}>
+                <View style={[styles.progressBar, { backgroundColor: "rgba(0,0,0,0.06)" }]}>
                   <View
                     style={[
                       styles.progressFill,

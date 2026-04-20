@@ -64,7 +64,15 @@ export default function ProfileScreen() {
 
   const replayWelcome = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-    await AsyncStorage.removeItem("welcome_seen_v1");
+    // Clear all onboarding gates so the full first-time flow replays:
+    // Welcome → Onboarding → First-run → App Tour → Home
+    await AsyncStorage.multiRemove([
+      "welcome_seen_v1",
+      "appConsent",
+      "firstRunDone",
+      "life_balance_tour_completed_v1",
+      "life_balance_tour_step_v1",
+    ]);
     router.replace("/welcome" as any);
   };
 
@@ -263,7 +271,7 @@ export default function ProfileScreen() {
                       borderRadius: BorderRadius.full,
                       borderWidth: 1,
                       borderColor: c.border.light,
-                      backgroundColor: isDark ? "rgba(255,255,255,0.04)" : "rgba(255,255,255,0.55)",
+                      backgroundColor: "rgba(255,255,255,0.55)",
                     }}
                   >
                     <Text style={{ color: c.text.secondary, fontSize: 12, fontWeight: "600" }}>
@@ -296,7 +304,7 @@ export default function ProfileScreen() {
                   <View
                     style={{
                       height: 1,
-                      backgroundColor: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.03)",
+                      backgroundColor: "rgba(0,0,0,0.03)",
                     }}
                   />
                 )}
@@ -325,7 +333,7 @@ export default function ProfileScreen() {
             <View
               style={{
                 height: 1,
-                backgroundColor: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.03)",
+                backgroundColor: "rgba(0,0,0,0.03)",
               }}
             />
 

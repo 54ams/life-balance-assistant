@@ -24,6 +24,7 @@ import {
   DISTORTION_LABELS,
   type CognitiveDistortion,
 } from "@/lib/reframing";
+import { FeatureGuide } from "@/components/ui/FeatureGuide";
 
 type Step = "thought" | "evidence" | "reframe" | "done";
 
@@ -119,6 +120,15 @@ export default function ReframeScreen() {
                 </Text>
               </View>
             </View>
+
+            {/* First-visit guide */}
+            <FeatureGuide
+              featureId="reframe"
+              title="Thought Reframing"
+              what="A 3-step CBT technique to challenge unhelpful thoughts. Write the thought, weigh the evidence, then create a balanced alternative."
+              why="Based on Beck's cognitive therapy (1979). Reframing doesn't dismiss feelings — it creates space between a thought and your response to it."
+              connection="Your reframes are saved and linked to your check-in data. Over time, the app shows which thinking patterns appear most when your balance dips."
+            />
 
             {/* Step indicators */}
             <View style={styles.stepRow}>

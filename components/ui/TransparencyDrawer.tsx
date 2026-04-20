@@ -12,7 +12,7 @@ export function TransparencyDrawer({ visible, onClose }: Props) {
   const scheme = useColorScheme();
   const isDark = scheme === "dark";
   const c = isDark ? Colors.dark : Colors.light;
-  const glassOverlay = isDark ? "rgba(0,0,0,0.35)" : "rgba(0,0,0,0.10)";
+  const glassOverlay = "rgba(0,0,0,0.10)";
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>

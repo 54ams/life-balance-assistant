@@ -53,13 +53,13 @@ function DualTrackChart({
 }) {
   const scheme = useColorScheme();
   const isDark = scheme === "dark";
-  const axisColor = isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)";
+  const axisColor = "rgba(0,0,0,0.06)";
 
   const n = points.length;
   if (n < 2)
     return (
       <View style={{ height, alignItems: "center", justifyContent: "center" }}>
-        <Text style={{ color: isDark ? "rgba(255,255,255,0.4)" : "rgba(0,0,0,0.3)", fontSize: 13 }}>
+        <Text style={{ color: "rgba(0,0,0,0.3)", fontSize: 13 }}>
           Need at least 2 days of data to show the chart.
         </Text>
       </View>
@@ -155,11 +155,11 @@ export default function BridgeScreen() {
   const isDark = scheme === "dark";
   const c = Colors[scheme ?? "light"];
 
-  const physioColor = isDark ? "#57D6A4" : "#2FA37A";
-  const mentalColor = isDark ? "#A4BFB5" : "#6F9A90";
+  const physioColor = "#2FA37A";
+  const mentalColor = "#6F9A90";
   // Load track uses the terracotta from the body-state gradient — it
   // reads as "the work your mind is doing", distinct from mood.
-  const loadColor = isDark ? "#E0A088" : "#B87C5E";
+  const loadColor = "#B87C5E";
 
   const [days, setDays] = useState<DailyRecord[]>([]);
   const [expanded, setExpanded] = useState(false);
@@ -282,7 +282,7 @@ export default function BridgeScreen() {
                     marginTop: 10,
                     height: 6,
                     borderRadius: 3,
-                    backgroundColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)",
+                    backgroundColor: "rgba(0,0,0,0.06)",
                     overflow: "hidden",
                   }}
                 >
@@ -321,7 +321,7 @@ export default function BridgeScreen() {
                     marginTop: 12,
                     padding: 10,
                     borderRadius: BorderRadius.lg,
-                    backgroundColor: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.02)",
+                    backgroundColor: "rgba(0,0,0,0.02)",
                   }}
                 >
                   <Text style={{ color: c.text.tertiary, fontSize: 11, lineHeight: 16 }}>

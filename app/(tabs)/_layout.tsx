@@ -1,16 +1,11 @@
-import { Redirect, Tabs, router, useSegments } from "expo-router";
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Tabs, router, useSegments } from "expo-router";
+import React, { useCallback, useMemo, useRef } from "react";
 import { Animated, Dimensions, StyleSheet } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import * as Haptics from "expo-haptics";
 
 import { FloatingTabBar } from "@/components/ui/FloatingTabBar";
 import { IconSymbol } from "@/components/ui/icon-symbol";
-import { getAppConsent } from "@/lib/privacy";
-import { hasSeenWelcome } from "@/app/welcome";
-import { getFirstRunDone } from "@/lib/demo";
-
-type GateState = "loading" | "welcome" | "onboarding" | "first-run" | "ok";
 
 const SWIPE_ORDER = ["index", "checkin", "insights", "profile"] as const;
 const SCREEN_WIDTH = Dimensions.get("window").width;
@@ -18,22 +13,7 @@ const SCREEN_WIDTH = Dimensions.get("window").width;
 const EDGE_DEAD_ZONE = 35;
 
 export default function TabLayout() {
-  const [gate, setGate] = useState<GateState>("loading");
   const segments = useSegments();
-
-  useEffect(() => {
-    (async () => {
-      const [consent, welcomed, firstRun] = await Promise.all([
-        getAppConsent(),
-        hasSeenWelcome(),
-        getFirstRunDone(),
-      ]);
-      if (!welcomed) setGate("welcome");
-      else if (!consent) setGate("onboarding");
-      else if (!firstRun) setGate("first-run");
-      else setGate("ok");
-    })();
-  }, []);
 
   const activeRoute = useMemo(() => {
     const tabSeg = segments.find((s) => SWIPE_ORDER.includes(s as any));
@@ -113,11 +93,6 @@ export default function TabLayout() {
         .enabled(!isNested),
     [isNested, navigateBy],
   );
-
-  if (gate === "loading") return null;
-  if (gate === "welcome") return <Redirect href="/welcome" />;
-  if (gate === "onboarding") return <Redirect href="/onboarding" />;
-  if (gate === "first-run") return <Redirect href="/first-run" />;
 
   return (
     <GestureDetector gesture={pan}>

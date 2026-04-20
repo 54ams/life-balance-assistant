@@ -42,7 +42,7 @@ export function LBIOrb({
   const score = Math.round(lbi);
   const hasData = score > 0;
 
-  const glowPrimary = isDark ? "rgba(125,136,255,0.28)" : "rgba(138,124,255,0.28)";
+  const glowPrimary = "rgba(138,124,255,0.28)";
 
   return (
     <Pressable

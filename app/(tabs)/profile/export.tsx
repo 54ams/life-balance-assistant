@@ -432,7 +432,7 @@ export default function ExportScreen() {
           onPress={onCopyReport}
           style={({ pressed }) => [
             styles.actionBtn,
-            { backgroundColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.05)", borderWidth: 1, borderColor: c.border.medium },
+            { backgroundColor: "rgba(0,0,0,0.05)", borderWidth: 1, borderColor: c.border.medium },
             pressed && { opacity: 0.9 },
           ]}
         >
@@ -444,7 +444,7 @@ export default function ExportScreen() {
           onPress={onSaveReport}
           style={({ pressed }) => [
             styles.actionBtn,
-            { backgroundColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.05)", borderWidth: 1, borderColor: c.border.medium },
+            { backgroundColor: "rgba(0,0,0,0.05)", borderWidth: 1, borderColor: c.border.medium },
             pressed && { opacity: 0.9 },
           ]}
         >

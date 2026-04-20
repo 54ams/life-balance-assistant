@@ -412,7 +412,7 @@ export default function HomeScreen() {
                 style={[
                   styles.avatar,
                   {
-                    backgroundColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.05)",
+                    backgroundColor: "rgba(0,0,0,0.05)",
                     borderColor: c.border.light,
                   },
                 ]}
@@ -579,7 +579,7 @@ export default function HomeScreen() {
               style={[
                 styles.avatar,
                 {
-                  backgroundColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.05)",
+                  backgroundColor: "rgba(0,0,0,0.05)",
                   borderColor: c.border.light,
                 },
               ]}
@@ -758,7 +758,7 @@ export default function HomeScreen() {
                 style={[
                   styles.oneThingWrap,
                   {
-                    backgroundColor: isDark ? "rgba(255,255,255,0.04)" : "rgba(255,255,255,0.55)",
+                    backgroundColor: "rgba(255,255,255,0.55)",
                     borderColor: c.border.light,
                   },
                 ]}
@@ -844,7 +844,7 @@ export default function HomeScreen() {
                     <View style={{ flex: 1 }}>
                       <Text style={{ color: c.text.tertiary, fontSize: 10, fontWeight: "800", letterSpacing: 1.4 }}>TODAY'S HABITS</Text>
                       <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginTop: 6 }}>
-                        <View style={[styles.progressBar, { backgroundColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)" }]}>
+                        <View style={[styles.progressBar, { backgroundColor: "rgba(0,0,0,0.06)" }]}>
                           <View style={[styles.progressFill, { backgroundColor: c.accent.primary, width: `${habitProgress.total > 0 ? (habitProgress.completed / habitProgress.total) * 100 : 0}%` }]} />
                         </View>
                         <Text style={{ color: c.text.secondary, fontSize: 13, fontWeight: "700" }}>
@@ -885,28 +885,28 @@ export default function HomeScreen() {
             <View style={[styles.moreToolsRow, { marginTop: Spacing.lg }]}>
               <Pressable
                 onPress={() => router.push("/checkin/sleep-hygiene" as any)}
-                style={({ pressed }) => [styles.toolCard, { backgroundColor: isDark ? "rgba(255,255,255,0.04)" : "rgba(255,255,255,0.6)" }, pressed && { opacity: 0.7 }]}
+                style={({ pressed }) => [styles.toolCard, { backgroundColor: "rgba(255,255,255,0.6)" }, pressed && { opacity: 0.7 }]}
               >
                 <IconSymbol name="moon.fill" size={18} color={c.accent.primary} />
                 <Text style={{ color: c.text.primary, fontSize: 12, fontWeight: "700", marginTop: 4 }}>Sleep</Text>
               </Pressable>
               <Pressable
                 onPress={() => router.push("/insights/cycles" as any)}
-                style={({ pressed }) => [styles.toolCard, { backgroundColor: isDark ? "rgba(255,255,255,0.04)" : "rgba(255,255,255,0.6)" }, pressed && { opacity: 0.7 }]}
+                style={({ pressed }) => [styles.toolCard, { backgroundColor: "rgba(255,255,255,0.6)" }, pressed && { opacity: 0.7 }]}
               >
                 <IconSymbol name="arrow.triangle.2.circlepath" size={18} color={c.accent.primary} />
                 <Text style={{ color: c.text.primary, fontSize: 12, fontWeight: "700", marginTop: 4 }}>Cycles</Text>
               </Pressable>
               <Pressable
                 onPress={() => router.push("/insights" as any)}
-                style={({ pressed }) => [styles.toolCard, { backgroundColor: isDark ? "rgba(255,255,255,0.04)" : "rgba(255,255,255,0.6)" }, pressed && { opacity: 0.7 }]}
+                style={({ pressed }) => [styles.toolCard, { backgroundColor: "rgba(255,255,255,0.6)" }, pressed && { opacity: 0.7 }]}
               >
                 <IconSymbol name="sparkles" size={18} color={c.accent.primary} />
                 <Text style={{ color: c.text.primary, fontSize: 12, fontWeight: "700", marginTop: 4 }}>Insights</Text>
               </Pressable>
               <Pressable
                 onPress={() => router.push("/checkin/grounding" as any)}
-                style={({ pressed }) => [styles.toolCard, { backgroundColor: isDark ? "rgba(255,255,255,0.04)" : "rgba(255,255,255,0.6)" }, pressed && { opacity: 0.7 }]}
+                style={({ pressed }) => [styles.toolCard, { backgroundColor: "rgba(255,255,255,0.6)" }, pressed && { opacity: 0.7 }]}
               >
                 <IconSymbol name="leaf.fill" size={18} color={c.accent.primary} />
                 <Text style={{ color: c.text.primary, fontSize: 12, fontWeight: "700", marginTop: 4 }}>Ground</Text>

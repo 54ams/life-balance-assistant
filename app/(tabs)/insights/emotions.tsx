@@ -127,7 +127,7 @@ export default function EmotionHistoryScreen() {
                     <Text style={{ color: c.text.primary, fontSize: 13, fontWeight: "600" }}>{item.label}</Text>
                     <Text style={{ color: item.color, fontSize: 13, fontWeight: "800" }}>{item.pct}%</Text>
                   </View>
-                  <View style={{ height: 8, borderRadius: 4, backgroundColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)", overflow: "hidden" }}>
+                  <View style={{ height: 8, borderRadius: 4, backgroundColor: "rgba(0,0,0,0.04)", overflow: "hidden" }}>
                     <View style={{ height: 8, borderRadius: 4, width: `${item.pct}%`, backgroundColor: item.color }} />
                   </View>
                 </View>
@@ -151,7 +151,7 @@ export default function EmotionHistoryScreen() {
                         <Text style={{ color: c.text.primary, fontSize: 13, fontWeight: "600" }}>{value}</Text>
                         <Text style={{ color: c.text.secondary, fontSize: 12 }}>{count} days</Text>
                       </View>
-                      <View style={{ height: 6, borderRadius: 3, backgroundColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)", overflow: "hidden" }}>
+                      <View style={{ height: 6, borderRadius: 3, backgroundColor: "rgba(0,0,0,0.04)", overflow: "hidden" }}>
                         <View style={{ height: 6, borderRadius: 3, width: `${pct}%`, backgroundColor: c.accent.primary, opacity: 0.5 + (pct / 200) }} />
                       </View>
                     </View>
@@ -180,7 +180,7 @@ export default function EmotionHistoryScreen() {
                         gap: 10,
                         paddingVertical: 10,
                         borderTopWidth: i > 0 ? 1 : 0,
-                        borderTopColor: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.03)",
+                        borderTopColor: "rgba(0,0,0,0.03)",
                       },
                       pressed && { opacity: 0.6 },
                     ]}
@@ -202,10 +202,10 @@ export default function EmotionHistoryScreen() {
                         height: 28,
                         borderRadius: 14,
                         backgroundColor: emo.valence > 0.2
-                          ? (isDark ? "rgba(87,214,164,0.12)" : "rgba(47,163,122,0.08)")
+                          ? ("rgba(47,163,122,0.08)")
                           : emo.valence < -0.2
-                            ? (isDark ? "rgba(255,122,134,0.12)" : "rgba(214,69,80,0.08)")
-                            : (isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)"),
+                            ? ("rgba(214,69,80,0.08)")
+                            : ("rgba(0,0,0,0.04)"),
                         alignItems: "center",
                         justifyContent: "center",
                       }}

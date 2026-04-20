@@ -16,6 +16,7 @@ import { IconSymbol } from "@/components/ui/icon-symbol";
 import { AuroraBackground } from "@/components/ui/AuroraBackground";
 import { detectCycles, type DetectedCycle } from "@/lib/cycles";
 import { listDailyRecords } from "@/lib/storage";
+import { FeatureGuide } from "@/components/ui/FeatureGuide";
 
 export default function CyclesScreen() {
   const scheme = useColorScheme();
@@ -58,6 +59,15 @@ export default function CyclesScreen() {
               </Text>
             </View>
           </View>
+
+          {/* First-visit guide */}
+          <FeatureGuide
+            featureId="cycles"
+            title="Behaviour Cycles"
+            what="Detects feedback loops in your data — where actions and feelings reinforce each other over days and weeks."
+            why="Based on behavioural activation research (Jacobson, 2001). Seeing your cycles helps you break negative ones and strengthen positive ones."
+            connection="Uses your check-in mood, habits, sleep data, and WHOOP recovery to find real patterns — not guesses."
+          />
 
           {/* Explanation */}
           <GlassCard style={{ marginTop: Spacing.lg }} padding="base">
@@ -154,7 +164,7 @@ export default function CyclesScreen() {
                                   {edge.evidence}
                                 </Text>
                               ))}
-                              <View style={[styles.confidenceBadge, { backgroundColor: isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.04)" }]}>
+                              <View style={[styles.confidenceBadge, { backgroundColor: "rgba(0,0,0,0.04)" }]}>
                                 <Text style={{ color: c.text.tertiary, fontSize: 10, fontWeight: "700" }}>
                                   Confidence: {cycle.confidence} · {cycle.dataPoints} data points
                                 </Text>

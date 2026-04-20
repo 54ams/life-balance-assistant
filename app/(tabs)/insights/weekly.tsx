@@ -24,7 +24,7 @@ export default function WeeklyInsights() {
   const scheme = useColorScheme();
   const isDark = scheme === "dark";
   const c = isDark ? Colors.dark : Colors.light;
-  const glowPrimary = isDark ? "rgba(125,136,255,0.28)" : "rgba(138,124,255,0.28)";
+  const glowPrimary = "rgba(138,124,255,0.28)";
 
   const [valueTop, setValueTop] = useState<{ value: EmotionValue; count: number }[]>([]);
   const [regSummary, setRegSummary] = useState<string>("");

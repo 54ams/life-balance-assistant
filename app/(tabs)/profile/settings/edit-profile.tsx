@@ -146,7 +146,7 @@ export default function EditProfileScreen() {
             {
               borderColor: c.border.medium,
               color: c.text.primary,
-              backgroundColor: isDark ? "rgba(255,255,255,0.04)" : "rgba(255,255,255,0.55)",
+              backgroundColor: "rgba(255,255,255,0.55)",
             },
           ]}
         />
@@ -168,7 +168,7 @@ export default function EditProfileScreen() {
                 style={[
                   styles.chip,
                   {
-                    backgroundColor: active ? c.accent.primary + "20" : isDark ? "rgba(255,255,255,0.04)" : "rgba(255,255,255,0.55)",
+                    backgroundColor: active ? c.accent.primary + "20" : "rgba(255,255,255,0.55)",
                     borderColor: active ? c.accent.primary : c.border.light,
                   },
                 ]}
@@ -198,7 +198,7 @@ export default function EditProfileScreen() {
                 style={[
                   styles.chip,
                   {
-                    backgroundColor: active ? c.accent.primary + "20" : isDark ? "rgba(255,255,255,0.04)" : "rgba(255,255,255,0.55)",
+                    backgroundColor: active ? c.accent.primary + "20" : "rgba(255,255,255,0.55)",
                     borderColor: active ? c.accent.primary : c.border.light,
                   },
                 ]}
@@ -228,7 +228,7 @@ export default function EditProfileScreen() {
                 style={[
                   styles.chip,
                   {
-                    backgroundColor: active ? c.accent.primary + "20" : isDark ? "rgba(255,255,255,0.04)" : "rgba(255,255,255,0.55)",
+                    backgroundColor: active ? c.accent.primary + "20" : "rgba(255,255,255,0.55)",
                     borderColor: active ? c.accent.primary : c.border.light,
                   },
                 ]}

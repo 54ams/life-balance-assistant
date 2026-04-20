@@ -27,7 +27,7 @@ export function GlassCard({
   return (
     <BlurView
       intensity={80}
-      tint={isDark ? 'dark' : 'light'}
+      tint={'light'}
       style={[
         styles.container,
         {

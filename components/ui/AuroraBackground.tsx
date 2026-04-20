@@ -86,14 +86,14 @@ export function AuroraBackground({ state = "neutral", intensity = "ambient" }: P
   // Two colour ramps per orb, derived from the state palette. Mixes the
   // state hue with the background ink so orbs bleed into the night.
   const orbColors = useMemo(() => {
-    const ink = isDark ? "#1B241A" : "#EFE8D9";
+    const ink = "#EFE8D9";
     return {
       a: [gradient.start, gradient.end, ink] as const,
       b: [gradient.end, gradient.start, ink] as const,
     };
-  }, [gradient, isDark]);
+  }, [gradient]);
 
-  const orbOpacity = isDark ? 0.55 : 0.75;
+  const orbOpacity = 0.75;
 
   return (
     <View style={[StyleSheet.absoluteFill, { backgroundColor: c.background }]} pointerEvents="none">
@@ -164,11 +164,7 @@ export function AuroraBackground({ state = "neutral", intensity = "ambient" }: P
       {/* Subtle vignette to pull the eye inward and sink the edges */}
       <LinearGradient
         pointerEvents="none"
-        colors={
-          isDark
-            ? ["rgba(27,36,26,0)", "rgba(27,36,26,0.55)"]
-            : ["rgba(239,232,217,0)", "rgba(239,232,217,0.55)"]
-        }
+        colors={["rgba(239,232,217,0)", "rgba(239,232,217,0.55)"]}
         start={{ x: 0.5, y: 0.4 }}
         end={{ x: 0.5, y: 1 }}
         style={StyleSheet.absoluteFillObject}

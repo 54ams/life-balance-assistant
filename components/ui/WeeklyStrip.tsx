@@ -63,7 +63,7 @@ export function WeeklyStrip({ events = [], dataDates = [] }: { events?: string[]
               style={({ pressed }) => [
                 styles.dateCell,
                 isToday && [styles.todayCell, { backgroundColor: t.accent.primary }],
-                !isToday && d.hasData && { backgroundColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)" },
+                !isToday && d.hasData && { backgroundColor: "rgba(0,0,0,0.04)" },
                 pressed && { opacity: 0.7 },
               ]}
               accessibilityRole="button"

@@ -78,7 +78,7 @@ function SignalCard({
       style={{
         paddingVertical: 12,
         borderBottomWidth: 1,
-        borderBottomColor: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.03)",
+        borderBottomColor: "rgba(0,0,0,0.03)",
       }}
     >
       {!flipped ? (

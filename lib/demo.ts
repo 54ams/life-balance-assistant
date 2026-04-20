@@ -114,7 +114,7 @@ function pick<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
-export async function seedDemo(days = 14) {
+export async function seedDemo(days = 30) {
   await clearAll();
 
   for (let i = days - 1; i >= 0; i--) {

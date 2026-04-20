@@ -100,6 +100,13 @@ export default function PatternsScreen() {
               Calculating simple relationships from recent days.
             </Text>
           </GlassCard>
+        ) : items.length === 0 ? (
+          <GlassCard>
+            <Text style={{ color: c.text.primary, fontWeight: "700" }}>No patterns yet</Text>
+            <Text style={{ marginTop: 6, color: c.text.secondary }}>
+              Keep checking in and syncing your wearable. Patterns usually emerge after 7-14 days of data.
+            </Text>
+          </GlassCard>
         ) : (
           items.map((it, i) => {
             const id = `pat-${i}`;

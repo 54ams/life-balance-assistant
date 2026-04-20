@@ -70,7 +70,7 @@ function SettingsGroup({
               <View
                 style={{
                   height: 1,
-                  backgroundColor: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.03)",
+                  backgroundColor: "rgba(0,0,0,0.03)",
                 }}
               />
             )}

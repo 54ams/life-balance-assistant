@@ -24,7 +24,7 @@ export function EmptyState({ icon, title, description, actionLabel, onAction }: 
           width: 72,
           height: 72,
           borderRadius: 36,
-          backgroundColor: isDark ? "rgba(124,111,220,0.12)" : "rgba(107,93,211,0.08)",
+          backgroundColor: "rgba(107,93,211,0.08)",
           alignItems: "center",
           justifyContent: "center",
           marginBottom: Spacing.base,

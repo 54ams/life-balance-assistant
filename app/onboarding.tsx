@@ -249,11 +249,12 @@ function WelcomeStep({ c, userName, setUserName }: { c: typeof Colors.light; use
       </GlassCard>
 
       <GlassCard style={{ marginTop: 12 }}>
-        <Text style={[styles.cardTitle, { color: c.text.primary }]}>How it works</Text>
+        <Text style={[styles.cardTitle, { color: c.text.primary }]}>What the app does for you</Text>
         <View style={{ gap: 12, marginTop: 12 }}>
-          <StepItem num="1" text="Take a short daily check-in — a minute or two" c={c} />
-          <StepItem num="2" text="Connect a WHOOP wearable if you have one (optional)" c={c} />
-          <StepItem num="3" text="See how your body and mind are doing, with gentle suggestions when you need them" c={c} />
+          <StepItem num="1" text="Track your mood, energy, sleep, and habits — all in 60 seconds a day" c={c} />
+          <StepItem num="2" text="Spot patterns: how sleep affects mood, how habits affect energy, what triggers stress" c={c} />
+          <StepItem num="3" text="Get personalised suggestions based on YOUR data — not generic advice" c={c} />
+          <StepItem num="4" text="See the connection between mind and body in one clear score" c={c} />
         </View>
       </GlassCard>
 
@@ -283,7 +284,7 @@ function ValuesStep({ c, selected, toggle }: { c: typeof Colors.light; selected:
     <>
       <Text style={[styles.h2, { color: c.text.primary }]}>What matters to you?</Text>
       <Text style={[styles.body, { color: c.text.secondary, marginTop: 8 }]}>
-        Select 3 to 6 values. These help the app understand what balance looks like for you.
+        Select 3 to 6 values. The app uses these to personalise your insights — when your balance dips, it shows which values are being neglected and suggests actions aligned with what YOU care about.
       </Text>
 
       <View style={styles.chipGrid}>
@@ -321,7 +322,7 @@ function ContextStep({ c, selected, toggle }: { c: typeof Colors.light; selected
     <>
       <Text style={[styles.h2, { color: c.text.primary }]}>Life context</Text>
       <Text style={[styles.body, { color: c.text.secondary, marginTop: 8 }]}>
-        These are broad, non-identifying buckets. Select any that apply — they help tune suggestions to your rhythm.
+        Select any that apply. The app adjusts its recommendations based on your lifestyle — a shift worker gets different sleep advice than a student, and a carer's stress looks different to an athlete's.
       </Text>
 
       <View style={styles.chipGrid}>
@@ -378,7 +379,7 @@ function PersonaliseStep({
     <>
       <Text style={[styles.h2, { color: c.text.primary }]}>Personalise</Text>
       <Text style={[styles.body, { color: c.text.secondary, marginTop: 8 }]}>
-        Three quick, non-identifying choices to tune the app to you.
+        These shape your daily experience — the goals determine which insights appear first, the tone affects how suggestions are worded, and the sleep window calibrates your recovery score.
       </Text>
 
       <GlassCard style={{ marginTop: 16 }}>

@@ -17,7 +17,7 @@ export default function FutureEventScreen() {
   const scheme = useColorScheme();
   const isDark = scheme === "dark";
   const c = isDark ? Colors.dark : Colors.light;
-  const glassOverlay = isDark ? "rgba(0,0,0,0.35)" : "rgba(0,0,0,0.10)";
+  const glassOverlay = "rgba(0,0,0,0.10)";
 
   const [title, setTitle] = useState("");
   const [impactLevel, setImpactLevel] = useState<typeof impacts[number]>("medium");

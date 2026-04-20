@@ -47,104 +47,63 @@ const stateGradients: Record<BridgeState, StateGradient> = {
   },
 };
 
+const theme = {
+  // Canvas — warm cream, the "paper" of the app
+  background: "#EFE8D9",
+  backgroundSecondary: "#F4EFE2",
+  backgroundTertiary: "#F9F5EA",
+
+  // Glass morphism on cream — barely visible, warm white
+  glass: {
+    primary: "rgba(255, 252, 244, 0.62)",
+    secondary: "rgba(255, 252, 244, 0.42)",
+    elevated: "rgba(255, 252, 244, 0.88)",
+    border: "rgba(44, 54, 42, 0.10)",
+  },
+
+  // Accent — lime chartreuse for primary action, forest for emphasis
+  accent: {
+    primary: "#2C362A",
+    primaryLight: "#4A5648",
+    primaryDark: "#1B241A",
+  },
+
+  // Lime highlight — used for buttons, active states, "action" moments
+  lime: "#C7E86A",
+  limeMuted: "#B8D95C",
+  limeDark: "#8FA83C",
+
+  // Text — warm charcoal on cream
+  text: {
+    primary: "#2C362A",
+    secondary: "#5E6858",
+    tertiary: "#8A9086",
+    inverse: "#EFE8D9",
+  },
+
+  // Borders — barely-there forest tint
+  border: {
+    light: "rgba(44, 54, 42, 0.06)",
+    medium: "rgba(44, 54, 42, 0.10)",
+    heavy: "rgba(44, 54, 42, 0.16)",
+  },
+
+  // Status — tuned to the cream world
+  danger: "#B2423A",
+  success: "#5B7A3E",
+  warning: "#C2824A",
+
+  // Text on accent.primary buttons
+  onPrimary: "#FFFFFF",
+
+  state: stateGradients,
+};
+
+// Single theme — both "light" and "dark" keys resolve to the same palette
+// so all existing `Colors[scheme ?? "light"]` patterns keep working.
 export const Colors = {
-  light: {
-    // Canvas — warm cream, the "paper" of the app
-    background: "#EFE8D9",
-    backgroundSecondary: "#F4EFE2",
-    backgroundTertiary: "#F9F5EA",
-
-    // Glass morphism on cream — barely visible, warm white
-    glass: {
-      primary: "rgba(255, 252, 244, 0.62)",
-      secondary: "rgba(255, 252, 244, 0.42)",
-      elevated: "rgba(255, 252, 244, 0.88)",
-      border: "rgba(44, 54, 42, 0.10)",
-    },
-
-    // Accent — lime chartreuse for primary action, forest for emphasis
-    accent: {
-      primary: "#2C362A",
-      primaryLight: "#4A5648",
-      primaryDark: "#1B241A",
-    },
-
-    // Lime highlight — used for buttons, active states, "action" moments
-    lime: "#C7E86A",
-    limeMuted: "#B8D95C",
-    limeDark: "#8FA83C",
-
-    // Text — warm charcoal on cream
-    text: {
-      primary: "#2C362A",
-      secondary: "#5E6858",
-      tertiary: "#8A9086",
-      inverse: "#EFE8D9",
-    },
-
-    // Borders — barely-there forest tint
-    border: {
-      light: "rgba(44, 54, 42, 0.06)",
-      medium: "rgba(44, 54, 42, 0.10)",
-      heavy: "rgba(44, 54, 42, 0.16)",
-    },
-
-    // Status — tuned to the cream world
-    danger: "#B2423A",
-    success: "#5B7A3E",
-    warning: "#C2824A",
-
-    // Text on accent.primary buttons — white works on dark green in light mode
-    onPrimary: "#FFFFFF",
-
-    state: stateGradients,
-  },
-
-  dark: {
-    // Deep forest, the "night" of the app
-    background: "#1B241A",
-    backgroundSecondary: "#222D20",
-    backgroundTertiary: "#2C362A",
-
-    glass: {
-      primary: "rgba(239, 232, 217, 0.06)",
-      secondary: "rgba(239, 232, 217, 0.04)",
-      elevated: "rgba(44, 54, 42, 0.82)",
-      border: "rgba(239, 232, 217, 0.10)",
-    },
-
-    accent: {
-      primary: "#EFE8D9",
-      primaryLight: "#F4EFE2",
-      primaryDark: "#D9D2C2",
-    },
-
-    lime: "#C7E86A",
-    limeMuted: "#A8C854",
-    limeDark: "#8FA83C",
-
-    text: {
-      primary: "#EFE8D9",
-      secondary: "#BFB8A8",
-      tertiary: "#8A8578",
-      inverse: "#1B241A",
-    },
-
-    border: {
-      light: "rgba(239, 232, 217, 0.06)",
-      medium: "rgba(239, 232, 217, 0.10)",
-      heavy: "rgba(239, 232, 217, 0.16)",
-    },
-
-    danger: "#E08078",
-    success: "#A8C872",
-    warning: "#E0B278",
-
-    // In dark mode accent.primary is cream, so button text needs to be dark
-    onPrimary: "#2C362A",
-
-    state: stateGradients,
-  },
+  light: theme,
+  dark: theme,
 };
 
 /**

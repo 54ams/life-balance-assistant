@@ -127,11 +127,11 @@ export default function TrendsScreen() {
               </View>
 
               <View style={{ alignItems: "flex-end", gap: 6 }}>
-                <View style={[styles.miniStat, { backgroundColor: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.03)" }]}>
+                <View style={[styles.miniStat, { backgroundColor: "rgba(0,0,0,0.03)" }]}>
                   <Text style={{ color: c.text.tertiary, fontSize: 11 }}>Average</Text>
                   <Text style={{ color: c.text.primary, fontSize: 16, fontWeight: "800" }}>{summary.avg}</Text>
                 </View>
-                <View style={[styles.miniStat, { backgroundColor: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.03)" }]}>
+                <View style={[styles.miniStat, { backgroundColor: "rgba(0,0,0,0.03)" }]}>
                   <Text style={{ color: c.text.tertiary, fontSize: 11 }}>Range</Text>
                   <Text style={{ color: c.text.primary, fontSize: 16, fontWeight: "800" }}>{summary.min}–{summary.max}</Text>
                 </View>
@@ -161,7 +161,7 @@ export default function TrendsScreen() {
                     <Text style={{ color: c.text.secondary, fontSize: 13 }}>Recent 7 days</Text>
                     <Text style={{ color: c.text.primary, fontSize: 13, fontWeight: "800" }}>{interpretation.recentAvg}</Text>
                   </View>
-                  <View style={{ height: 8, borderRadius: 4, backgroundColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)", overflow: "hidden" }}>
+                  <View style={{ height: 8, borderRadius: 4, backgroundColor: "rgba(0,0,0,0.04)", overflow: "hidden" }}>
                     <View style={{ height: 8, borderRadius: 4, width: `${Math.min(100, interpretation.recentAvg)}%`, backgroundColor: c.accent.primary }} />
                   </View>
                 </View>
@@ -172,7 +172,7 @@ export default function TrendsScreen() {
                       <Text style={{ color: c.text.secondary, fontSize: 13 }}>Previous period</Text>
                       <Text style={{ color: c.text.primary, fontSize: 13, fontWeight: "800" }}>{interpretation.previousAvg}</Text>
                     </View>
-                    <View style={{ height: 8, borderRadius: 4, backgroundColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)", overflow: "hidden" }}>
+                    <View style={{ height: 8, borderRadius: 4, backgroundColor: "rgba(0,0,0,0.04)", overflow: "hidden" }}>
                       <View style={{ height: 8, borderRadius: 4, width: `${Math.min(100, interpretation.previousAvg)}%`, backgroundColor: c.text.tertiary, opacity: 0.5 }} />
                     </View>
                   </View>
@@ -186,8 +186,8 @@ export default function TrendsScreen() {
                         paddingVertical: 4,
                         borderRadius: BorderRadius.full,
                         backgroundColor: interpretation.delta >= 0
-                          ? (isDark ? "rgba(87,214,164,0.12)" : "rgba(47,163,122,0.08)")
-                          : (isDark ? "rgba(255,122,134,0.12)" : "rgba(214,69,80,0.08)"),
+                          ? ("rgba(47,163,122,0.08)")
+                          : ("rgba(214,69,80,0.08)"),
                       }}
                     >
                       <Text

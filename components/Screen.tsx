@@ -24,7 +24,7 @@ function ScreenWash({ isDark }: { isDark: boolean }) {
       style={{
         ...StyleSheet.absoluteFillObject,
         height: 260,
-        backgroundColor: isDark ? "rgba(156,176,138,0.06)" : "rgba(156,176,138,0.08)",
+        backgroundColor: "rgba(156,176,138,0.08)",
         borderBottomLeftRadius: 80,
         borderBottomRightRadius: 80,
       }}

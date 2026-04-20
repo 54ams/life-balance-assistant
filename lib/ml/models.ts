@@ -54,6 +54,8 @@ function topDriversFrom(model: LogRegModel, x: number[]) {
 /**
  * Train/refresh the personal models if enough data exists.
  * - Requires >= 21 daily rows overall, and >= ~10 supervised rows after filtering.
+ * - Holds out the most recent row from training so that predictTomorrowRisk()
+ *   can evaluate on unseen data (no data leakage).
  */
 export async function trainIfReady(): Promise<DualModels | null> {
   const days = await getAllDays();
@@ -62,9 +64,14 @@ export async function trainIfReady(): Promise<DualModels | null> {
   const dataset = buildDataset(days);
   if (dataset.length < 10) return null;
 
-  const X = dataset.map((r) => r.x);
-  const yA = dataset.map((r) => r.yLbiDrop);
-  const yB = dataset.map((r) => r.yRecoveryDrop);
+  // Hold out the most recent row — it will be used for prediction only,
+  // never seen during training. This prevents data leakage.
+  const trainSet = dataset.slice(0, -1);
+  if (trainSet.length < 8) return null;
+
+  const X = trainSet.map((r) => r.x);
+  const yA = trainSet.map((r) => r.yLbiDrop);
+  const yB = trainSet.map((r) => r.yRecoveryDrop);
 
   const lbiDrop = trainLogReg(X, yA, [...FEATURE_NAMES], { steps: 900, lr: 0.12, l2: 0.02 });
   const recoveryDrop = trainLogReg(X, yB, [...FEATURE_NAMES], { steps: 900, lr: 0.12, l2: 0.02 });
@@ -74,7 +81,7 @@ export async function trainIfReady(): Promise<DualModels | null> {
     windowDays: 14,
     k: 0.75,
     trainedAt: new Date().toISOString(),
-    rowsUsed: dataset.length,
+    rowsUsed: trainSet.length,
     lbiDrop,
     recoveryDrop,
   };
@@ -83,12 +90,14 @@ export async function trainIfReady(): Promise<DualModels | null> {
 }
 
 /**
- * Predict tomorrow risk based on today's feature vector.
- * This uses the latest trained model and the latest available row features,
- * which are computed as part of the dataset building logic.
+ * Predict tomorrow’s risk based on today’s feature vector.
  *
- * For simplicity and transparency: we predict using the most recent dataset row (day t),
- * which is z-scored vs its rolling baseline.
+ * The model was trained on rows [0..n-2] (see trainIfReady), so the most
+ * recent dataset row (index n-1) was never seen during training. This
+ * means we predict on genuinely held-out data — no data leakage.
+ *
+ * The feature vector is z-scored against the user’s own rolling baseline,
+ * so predictions reflect personal deviation rather than absolute levels.
  */
 export async function predictTomorrowRisk(): Promise<RiskPrediction> {
   const days = await getAllDays();

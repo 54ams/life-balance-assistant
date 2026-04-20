@@ -11,7 +11,7 @@ export default function ValuesScreen() {
   const scheme = useColorScheme();
   const isDark = scheme === "dark";
   const c = isDark ? Colors.dark : Colors.light;
-  const glassOverlay = isDark ? "rgba(0,0,0,0.35)" : "rgba(0,0,0,0.10)";
+  const glassOverlay = "rgba(0,0,0,0.10)";
 
   const [values, setValues] = useState<string[]>(defaultValuesSet());
   const [custom, setCustom] = useState("");

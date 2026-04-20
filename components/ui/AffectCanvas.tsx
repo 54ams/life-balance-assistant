@@ -16,22 +16,31 @@ export function AffectCanvas({ initial, onChange, ghost }: Props) {
   const radius = 140;
   const pos = useRef(new Animated.ValueXY({ x: initial.x, y: initial.y })).current;
   const latest = useRef({ x: initial.x, y: initial.y });
+  const initialRef = useRef(initial);
+  initialRef.current = initial;
 
-  const accentGradientSoft = isDark ? ["#23314E", "#1B273D"] : ["#C2E9FB", "#E2D4FF"];
-  const glowSoft = isDark ? "rgba(77,189,255,0.20)" : "rgba(122,215,240,0.22)";
+  const accentGradientSoft = ["#C2E9FB", "#E2D4FF"];
+  const glowSoft = "rgba(122,215,240,0.22)";
 
   useEffect(() => {
     pos.setValue(initial);
     latest.current = initial;
   }, [initial, pos]);
 
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
+
   const pan = useMemo(
     () =>
       PanResponder.create({
         onStartShouldSetPanResponder: () => true,
+        onPanResponderGrant: () => {
+          // Capture position at drag start
+          latest.current = { x: initialRef.current.x, y: initialRef.current.y };
+        },
         onPanResponderMove: (_, g) => {
-          const x = Math.max(-radius, Math.min(radius, g.dx + initial.x));
-          const y = Math.max(-radius, Math.min(radius, g.dy + initial.y));
+          const x = Math.max(-radius, Math.min(radius, g.dx + initialRef.current.x));
+          const y = Math.max(-radius, Math.min(radius, g.dy + initialRef.current.y));
           latest.current = { x, y };
           pos.setValue({ x, y });
         },
@@ -39,10 +48,10 @@ export function AffectCanvas({ initial, onChange, ghost }: Props) {
           const { x, y } = latest.current;
           const valence = x / radius;
           const arousal = -y / radius;
-          onChange(valence, arousal);
+          onChangeRef.current(valence, arousal);
         },
       }),
-    [initial.x, initial.y, onChange, pos]
+    [pos]
   );
 
   return (

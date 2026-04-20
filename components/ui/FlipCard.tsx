@@ -32,6 +32,8 @@ type Props = {
   flipped: boolean;
   /** Called when the user taps the card. */
   onToggle?: () => void;
+  /** Called when the user long-presses the card (e.g. to reveal formulas). */
+  onLongPress?: () => void;
   /** Front-of-card content (plain English). */
   front: React.ReactNode;
   /** Back-of-card content (the working). */
@@ -51,6 +53,7 @@ type Props = {
 export function FlipCard({
   flipped,
   onToggle,
+  onLongPress,
   front,
   back,
   style,
@@ -141,6 +144,8 @@ export function FlipCard({
   return (
     <Pressable
       onPress={interactive ? onToggle : undefined}
+      onLongPress={onLongPress}
+      delayLongPress={500}
       style={style}
       accessibilityRole={interactive ? "button" : undefined}
       accessibilityLabel={accessibilityLabel}

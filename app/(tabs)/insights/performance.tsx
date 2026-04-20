@@ -86,13 +86,13 @@ export default function PerformanceScreen() {
               CLASSIFICATION (LBI DROP)
             </Text>
             <MetricRow label="Accuracy" value={summary.cls.acc.toFixed(2)} desc="Proportion of correct predictions overall" c={c} />
-            <View style={{ height: 1, backgroundColor: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.03)" }} />
+            <View style={{ height: 1, backgroundColor: "rgba(0,0,0,0.03)" }} />
             <MetricRow label="Precision" value={summary.cls.precision.toFixed(2)} desc="When the model predicts a drop, how often is it right?" c={c} />
-            <View style={{ height: 1, backgroundColor: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.03)" }} />
+            <View style={{ height: 1, backgroundColor: "rgba(0,0,0,0.03)" }} />
             <MetricRow label="Recall" value={summary.cls.recall.toFixed(2)} desc="Of all actual drops, how many did the model catch?" c={c} />
-            <View style={{ height: 1, backgroundColor: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.03)" }} />
+            <View style={{ height: 1, backgroundColor: "rgba(0,0,0,0.03)" }} />
             <MetricRow label="AUC" value={summary.cls.auc != null ? summary.cls.auc.toFixed(2) : "—"} desc="Area under ROC curve — 1.0 is perfect, 0.5 is random" c={c} />
-            <View style={{ height: 1, backgroundColor: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.03)" }} />
+            <View style={{ height: 1, backgroundColor: "rgba(0,0,0,0.03)" }} />
             <MetricRow label="Brier score" value={summary.cls.brier.toFixed(3)} desc="Calibration — lower is better, 0 is perfect" c={c} />
           </GlassCard>
 
@@ -107,7 +107,7 @@ export default function PerformanceScreen() {
             {summary.calibration.map((b, i) => (
               <View key={i} style={{ flexDirection: "row", alignItems: "center", gap: 8, marginTop: 4 }}>
                 <Text style={{ color: c.text.tertiary, fontSize: 12, width: 50 }}>Bin {i + 1}</Text>
-                <View style={{ flex: 1, height: 6, borderRadius: 3, backgroundColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)" }}>
+                <View style={{ flex: 1, height: 6, borderRadius: 3, backgroundColor: "rgba(0,0,0,0.06)" }}>
                   <View style={{ width: `${Math.round(b.obs * 100)}%`, height: "100%", borderRadius: 3, backgroundColor: c.accent.primary }} />
                 </View>
                 <Text style={{ color: c.text.secondary, fontSize: 11, width: 90, textAlign: "right" }}>

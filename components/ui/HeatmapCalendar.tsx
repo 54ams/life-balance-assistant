@@ -19,11 +19,11 @@ const CELL_SIZE = 18;
 const GAP = 3;
 
 function scoreToColor(value: number, isDark: boolean): string {
-  if (value >= 80) return isDark ? "#57D6A4" : "#2FA37A";
-  if (value >= 65) return isDark ? "#7FE0BC" : "#5DBD9A";
-  if (value >= 50) return isDark ? "#E0B278" : "#C2824A";
-  if (value >= 35) return isDark ? "#C88A6B" : "#B87C5E";
-  return isDark ? "#E08078" : "#B2423A";
+  if (value >= 80) return "#2FA37A";
+  if (value >= 65) return "#5DBD9A";
+  if (value >= 50) return "#C2824A";
+  if (value >= 35) return "#B87C5E";
+  return "#B2423A";
 }
 
 export function HeatmapCalendar({ data, weeks = 8, onDayPress }: HeatmapCalendarProps) {
@@ -115,7 +115,7 @@ export function HeatmapCalendar({ data, weeks = 8, onDayPress }: HeatmapCalendar
               {week.map((day, di) => {
                 const isEmpty = day.value === null;
                 const bg = isEmpty
-                  ? isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.03)"
+                  ? "rgba(0,0,0,0.03)"
                   : scoreToColor(day.value!, isDark);
 
                 return (

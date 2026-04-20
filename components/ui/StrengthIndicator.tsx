@@ -56,7 +56,7 @@ export function StrengthIndicator({ value, label }: StrengthIndicatorProps) {
   const isDark = scheme === "dark";
   const c = isDark ? Colors.dark : Colors.light;
   const s = strengthLabel(value);
-  const barColor = isDark ? s.isDark : s.color;
+  const barColor = s.color;
   const abs = Math.abs(value);
   const pct = Math.min(100, Math.round(abs * 100));
 
@@ -71,7 +71,7 @@ export function StrengthIndicator({ value, label }: StrengthIndicatorProps) {
             flex: 1,
             height: 6,
             borderRadius: 3,
-            backgroundColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)",
+            backgroundColor: "rgba(0,0,0,0.04)",
             overflow: "hidden",
           }}
         >

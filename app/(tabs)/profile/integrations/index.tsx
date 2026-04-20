@@ -117,7 +117,7 @@ export default function WearablesHubScreen() {
                         {
                           backgroundColor:
                             device.status === "coming_soon"
-                              ? (isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.04)")
+                              ? ("rgba(0,0,0,0.04)")
                               : c.accent.primary + "18",
                         },
                       ]}
@@ -132,7 +132,7 @@ export default function WearablesHubScreen() {
                       <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
                         <Text style={[styles.deviceName, { color: c.text.primary }]}>{device.name}</Text>
                         {device.status === "coming_soon" && (
-                          <View style={[styles.badge, { backgroundColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.05)" }]}>
+                          <View style={[styles.badge, { backgroundColor: "rgba(0,0,0,0.05)" }]}>
                             <Text style={[styles.badgeText, { color: c.text.tertiary }]}>Coming Soon</Text>
                           </View>
                         )}

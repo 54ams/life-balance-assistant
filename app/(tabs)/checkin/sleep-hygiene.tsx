@@ -22,6 +22,7 @@ import {
   CHECKLIST_ITEMS,
   type SleepChecklist,
 } from "@/lib/sleepHygiene";
+import { FeatureGuide } from "@/components/ui/FeatureGuide";
 
 export default function SleepHygieneScreen() {
   const scheme = useColorScheme();
@@ -75,6 +76,15 @@ export default function SleepHygieneScreen() {
               </Text>
             </View>
           </View>
+
+          {/* First-visit guide */}
+          <FeatureGuide
+            featureId="sleep_hygiene"
+            title="Sleep Hygiene"
+            what="An evidence-based evening checklist. Tick off each habit before bed to build a consistent wind-down routine."
+            why="Sleep hygiene is one of the strongest predictors of next-day recovery and mood (Walker, 2017). Small consistent changes compound over weeks."
+            connection="Your hygiene score feeds directly into your balance calculation and pattern detection. The app tracks how tonight's habits affect tomorrow's energy."
+          />
 
           {/* Score ring */}
           <GlassCard style={{ marginTop: Spacing.lg }} padding="base">

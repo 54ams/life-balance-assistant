@@ -125,7 +125,7 @@ export default function BalanceSummaryScreen() {
             <StatRow label="Check-ins completed" value={`${summary.checkInCount} of ${summary.totalDays} days`} c={c} />
           </View>
 
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginTop: Spacing.sm, padding: 12, borderRadius: BorderRadius.lg, backgroundColor: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.02)" }}>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginTop: Spacing.sm, padding: 12, borderRadius: BorderRadius.lg, backgroundColor: "rgba(0,0,0,0.02)" }}>
             <Text style={{ fontSize: 20 }}>{trendIcon}</Text>
             <Text style={{ color: c.text.secondary, fontSize: 14, flex: 1 }}>{trendText}</Text>
           </View>

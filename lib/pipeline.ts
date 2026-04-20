@@ -1,7 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { computeBaseline } from "./baseline";
 import { calculateLBI, type LbiOutput } from "./lbi";
-import { trainIfReady } from "./ml/models";
+import { trainIfReady, predictTomorrowRisk } from "./ml/models";
 import { generatePlan, type GeneratedPlan } from "./plan";
 import { getActiveValues, getDay, getLifeContexts, listUpcomingEvents, loadPlan, savePlan, upsertLBI } from "./storage";
 import { getPrimaryGoals } from "./privacy";
@@ -76,6 +76,19 @@ export async function refreshDerivedForDate(date: ISODate): Promise<DerivedRefre
 
   await trainIfReady();
 
+  // Get ML risk predictions (if model is trained) to feed into recommendations
+  let mlRisk: { lbiRiskProb: number | null; recoveryRiskProb: number | null; topDrivers: { name: string; direction: "up" | "down"; strength: number }[] } | null = null;
+  try {
+    const riskResult = await predictTomorrowRisk();
+    if (riskResult.trained) {
+      mlRisk = {
+        lbiRiskProb: riskResult.lbiRiskProb,
+        recoveryRiskProb: riskResult.recoveryRiskProb,
+        topDrivers: riskResult.topDrivers,
+      };
+    }
+  } catch {}
+
   // Generate smart recommendation (invalidate stale cache first)
   await invalidateRecommendation(date);
   generateSmartRecommendation({
@@ -87,6 +100,7 @@ export async function refreshDerivedForDate(date: ISODate): Promise<DerivedRefre
     schedule,
     upcomingEvents,
     values,
+    mlRisk,
   }).catch(() => {}); // fire and forget — non-blocking
 
   // Alert if LBI dropped significantly from baseline (once per day)

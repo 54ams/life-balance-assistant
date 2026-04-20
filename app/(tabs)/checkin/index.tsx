@@ -302,7 +302,7 @@ export default function DailyCheckInScreen() {
                 height: 4,
                 borderRadius: 2,
                 backgroundColor:
-                  i <= step ? c.accent.primary : isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)",
+                  i <= step ? c.accent.primary : "rgba(0,0,0,0.06)",
               }}
             />
           ))}
@@ -615,7 +615,7 @@ export default function DailyCheckInScreen() {
                     styles.deeperBtn,
                     {
                       borderColor: c.accent.primary,
-                      backgroundColor: isDark ? "rgba(239,232,217,0.06)" : "rgba(44,54,42,0.04)",
+                      backgroundColor: "rgba(44,54,42,0.04)",
                       opacity: !note.trim() || llmLoading ? 0.5 : 1,
                     },
                     pressed && { opacity: 0.75 },

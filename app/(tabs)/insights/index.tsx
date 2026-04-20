@@ -29,6 +29,7 @@ import { getCachedRecommendation, type SmartRecommendation } from "@/lib/smartRe
 import { formatDateFriendly } from "@/lib/util/formatDate";
 import type { DailyRecord } from "@/lib/types";
 import * as Haptics from "expo-haptics";
+import { FormulaSheet, FORMULAS } from "@/components/ui/FormulaSheet";
 
 // These helper functions translate numeric scores into natural language.
 // The thresholds are based on what felt right during testing — not clinical cutoffs.
@@ -155,10 +156,16 @@ export default function InsightsHome() {
   // Flip states for each card
   const [flipBalance, setFlipBalance] = useState(false);
   const [flipBody, setFlipBody] = useState(false);
-
   const [flipBridge, setFlipBridge] = useState(false);
   const [flipBaseline, setFlipBaseline] = useState(false);
   const [flipPlan, setFlipPlan] = useState(false);
+
+  // Formula reveal (long-press)
+  const [formulaKey, setFormulaKey] = useState<string | null>(null);
+  const showFormula = (key: string) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+    setFormulaKey(key);
+  };
 
   useFocusEffect(
     useCallback(() => {
@@ -261,7 +268,8 @@ export default function InsightsHome() {
               <FlipCard
                 flipped={flipBalance}
                 onToggle={() => setFlipBalance((v) => !v)}
-                accessibilityLabel={`Today's balance. Tap to ${flipBalance ? "hide" : "see"} details.`}
+                onLongPress={() => showFormula("balance")}
+                accessibilityLabel={`Today's balance. Tap to ${flipBalance ? "hide" : "see"} details. Long-press for formula.`}
                 front={
                   <GlassCard padding="lg">
                     <Text style={{ color: c.text.tertiary, fontSize: 10, letterSpacing: 1.2, fontWeight: "800", textAlign: "center" }}>
@@ -339,7 +347,8 @@ export default function InsightsHome() {
               <FlipCard
                 flipped={flipBody}
                 onToggle={() => setFlipBody((v) => !v)}
-                accessibilityLabel="Body insights"
+                onLongPress={() => showFormula("body")}
+                accessibilityLabel="Body insights. Long-press for formula."
                 front={
                   <GlassCard padding="base">
                     <View style={{ flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 8 }}>
@@ -384,7 +393,8 @@ export default function InsightsHome() {
             <FlipCard
               flipped={flipBridge}
               onToggle={() => setFlipBridge((v) => !v)}
-              accessibilityLabel="Mind-body bridge"
+              onLongPress={() => showFormula("bridge")}
+              accessibilityLabel="Mind-body bridge. Long-press for formula."
               front={
                 <GlassCard padding="base">
                   <View style={{ flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 8 }}>
@@ -444,7 +454,8 @@ export default function InsightsHome() {
               <FlipCard
                 flipped={flipBaseline}
                 onToggle={() => setFlipBaseline((v) => !v)}
-                accessibilityLabel="Personal baseline"
+                onLongPress={() => showFormula("baseline")}
+                accessibilityLabel="Personal baseline. Long-press for formula."
                 front={
                   <GlassCard padding="base">
                     <View style={{ flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 8 }}>
@@ -565,7 +576,7 @@ export default function InsightsHome() {
                           paddingVertical: 12,
                           paddingHorizontal: 4,
                           borderTopWidth: i > 0 ? 1 : 0,
-                          borderTopColor: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.03)",
+                          borderTopColor: "rgba(0,0,0,0.03)",
                         },
                         pressed && { opacity: 0.6 },
                       ]}
@@ -616,7 +627,7 @@ export default function InsightsHome() {
                             paddingVertical: 10,
                             gap: 12,
                             borderTopWidth: i > 0 ? 1 : 0,
-                            borderTopColor: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.03)",
+                            borderTopColor: "rgba(0,0,0,0.03)",
                           },
                           pressed && { opacity: 0.6 },
                         ]}
@@ -645,7 +656,19 @@ export default function InsightsHome() {
           <Text style={{ fontSize: 12, color: c.text.tertiary, textAlign: "center", lineHeight: 16 }}>
             Patterns are things to notice, not rules. Nothing here is a diagnosis.
           </Text>
+          {dataCount > 0 && (
+            <Text style={{ fontSize: 11, color: c.text.tertiary, textAlign: "center", marginTop: 8, fontStyle: "italic" }}>
+              Long-press any insight card to see the formula behind it.
+            </Text>
+          )}
         </View>
+
+        {/* Formula reveal sheet */}
+        <FormulaSheet
+          visible={formulaKey != null}
+          formula={formulaKey ? FORMULAS[formulaKey] ?? null : null}
+          onClose={() => setFormulaKey(null)}
+        />
       </Screen>
     </TabSwipe>
   );

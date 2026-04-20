@@ -228,7 +228,7 @@ export default function DayDetailsScreen() {
               )}
 
               {record.checkIn.notes ? (
-                <View style={{ marginTop: Spacing.sm, padding: 12, borderRadius: BorderRadius.lg, backgroundColor: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.02)" }}>
+                <View style={{ marginTop: Spacing.sm, padding: 12, borderRadius: BorderRadius.lg, backgroundColor: "rgba(0,0,0,0.02)" }}>
                   <Text style={{ color: c.text.tertiary, fontSize: 11, fontWeight: "600", marginBottom: 4 }}>Notes</Text>
                   <Text style={{ color: c.text.secondary, fontSize: 13, lineHeight: 18 }}>{record.checkIn.notes}</Text>
                 </View>
@@ -252,7 +252,7 @@ export default function DayDetailsScreen() {
                         paddingHorizontal: 10,
                         paddingVertical: 6,
                         borderRadius: BorderRadius.full,
-                        backgroundColor: isDark ? "rgba(255,122,134,0.1)" : "rgba(214,69,80,0.06)",
+                        backgroundColor: "rgba(214,69,80,0.06)",
                       }}
                     >
                       <Text style={{ color: c.danger, fontSize: 13, fontWeight: "600" }}>
@@ -280,7 +280,7 @@ export default function DayDetailsScreen() {
                   width: 100,
                   height: 100,
                   borderRadius: 12,
-                  backgroundColor: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.03)",
+                  backgroundColor: "rgba(0,0,0,0.03)",
                   alignSelf: "center",
                   marginBottom: Spacing.sm,
                   position: "relative",
@@ -326,7 +326,7 @@ export default function DayDetailsScreen() {
               {record.emotion.contextTags.length > 0 && (
                 <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 8 }}>
                   {record.emotion.contextTags.map((tag) => (
-                    <View key={tag} style={{ paddingHorizontal: 10, paddingVertical: 4, borderRadius: BorderRadius.full, backgroundColor: isDark ? "rgba(124,111,220,0.1)" : "rgba(107,93,211,0.06)" }}>
+                    <View key={tag} style={{ paddingHorizontal: 10, paddingVertical: 4, borderRadius: BorderRadius.full, backgroundColor: "rgba(107,93,211,0.06)" }}>
                       <Text style={{ color: c.accent.primary, fontSize: 12, fontWeight: "600" }}>{tag}</Text>
                     </View>
                   ))}
@@ -334,7 +334,7 @@ export default function DayDetailsScreen() {
               )}
 
               {record.emotion.reflection ? (
-                <View style={{ marginTop: Spacing.sm, padding: 12, borderRadius: BorderRadius.lg, backgroundColor: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.02)" }}>
+                <View style={{ marginTop: Spacing.sm, padding: 12, borderRadius: BorderRadius.lg, backgroundColor: "rgba(0,0,0,0.02)" }}>
                   <Text style={{ color: c.text.tertiary, fontSize: 11, fontWeight: "600", marginBottom: 4 }}>Reflection</Text>
                   <Text style={{ color: c.text.secondary, fontSize: 13, lineHeight: 18 }}>{record.emotion.reflection}</Text>
                 </View>
@@ -380,7 +380,7 @@ export default function DayDetailsScreen() {
               )}
 
               {plan.explanation && (
-                <View style={{ marginTop: Spacing.sm, padding: 12, borderRadius: BorderRadius.lg, backgroundColor: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.02)" }}>
+                <View style={{ marginTop: Spacing.sm, padding: 12, borderRadius: BorderRadius.lg, backgroundColor: "rgba(0,0,0,0.02)" }}>
                   <Text style={{ color: c.text.tertiary, fontSize: 11, fontWeight: "600", marginBottom: 4 }}>Explanation</Text>
                   <Text style={{ color: c.text.secondary, fontSize: 13, lineHeight: 18 }}>{plan.explanation}</Text>
                 </View>
@@ -401,7 +401,7 @@ export default function DayDetailsScreen() {
 
 function MetricPill({ label, value, c, isDark }: { label: string; value: string; c: typeof Colors.light; isDark: boolean }) {
   return (
-    <View style={{ flex: 1, paddingVertical: 10, paddingHorizontal: 12, borderRadius: BorderRadius.lg, backgroundColor: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.03)", alignItems: "center" }}>
+    <View style={{ flex: 1, paddingVertical: 10, paddingHorizontal: 12, borderRadius: BorderRadius.lg, backgroundColor: "rgba(0,0,0,0.03)", alignItems: "center" }}>
       <Text style={{ color: c.text.tertiary, fontSize: 11, fontWeight: "600" }}>{label}</Text>
       <Text style={{ color: c.text.primary, fontSize: 14, fontWeight: "800", marginTop: 2 }}>{value}</Text>
     </View>
@@ -418,7 +418,7 @@ function SignalRow({ label, value, level, c, isDark }: { label: string; value: s
         <Text style={{ color: c.text.secondary, fontSize: 13 }}>{label}</Text>
         <Text style={{ color: c.text.primary, fontSize: 13, fontWeight: "700" }}>{value}</Text>
       </View>
-      <View style={{ height: 6, borderRadius: 3, backgroundColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)", overflow: "hidden" }}>
+      <View style={{ height: 6, borderRadius: 3, backgroundColor: "rgba(0,0,0,0.04)", overflow: "hidden" }}>
         <View style={{ height: 6, borderRadius: 3, width: `${pct}%`, backgroundColor: barColor }} />
       </View>
     </View>
@@ -427,8 +427,8 @@ function SignalRow({ label, value, level, c, isDark }: { label: string; value: s
 
 function BehaviourChip({ label, positive, c, isDark }: { label: string; positive: boolean; c: typeof Colors.light; isDark: boolean }) {
   const bg = positive
-    ? (isDark ? "rgba(87,214,164,0.1)" : "rgba(47,163,122,0.06)")
-    : (isDark ? "rgba(251,191,36,0.1)" : "rgba(217,119,6,0.06)");
+    ? ("rgba(47,163,122,0.06)")
+    : ("rgba(217,119,6,0.06)");
   const color = positive ? c.success : c.warning;
 
   return (

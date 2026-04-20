@@ -31,8 +31,8 @@ export default function CheckInSavedScreen() {
   const isDark = scheme === "dark";
   const c = Colors[scheme ?? "light"];
 
-  const physioColor = isDark ? "#57D6A4" : "#2FA37A";
-  const mentalColor = isDark ? "#A4BFB5" : "#6F9A90";
+  const physioColor = "#2FA37A";
+  const mentalColor = "#6F9A90";
 
   const [values, setValues] = useState<{ physio: number | null; mental: number | null }>({
     physio: null,
@@ -318,11 +318,11 @@ export default function CheckInSavedScreen() {
           <GlassCard style={{ marginTop: Spacing.md }}>
             <Text style={{ color: c.text.primary, fontWeight: "800", fontSize: 16 }}>What's next?</Text>
             <View style={{ gap: 8, marginTop: Spacing.sm }}>
-              <Pressable onPress={() => router.replace("/insights/explain" as any)} style={({ pressed }) => [{ flexDirection: "row", alignItems: "center", gap: 10, padding: 12, borderRadius: BorderRadius.lg, backgroundColor: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.02)" }, pressed && { opacity: 0.6 }]}>
+              <Pressable onPress={() => router.replace("/insights/explain" as any)} style={({ pressed }) => [{ flexDirection: "row", alignItems: "center", gap: 10, padding: 12, borderRadius: BorderRadius.lg, backgroundColor: "rgba(0,0,0,0.02)" }, pressed && { opacity: 0.6 }]}>
                 <Text style={{ color: c.accent.primary, fontWeight: "700", fontSize: 14, flex: 1 }}>See what drives your score</Text>
                 <Text style={{ color: c.text.tertiary }}>›</Text>
               </Pressable>
-              <Pressable onPress={() => router.replace("/checkin/grounding" as any)} style={({ pressed }) => [{ flexDirection: "row", alignItems: "center", gap: 10, padding: 12, borderRadius: BorderRadius.lg, backgroundColor: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.02)" }, pressed && { opacity: 0.6 }]}>
+              <Pressable onPress={() => router.replace("/checkin/grounding" as any)} style={({ pressed }) => [{ flexDirection: "row", alignItems: "center", gap: 10, padding: 12, borderRadius: BorderRadius.lg, backgroundColor: "rgba(0,0,0,0.02)" }, pressed && { opacity: 0.6 }]}>
                 <Text style={{ color: c.accent.primary, fontWeight: "700", fontSize: 14, flex: 1 }}>Try a grounding exercise</Text>
                 <Text style={{ color: c.text.tertiary }}>›</Text>
               </Pressable>

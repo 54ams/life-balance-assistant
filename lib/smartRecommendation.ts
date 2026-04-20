@@ -44,6 +44,12 @@ export type SmartRecInput = {
   schedule: RecurringItem[];
   upcomingEvents: FutureEvent[];
   values: string[];
+  /** ML-predicted risk probabilities (if model is trained) */
+  mlRisk?: {
+    lbiRiskProb: number | null;
+    recoveryRiskProb: number | null;
+    topDrivers: { name: string; direction: "up" | "down"; strength: number }[];
+  } | null;
 };
 
 function buildPrompt(input: SmartRecInput): string {
@@ -86,6 +92,22 @@ function buildPrompt(input: SmartRecInput): string {
 
   if (input.lifeContexts.length > 0) {
     parts.push(`Life roles: ${input.lifeContexts.join(", ")}`);
+  }
+
+  // Include ML risk predictions when available
+  if (input.mlRisk?.lbiRiskProb != null || input.mlRisk?.recoveryRiskProb != null) {
+    const riskParts: string[] = [];
+    if (input.mlRisk.lbiRiskProb != null) {
+      riskParts.push(`balance dip ${Math.round(input.mlRisk.lbiRiskProb * 100)}%`);
+    }
+    if (input.mlRisk.recoveryRiskProb != null) {
+      riskParts.push(`recovery dip ${Math.round(input.mlRisk.recoveryRiskProb * 100)}%`);
+    }
+    parts.push(`ML-predicted tomorrow risk: ${riskParts.join(", ")}`);
+    if (input.mlRisk.topDrivers.length > 0) {
+      const drivers = input.mlRisk.topDrivers.map((d) => `${d.name} (${d.direction})`).join(", ");
+      parts.push(`Top risk drivers: ${drivers}`);
+    }
   }
 
   return parts.join("\n");
@@ -162,6 +184,18 @@ function localRecommendation(input: SmartRecInput): SmartRecommendation {
   } else if (tomorrow && tomorrow.impactLevel === "high") {
     headline = `Prep for tomorrow`;
     text = `${tomorrow.title} is tomorrow. Use today to prepare and wind down early — you'll feel the difference.`;
+  }
+
+  // ML risk overlay: if the model predicts high risk, add a warning layer
+  const mlRisk = input.mlRisk;
+  if (mlRisk?.lbiRiskProb != null && mlRisk.lbiRiskProb > 0.65) {
+    const driver = mlRisk.topDrivers[0];
+    const driverHint = driver ? ` Your ${driver.name.replace("_z", "")} pattern is the biggest factor.` : "";
+    headline = "Tomorrow looks tough";
+    text = `Your personal model flags a ${Math.round(mlRisk.lbiRiskProb * 100)}% chance of a balance dip tomorrow.${driverHint} Prioritise recovery tonight.`;
+  } else if (mlRisk?.recoveryRiskProb != null && mlRisk.recoveryRiskProb > 0.7 && w) {
+    headline = "Recovery risk ahead";
+    text = `The model predicts ${Math.round(mlRisk.recoveryRiskProb * 100)}% chance your recovery drops tomorrow. Protect your sleep and ease off intensity.`;
   }
 
   return {
