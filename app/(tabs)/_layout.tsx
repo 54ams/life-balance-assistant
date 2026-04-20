@@ -12,10 +12,9 @@ import { getFirstRunDone } from "@/lib/demo";
 
 type GateState = "loading" | "welcome" | "onboarding" | "first-run" | "ok";
 
-// Three-tab swipe ring: Home → Patterns → Check-ins. Everything else
-// (profile, calendar, history, the check-in form itself) is reachable
-// from inside one of these screens, not from the tab bar or swipe.
-const SWIPE_ORDER = ["index", "insights", "checkins"] as const;
+// Four-tab swipe ring: Home → Check in → Insights → Me.
+// Calendar and history are reachable from within these screens.
+const SWIPE_ORDER = ["index", "checkin", "insights", "profile"] as const;
 
 export default function TabLayout() {
   const [gate, setGate] = useState<GateState>("loading");
@@ -125,9 +124,19 @@ export default function TabLayout() {
           />
 
           <Tabs.Screen
+            name="checkin"
+            options={{
+              title: "Check in",
+              tabBarIcon: ({ color }) => (
+                <IconSymbol size={24} name="square.and.pencil" color={color} />
+              ),
+            }}
+          />
+
+          <Tabs.Screen
             name="insights"
             options={{
-              title: "Patterns",
+              title: "Insights",
               tabBarIcon: ({ color }) => (
                 <IconSymbol size={24} name="sparkles" color={color} />
               ),
@@ -135,19 +144,18 @@ export default function TabLayout() {
           />
 
           <Tabs.Screen
-            name="checkins"
+            name="profile"
             options={{
-              title: "Check-ins",
+              title: "Me",
               tabBarIcon: ({ color }) => (
-                <IconSymbol size={24} name="square.and.pencil" color={color} />
+                <IconSymbol size={24} name="person.fill" color={color} />
               ),
             }}
           />
 
-          {/* Reachable from within the three tabs, but hidden from the tab bar. */}
-          <Tabs.Screen name="checkin" options={{ href: null }} />
+          {/* Reachable from within the four tabs, but hidden from the tab bar. */}
+          <Tabs.Screen name="checkins" options={{ href: null }} />
           <Tabs.Screen name="calendar" options={{ href: null }} />
-          <Tabs.Screen name="profile" options={{ href: null }} />
           <Tabs.Screen name="history" options={{ href: null }} />
         </Tabs>
       </Animated.View>
