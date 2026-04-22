@@ -46,7 +46,7 @@ import { getTodayProgress, getLongestActiveStreak } from "@/lib/habits";
 import { detectDecline, type PatternAlert } from "@/lib/patternInterrupt";
 import { shouldPromptWeeklyReflection } from "@/lib/weeklyReflection";
 import { hasCompletedTour } from "@/lib/tour";
-import { TourOverlay } from "@/components/ui/TourOverlay";
+import { TourOverlay, TourTarget, TourTargetProvider } from "@/components/ui/TourOverlay";
 
 function greetingForHour(h: number) {
   if (h < 12) return "Good morning";
@@ -542,6 +542,7 @@ export default function HomeScreen() {
   /* ---------------- Main ---------------- */
 
   return (
+    <TourTargetProvider>
     <View style={{ flex: 1 }}>
       <AuroraBackground state={state} />
       <SafeAreaView style={{ flex: 1 }}>
@@ -666,6 +667,7 @@ export default function HomeScreen() {
 
             {/* State Orb — the single expressive metric */}
             <View style={{ alignItems: "center", marginTop: Spacing.lg }}>
+              <TourTarget id="orb">
               <StateOrb
                 physio={physio}
                 mental={mentalForOrb}
@@ -675,6 +677,7 @@ export default function HomeScreen() {
                 onPress={onOrbPress}
                 onLongPress={onOrbLongPress}
               />
+              </TourTarget>
               <Text
                 style={{
                   color: c.text.tertiary,
@@ -694,7 +697,7 @@ export default function HomeScreen() {
 
             {/* 7-day ribbon */}
             {ribbonDays.length > 0 && (
-              <>
+              <TourTarget id="ribbon">
                 <Ribbon7
                   days={ribbonDays}
                   onPressDay={(d) => router.push(`/day/${d}` as any)}
@@ -702,7 +705,7 @@ export default function HomeScreen() {
                 <Text style={{ color: c.text.tertiary, fontSize: 11, textAlign: "center", marginTop: 4 }}>
                   Tap a day for details
                 </Text>
-              </>
+              </TourTarget>
             )}
 
             {/* 8-week heatmap — shows data density at a glance */}
@@ -786,7 +789,7 @@ export default function HomeScreen() {
             )}
 
             {/* Quick Actions — always visible toolkit */}
-            <View style={styles.quickActionsRow}>
+            <TourTarget id="quick_actions" style={styles.quickActionsRow}>
               {[
                 { icon: "wind", label: "Breathe", onPress: () => setBreathVisible(true) },
                 { icon: "square.and.pencil", label: checkedInToday ? "Update" : "Check in", onPress: () => router.push("/checkin" as any) },
@@ -804,7 +807,7 @@ export default function HomeScreen() {
                   <Text style={[styles.quickActionLabel, { color: c.text.secondary }]}>{action.label}</Text>
                 </Pressable>
               ))}
-            </View>
+            </TourTarget>
 
             {/* Pattern Alert — urgent card when declining */}
             {patternAlert && (
@@ -944,6 +947,7 @@ export default function HomeScreen() {
         )}
       </SafeAreaView>
     </View>
+    </TourTargetProvider>
   );
 }
 

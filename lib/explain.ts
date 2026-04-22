@@ -99,10 +99,10 @@ export function buildDayExplain(args: {
 
         let detail: string | undefined;
 
-        if (d.key === "recovery" && wearable) {
+        if (d.key === "recovery" && wearable && typeof wearable.recovery === "number" && Number.isFinite(wearable.recovery)) {
           detail = `Wearable recovery: ${Math.round(wearable.recovery)}/100.`;
         }
-        if (d.key === "sleep" && wearable) {
+        if (d.key === "sleep" && wearable && typeof wearable.sleepHours === "number" && Number.isFinite(wearable.sleepHours)) {
           detail = `Sleep: ${formatHours(wearable.sleepHours)}.`;
         }
         if (d.key === "mood" && checkIn) {

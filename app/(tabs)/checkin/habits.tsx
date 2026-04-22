@@ -76,6 +76,11 @@ export default function HabitsScreen() {
       newState ? Haptics.NotificationFeedbackType.Success : Haptics.NotificationFeedbackType.Warning,
     ).catch(() => {});
     await logHabitCompletion(habit.id, todayISO(), newState);
+    // Refresh streak for the toggled habit so the flame icon updates live
+    // rather than waiting for the next focus event.
+    const log = await getHabitLog(habit.id);
+    const streak = getStreak(log);
+    setHabits((prev) => prev.map((h) => (h.id === habit.id ? { ...h, streak } : h)));
   };
 
   const handleCreateHabit = async () => {
@@ -308,7 +313,8 @@ export default function HabitsScreen() {
                 </Pressable>
                 <Pressable
                   onPress={handleCreateHabit}
-                  style={[styles.btnPrimary, { backgroundColor: c.accent.primary, opacity: newName && newCue && newRoutine ? 1 : 0.4 }]}
+                  disabled={!newName.trim() || !newCue.trim() || !newRoutine.trim()}
+                  style={[styles.btnPrimary, { backgroundColor: c.accent.primary, opacity: newName.trim() && newCue.trim() && newRoutine.trim() ? 1 : 0.4 }]}
                 >
                   <Text style={{ color: "#fff", fontWeight: "800" }}>Create Habit</Text>
                 </Pressable>

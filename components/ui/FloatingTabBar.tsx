@@ -3,9 +3,11 @@ import { BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import { StyleSheet, View, Pressable, Text, useColorScheme } from "react-native";
 import { BlurView } from "expo-blur";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { CommonActions } from "@react-navigation/native";
+import * as Haptics from "expo-haptics";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { Colors } from "@/constants/Colors";
-import { BorderRadius, Spacing } from "@/constants/Spacing";
+import { Spacing } from "@/constants/Spacing";
 
 // Only show the four main tabs — sub-screens like calendar and history
 // are navigated to from within these, not from the bar itself.
@@ -52,7 +54,22 @@ export function FloatingTabBar({ state, descriptors, navigation }: BottomTabBarP
               target: route.key,
               canPreventDefault: true,
             });
-            if (!isFocused && !event.defaultPrevented) {
+            if (event.defaultPrevented) return;
+            Haptics.selectionAsync().catch(() => {});
+            if (isFocused) {
+              // Re-tapping the active tab pops its nested stack back to the
+              // root screen (iOS convention). Prevents dead-ends where a user
+              // on a sub-page can't find their way back to the tab root.
+              navigation.dispatch({
+                ...CommonActions.navigate({ name: route.name }),
+                target: state.key,
+              });
+              // Fire popToTop on the nested stack (if any).
+              const nested = state.routes[index].state;
+              if (nested && nested.key) {
+                navigation.dispatch({ type: "POP_TO_TOP", target: nested.key } as any);
+              }
+            } else {
               navigation.navigate(route.name);
             }
           };

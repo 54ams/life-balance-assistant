@@ -87,7 +87,10 @@ export default function TabLayout() {
           const strongEnough =
             Math.abs(translationX) > 90 || Math.abs(velocityX) > 800;
           if (!strongEnough) return;
-          if (translationX < 0) navigateBy(1);
+          // Direction convention: finger-right (translationX > 0) moves to the
+          // next tab in SWIPE_ORDER, finger-left to the previous one. Matches
+          // the user's mental model where Home → Check-in is a rightward swipe.
+          if (translationX > 0) navigateBy(1);
           else navigateBy(-1);
         })
         .enabled(!isNested),

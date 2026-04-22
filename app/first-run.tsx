@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Pressable, StyleSheet, Text, View, useColorScheme, ActivityIndicator } from "react-native";
+import { Alert, Pressable, StyleSheet, Text, View, useColorScheme, ActivityIndicator } from "react-native";
 import { router } from "expo-router";
 import * as Haptics from "expo-haptics";
 
@@ -8,6 +8,7 @@ import { GlassCard } from "@/components/ui/GlassCard";
 import { Colors } from "@/constants/Colors";
 import { BorderRadius, Spacing } from "@/constants/Spacing";
 import { seedDemo, setDemoEnabled, setDemoModeChoice, setFirstRunDone } from "@/lib/demo";
+import { resetTour } from "@/lib/tour";
 
 /**
  * First-run picker shown once, immediately after onboarding consent.
@@ -32,7 +33,13 @@ export default function FirstRunScreen() {
       await setDemoEnabled(true);
       await seedDemo(14);
       await setFirstRunDone(true);
+      await resetTour();
       router.replace("/");
+    } catch (err: any) {
+      Alert.alert(
+        "Couldn't load example data",
+        `${err?.message ?? "Unknown error"}. You can try again or choose a blank slate instead.`,
+      );
     } finally {
       setBusy(null);
     }
@@ -46,7 +53,10 @@ export default function FirstRunScreen() {
       await setDemoModeChoice("fresh");
       await setDemoEnabled(false);
       await setFirstRunDone(true);
+      await resetTour();
       router.replace("/");
+    } catch (err: any) {
+      Alert.alert("Couldn't start fresh", err?.message ?? "Please try again.");
     } finally {
       setBusy(null);
     }
@@ -94,7 +104,10 @@ export default function FirstRunScreen() {
       </Pressable>
 
       <Pressable
-        onPress={() => router.push("/profile/integrations/whoop" as any)}
+        onPress={async () => {
+          await resetTour();
+          router.push("/profile/integrations/whoop" as any);
+        }}
         disabled={!!busy}
         style={{ marginTop: 20 }}
       >

@@ -8,10 +8,13 @@ import { TAB_ORDER } from "@/constants/navigation";
 import { useColorScheme } from "react-native";
 import { router, useFocusEffect } from "expo-router";
 import React, { useCallback, useState } from "react";
-import { Pressable, Text, View } from "react-native";
+import { Alert, Pressable, Text, View } from "react-native";
 import { TabSwipe } from "@/components/TabSwipe";
 import { getUserName, getActiveValues, getLifeContexts, listDailyRecords } from "@/lib/storage";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { APP_CONSENT_KEY } from "@/lib/privacy";
+import { FIRST_RUN_DONE_KEY } from "@/lib/demo";
+import { clearWelcomeSeen } from "@/app/welcome";
 import * as Haptics from "expo-haptics";
 
 const TOOLS: Array<{ title: string; subtitle: string; icon: any; route: string }> = [
@@ -62,18 +65,33 @@ export default function ProfileScreen() {
     }, []),
   );
 
-  const replayWelcome = async () => {
+  const replayWelcome = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-    // Clear all onboarding gates so the full first-time flow replays:
-    // Welcome → Onboarding → First-run → App Tour → Home
-    await AsyncStorage.multiRemove([
-      "welcome_seen_v1",
-      "appConsent",
-      "firstRunDone",
-      "life_balance_tour_completed_v1",
-      "life_balance_tour_step_v1",
-    ]);
-    router.replace("/welcome" as any);
+    Alert.alert(
+      "Replay welcome?",
+      "This clears your onboarding progress and shows the first-launch flow again. Your check-ins and data stay intact.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Replay",
+          style: "destructive",
+          onPress: async () => {
+            // Clear all onboarding gates so the full first-time flow replays:
+            // Welcome → Onboarding → First-run → App Tour → Home.
+            // Keys must match the constants defined in lib/privacy, lib/demo,
+            // and app/welcome — hardcoded strings here silently fail.
+            await clearWelcomeSeen();
+            await AsyncStorage.multiRemove([
+              APP_CONSENT_KEY,
+              FIRST_RUN_DONE_KEY,
+              "life_balance_tour_completed_v1",
+              "life_balance_tour_step_v1",
+            ]);
+            router.replace("/welcome" as any);
+          },
+        },
+      ],
+    );
   };
 
   const renderRow = (item: typeof TOOLS[0]) => (

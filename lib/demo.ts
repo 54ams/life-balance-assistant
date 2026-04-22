@@ -70,19 +70,31 @@ export async function clearDemoOverrides() {
  * shows the animated welcome screen again.
  */
 export async function kioskReset(): Promise<void> {
-  await clearAll();
-  await AsyncStorage.multiRemove([
-    "welcome_seen_v1",
-    "app_consent_v1",
-    "preferred_tone_v1",
-    "primary_goal_v1",
-    "sleep_window_v1",
-    DEMO_MODE_KEY,
-    FIRST_RUN_DONE_KEY,
-    DEMO_ENABLED_KEY,
-    DEMO_CHECKIN_KEY,
-    DEMO_WEARABLE_KEY,
-  ]);
+  // AsyncStorage.clear() is the most exhaustive option — it ensures no stale
+  // key (including ones added in future features) leaks between participants.
+  // We fall back to clearAll + explicit key removals if clear() throws on this
+  // platform, which keeps the examiner-between-runs reset robust.
+  try {
+    await AsyncStorage.clear();
+  } catch {
+    await clearAll();
+    await AsyncStorage.multiRemove([
+      "welcome_seen_v1",
+      "app_consent_v1",
+      "preferred_tone_v1",
+      "primary_goal_v1",
+      "sleep_window_v1",
+      "whoop_session_token",
+      "whoop_participant_id",
+      "whoop_last_sync",
+      "whoop_consent_v1",
+      DEMO_MODE_KEY,
+      FIRST_RUN_DONE_KEY,
+      DEMO_ENABLED_KEY,
+      DEMO_CHECKIN_KEY,
+      DEMO_WEARABLE_KEY,
+    ]);
+  }
 }
 
 export async function getDemoCheckIn(): Promise<DailyCheckIn | null> {

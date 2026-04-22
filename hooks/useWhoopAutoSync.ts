@@ -10,13 +10,14 @@ import type { ISODate } from "@/lib/types";
 const LAST_SYNC_KEY = "whoop_last_sync";
 const CONSENT_KEY = "whoop_consent_v1";
 
-export function useWhoopAutoSync() {
+export function useWhoopAutoSync(enabled: boolean = true) {
   const [syncing, setSyncing] = useState(false);
   const [lastSynced, setLastSynced] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const didRun = useRef(false);
 
   useEffect(() => {
+    if (!enabled) return;
     if (didRun.current) return;
     didRun.current = true;
 
@@ -55,7 +56,7 @@ export function useWhoopAutoSync() {
         setSyncing(false);
       }
     })();
-  }, []);
+  }, [enabled]);
 
   return { syncing, lastSynced, error };
 }

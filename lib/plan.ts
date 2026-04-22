@@ -115,9 +115,14 @@ export function generatePlan(input: {
   const { lbi, baseline, classification, wearable, checkIn, confidence, values, lifeContexts, goals, schedule, upcomingEvents } = input;
 
   const sc = stressCount(checkIn);
-  const lowSleep = wearable.sleepHours < 6.5;
-  const lowRecovery = wearable.recovery < 45;
-  const highStrain = (wearable.strain ?? 0) >= 15;
+  // WHOOP fields can come back null on partial days — treat null as
+  // "no signal" rather than crashing or inventing a false comparison.
+  const sleepHours = typeof wearable.sleepHours === "number" && Number.isFinite(wearable.sleepHours) ? wearable.sleepHours : null;
+  const recovery = typeof wearable.recovery === "number" && Number.isFinite(wearable.recovery) ? wearable.recovery : null;
+  const strainVal = typeof wearable.strain === "number" && Number.isFinite(wearable.strain) ? wearable.strain : null;
+  const lowSleep = sleepHours != null && sleepHours < 6.5;
+  const lowRecovery = recovery != null && recovery < 45;
+  const highStrain = strainVal != null && strainVal >= 15;
   const deltaFromBaseline = baseline == null ? null : lbi - baseline;
   const belowBaseline = deltaFromBaseline != null && deltaFromBaseline <= -10;
   const aboveBaseline = deltaFromBaseline != null && deltaFromBaseline >= 10;

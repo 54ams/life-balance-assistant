@@ -52,11 +52,25 @@ export type SmartRecInput = {
   } | null;
 };
 
+// Safe accessors — WHOOP can return partial days (e.g. recovery posted
+// before sleep is scored). Any field can be null/undefined even if the
+// outer `wearable` object is present.
+function finite(n: unknown): number | null {
+  return typeof n === "number" && Number.isFinite(n) ? n : null;
+}
+
 function buildPrompt(input: SmartRecInput): string {
   const parts: string[] = [];
 
   if (input.wearable) {
-    parts.push(`WHOOP data: recovery ${Math.round(input.wearable.recovery)}%, sleep ${input.wearable.sleepHours.toFixed(1)}h${input.wearable.strain != null ? `, strain ${input.wearable.strain.toFixed(1)}` : ""}`);
+    const rec = finite(input.wearable.recovery);
+    const sleep = finite(input.wearable.sleepHours);
+    const strain = finite(input.wearable.strain);
+    const fields: string[] = [];
+    if (rec != null) fields.push(`recovery ${Math.round(rec)}%`);
+    if (sleep != null) fields.push(`sleep ${sleep.toFixed(1)}h`);
+    if (strain != null) fields.push(`strain ${strain.toFixed(1)}`);
+    if (fields.length) parts.push(`WHOOP data: ${fields.join(", ")}`);
   }
 
   if (input.lbi != null) {
@@ -78,12 +92,17 @@ function buildPrompt(input: SmartRecInput): string {
   }
 
   if (input.upcomingEvents.length > 0) {
-    const evts = input.upcomingEvents.map((e) => {
-      const daysAway = Math.ceil((Date.parse(e.dateISO) - Date.parse(input.date)) / 86400000);
-      const when = daysAway === 0 ? "today" : daysAway === 1 ? "tomorrow" : `in ${daysAway} days`;
-      return `${e.title} (${when}, ${e.impactLevel} impact)`;
-    });
-    parts.push(`Upcoming: ${evts.join("; ")}`);
+    const baseDate = Date.parse(input.date);
+    const evts = input.upcomingEvents
+      .map((e) => {
+        const parsed = Date.parse(e.dateISO);
+        if (Number.isNaN(parsed) || Number.isNaN(baseDate)) return null;
+        const daysAway = Math.ceil((parsed - baseDate) / 86400000);
+        const when = daysAway === 0 ? "today" : daysAway === 1 ? "tomorrow" : `in ${daysAway} days`;
+        return `${e.title} (${when}, ${e.impactLevel} impact)`;
+      })
+      .filter((s): s is string => s !== null);
+    if (evts.length) parts.push(`Upcoming: ${evts.join("; ")}`);
   }
 
   if (input.values.length > 0) {
@@ -129,8 +148,11 @@ ADVICE: [advice]`;
 
 function localRecommendation(input: SmartRecInput): SmartRecommendation {
   const w = input.wearable;
+  const baseDate = Date.parse(input.date);
   const tomorrow = input.upcomingEvents.find((e) => {
-    const daysAway = Math.ceil((Date.parse(e.dateISO) - Date.parse(input.date)) / 86400000);
+    const parsed = Date.parse(e.dateISO);
+    if (Number.isNaN(parsed) || Number.isNaN(baseDate)) return false;
+    const daysAway = Math.ceil((parsed - baseDate) / 86400000);
     return daysAway === 1;
   });
   const todayEvents = input.upcomingEvents.filter((e) => e.dateISO === input.date);
@@ -142,41 +164,47 @@ function localRecommendation(input: SmartRecInput): SmartRecommendation {
   let text = "Check in when you can — even a quick one helps track your patterns.";
 
   if (w) {
-    const lowRecovery = w.recovery < 40;
-    const highStrain = (w.strain ?? 0) >= 15;
-    const goodRecovery = w.recovery >= 70;
-    const goodSleep = w.sleepHours >= 7;
+    const rec = finite(w.recovery);
+    const sleep = finite(w.sleepHours);
+    const strain = finite(w.strain);
+    const lowRecovery = rec != null && rec < 40;
+    const highStrain = strain != null && strain >= 15;
+    const goodRecovery = rec != null && rec >= 70;
+    const goodSleep = sleep != null && sleep >= 7;
+    const recStr = rec != null ? `${Math.round(rec)}%` : "unknown";
+    const sleepStr = sleep != null ? `${sleep.toFixed(1)}h` : "unknown";
+    const strainStr = strain != null ? strain.toFixed(1) : "unknown";
 
     if (lowRecovery && tomorrow && tomorrow.impactLevel === "high") {
       headline = "Protect tonight for tomorrow";
-      text = `Recovery is ${Math.round(w.recovery)}% and ${tomorrow.title} is tomorrow. Prioritise sleep tonight — wind down early, skip screens after 9pm, and push anything non-essential.`;
+      text = `Recovery is ${recStr} and ${tomorrow.title} is tomorrow. Prioritise sleep tonight — wind down early, skip screens after 9pm, and push anything non-essential.`;
     } else if (lowRecovery && hasDemandSchedule) {
       headline = "Easy does it today";
-      text = `Recovery is only ${Math.round(w.recovery)}% with a demanding schedule ahead. Pace yourself — take breaks between tasks, eat well, and aim for an early night.`;
+      text = `Recovery is only ${recStr} with a demanding schedule ahead. Pace yourself — take breaks between tasks, eat well, and aim for an early night.`;
     } else if (lowRecovery) {
       headline = "Recovery day";
-      text = `Your body's at ${Math.round(w.recovery)}% — take it easy. Light movement, good food, and an early wind-down will set you up better for tomorrow.`;
+      text = `Your body's at ${recStr} — take it easy. Light movement, good food, and an early wind-down will set you up better for tomorrow.`;
     } else if (highStrain && isAthlete) {
       headline = "High training load";
-      text = `Strain hit ${(w.strain ?? 0).toFixed(1)} — solid effort. Focus on refuelling and sleep tonight. ${goodRecovery ? "Your recovery supports this, but don't stack another heavy session tomorrow." : "Recovery is moderate, so consider active rest tomorrow."}`;
+      text = `Strain hit ${strainStr} — solid effort. Focus on refuelling and sleep tonight. ${goodRecovery ? "Your recovery supports this, but don't stack another heavy session tomorrow." : "Recovery is moderate, so consider active rest tomorrow."}`;
     } else if (highStrain) {
       headline = "Big effort today";
-      text = `Your body worked hard (strain ${(w.strain ?? 0).toFixed(1)}). Match it with proper recovery — hydrate, eat well, and protect your sleep tonight.`;
+      text = `Your body worked hard (strain ${strainStr}). Match it with proper recovery — hydrate, eat well, and protect your sleep tonight.`;
     } else if (goodRecovery && goodSleep && todayEvents.length === 0) {
       headline = "Good energy, open day";
-      text = `Recovery ${Math.round(w.recovery)}% and ${w.sleepHours.toFixed(1)}h sleep — you're in a strong spot. Great day to tackle something meaningful or push a little harder.`;
+      text = `Recovery ${recStr} and ${sleepStr} sleep — you're in a strong spot. Great day to tackle something meaningful or push a little harder.`;
     } else if (goodRecovery && goodSleep && tomorrow) {
       headline = "Well-rested and prepared";
       text = `Strong recovery ahead of ${tomorrow.title}. You're in a good position — use today to prepare, stay steady, and carry this momentum.`;
     } else if (isParent && lowRecovery) {
       headline = "Recharge around the kids";
-      text = `Recovery is low at ${Math.round(w.recovery)}%. Grab micro-rest when you can — even 10 minutes of quiet between activities makes a difference.`;
+      text = `Recovery is low at ${recStr}. Grab micro-rest when you can — even 10 minutes of quiet between activities makes a difference.`;
     } else if (goodRecovery) {
       headline = "Solid foundation today";
-      text = `Recovery is at ${Math.round(w.recovery)}% with ${w.sleepHours.toFixed(1)}h sleep. Your body is ready — make the most of the energy.`;
-    } else {
+      text = `Recovery is at ${recStr} with ${sleepStr} sleep. Your body is ready — make the most of the energy.`;
+    } else if (rec != null || sleep != null) {
       headline = "Steady as you go";
-      text = `Recovery ${Math.round(w.recovery)}%, sleep ${w.sleepHours.toFixed(1)}h — middle of the road. Listen to how you feel and adjust your intensity accordingly.`;
+      text = `Recovery ${recStr}, sleep ${sleepStr} — middle of the road. Listen to how you feel and adjust your intensity accordingly.`;
     }
   } else if (todayEvents.length > 0) {
     headline = `${todayEvents.length} event${todayEvents.length > 1 ? "s" : ""} today`;

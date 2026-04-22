@@ -1,58 +1,187 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import {
   Animated,
-  Easing,
   Pressable,
   StyleSheet,
   Text,
   View,
   Dimensions,
+  findNodeHandle,
+  UIManager,
+  type ViewProps,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Colors } from "@/constants/Colors";
-import { Spacing, BorderRadius } from "@/constants/Spacing";
+import { BorderRadius } from "@/constants/Spacing";
 import { IconSymbol } from "@/components/ui/icon-symbol";
-import { TOUR_STEPS, advanceTourStep, skipTour } from "@/lib/tour";
+import { TOUR_STEPS, advanceTourStep, skipTour, type TourStep } from "@/lib/tour";
 import * as Haptics from "expo-haptics";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
-// Spotlight regions — approximate positions where each target lives on-screen.
-// These create a "cutout" in the dark overlay so the element shows through.
-type SpotlightRegion = { x: number; y: number; w: number; h: number; borderRadius: number };
+type Rect = { x: number; y: number; w: number; h: number };
 
-const SPOTLIGHT_REGIONS: Record<string, SpotlightRegion> = {
-  orb: { x: SCREEN_WIDTH / 2 - 80, y: 160, w: 160, h: 160, borderRadius: 80 },
-  ribbon: { x: 16, y: 340, w: SCREEN_WIDTH - 32, h: 80, borderRadius: 16 },
-  quick_actions: { x: 16, y: 440, w: SCREEN_WIDTH - 32, h: 90, borderRadius: 16 },
-  checkin_tab: { x: SCREEN_WIDTH * 0.25 - 35, y: SCREEN_HEIGHT - 90, w: 70, h: 60, borderRadius: 16 },
-  insights_tab: { x: SCREEN_WIDTH * 0.5 - 35, y: SCREEN_HEIGHT - 90, w: 70, h: 60, borderRadius: 16 },
-  profile_tab: { x: SCREEN_WIDTH * 0.75 - 35, y: SCREEN_HEIGHT - 90, w: 70, h: 60, borderRadius: 16 },
-  final: { x: SCREEN_WIDTH / 2 - 60, y: SCREEN_HEIGHT / 2 - 60, w: 120, h: 120, borderRadius: 60 },
+type TargetRegistry = {
+  register: (id: TourStep["target"], ref: React.RefObject<any>) => void;
+  unregister: (id: TourStep["target"]) => void;
+  measure: (id: TourStep["target"]) => Promise<Rect | null>;
 };
+
+const TourTargetContext = createContext<TargetRegistry | null>(null);
+
+/**
+ * Wrap the home screen with this provider so components can register refs
+ * under a tour target id. The TourOverlay consumes this registry to measure
+ * the real on-screen position of each highlighted element.
+ */
+export function TourTargetProvider({ children }: { children: React.ReactNode }) {
+  const refs = useRef(new Map<TourStep["target"], React.RefObject<any>>());
+
+  const register = useCallback((id: TourStep["target"], ref: React.RefObject<any>) => {
+    refs.current.set(id, ref);
+  }, []);
+  const unregister = useCallback((id: TourStep["target"]) => {
+    refs.current.delete(id);
+  }, []);
+
+  const measure = useCallback((id: TourStep["target"]) => {
+    return new Promise<Rect | null>((resolve) => {
+      const ref = refs.current.get(id);
+      const node = ref?.current;
+      if (!node) return resolve(null);
+      const handle = typeof node === "number" ? node : findNodeHandle(node);
+      if (handle == null) return resolve(null);
+      try {
+        UIManager.measureInWindow(handle, (x, y, w, h) => {
+          if (w === 0 && h === 0) return resolve(null);
+          resolve({ x, y, w, h });
+        });
+      } catch {
+        resolve(null);
+      }
+    });
+  }, []);
+
+  const value = useMemo(() => ({ register, unregister, measure }), [register, unregister, measure]);
+  return <TourTargetContext.Provider value={value}>{children}</TourTargetContext.Provider>;
+}
+
+/**
+ * Hook-powered wrapper: attach a ref to whichever element should be highlighted
+ * when the given tour step is active. Accepts all View props.
+ */
+export function TourTarget({
+  id,
+  children,
+  ...viewProps
+}: { id: TourStep["target"]; children: React.ReactNode } & ViewProps) {
+  const ctx = useContext(TourTargetContext);
+  const ref = useRef<View>(null);
+  useEffect(() => {
+    if (!ctx) return;
+    ctx.register(id, ref);
+    return () => ctx.unregister(id);
+  }, [ctx, id]);
+  return (
+    <View ref={ref} collapsable={false} {...viewProps}>
+      {children}
+    </View>
+  );
+}
 
 interface TourOverlayProps {
   initialStep?: number;
   onComplete: () => void;
 }
 
+// Fallback regions if a target isn't registered (e.g. tab bar icons live in
+// a different provider tree). Approximate, but beats nothing. Tab rows are
+// computed against the real safe-area inset at render time (see below).
+const TAB_BAR_HEIGHT = 68;
+const TAB_BAR_SIDE_MARGIN = 20;
+const TAB_BAR_BOTTOM_MARGIN = 12;
+
+function fallbackRegionsFor(insetsBottom: number): Record<TourStep["target"], Rect> {
+  const tabRowY = SCREEN_HEIGHT - Math.max(insetsBottom, 12) - TAB_BAR_HEIGHT;
+  const usableWidth = SCREEN_WIDTH - TAB_BAR_SIDE_MARGIN * 2;
+  const tabCellWidth = usableWidth / 4;
+  // The floating bar has 4 cells: index(0), checkin(1), insights(2), profile(3)
+  const tabX = (i: number) =>
+    TAB_BAR_SIDE_MARGIN + tabCellWidth * i + tabCellWidth / 2 - 36;
+  return {
+    orb: { x: SCREEN_WIDTH / 2 - 130, y: 180, w: 260, h: 260 },
+    ribbon: { x: 16, y: 470, w: SCREEN_WIDTH - 32, h: 90 },
+    quick_actions: { x: 16, y: 580, w: SCREEN_WIDTH - 32, h: 100 },
+    checkin_tab: { x: tabX(1), y: tabRowY, w: 72, h: TAB_BAR_HEIGHT },
+    insights_tab: { x: tabX(2), y: tabRowY, w: 72, h: TAB_BAR_HEIGHT },
+    profile_tab: { x: tabX(3), y: tabRowY, w: 72, h: TAB_BAR_HEIGHT },
+    habits: { x: 16, y: SCREEN_HEIGHT / 2 - 60, w: SCREEN_WIDTH - 32, h: 120 },
+    tools: { x: 16, y: SCREEN_HEIGHT / 2 - 60, w: SCREEN_WIDTH - 32, h: 120 },
+    final: { x: SCREEN_WIDTH / 2 - 80, y: SCREEN_HEIGHT / 2 - 80, w: 160, h: 160 },
+  };
+}
+
+function borderRadiusForTarget(target: TourStep["target"]): number {
+  if (target === "orb" || target === "final") return 9999;
+  return 16;
+}
+
 export function TourOverlay({ initialStep = 0, onComplete }: TourOverlayProps) {
   const c = Colors.light;
+  const ctx = useContext(TourTargetContext);
+  const insets = useSafeAreaInsets();
+  const fallbacks = useMemo(() => fallbackRegionsFor(insets.bottom), [insets.bottom]);
 
   const [currentStep, setCurrentStep] = useState(initialStep);
+  const [rect, setRect] = useState<Rect>(() => fallbacks[TOUR_STEPS[initialStep]?.target ?? "final"]);
   const step = TOUR_STEPS[currentStep];
 
   const fadeIn = useRef(new Animated.Value(0)).current;
-  const spotlightScale = useRef(new Animated.Value(0.8)).current;
+  const spotlightScale = useRef(new Animated.Value(0.9)).current;
+  const spotlightPulse = useRef(new Animated.Value(0)).current;
 
+  // Re-measure target whenever the step changes. Retry a couple of times
+  // in case the target hasn't mounted yet (e.g. navigation animation).
   useEffect(() => {
-    // Animate in on step change
+    if (!step) return;
+    let cancelled = false;
+    let attempts = 0;
+    const tryMeasure = async () => {
+      const measured = ctx ? await ctx.measure(step.target) : null;
+      if (cancelled) return;
+      if (measured) {
+        setRect(measured);
+      } else if (attempts < 6) {
+        attempts += 1;
+        setTimeout(tryMeasure, 120);
+      } else {
+        setRect(fallbacks[step.target]);
+      }
+    };
+    setRect(fallbacks[step.target]);
+    tryMeasure();
+    return () => { cancelled = true; };
+  }, [currentStep, ctx, step, fallbacks]);
+
+  // Entry + pulse animations
+  useEffect(() => {
     fadeIn.setValue(0);
-    spotlightScale.setValue(0.85);
+    spotlightScale.setValue(0.92);
     Animated.parallel([
-      Animated.timing(fadeIn, { toValue: 1, duration: 300, useNativeDriver: true }),
-      Animated.spring(spotlightScale, { toValue: 1, friction: 8, tension: 60, useNativeDriver: true }),
+      Animated.timing(fadeIn, { toValue: 1, duration: 280, useNativeDriver: true }),
+      Animated.spring(spotlightScale, { toValue: 1, friction: 7, tension: 70, useNativeDriver: true }),
     ]).start();
-  }, [currentStep, fadeIn, spotlightScale]);
+
+    spotlightPulse.setValue(0);
+    const pulse = Animated.loop(
+      Animated.sequence([
+        Animated.timing(spotlightPulse, { toValue: 1, duration: 1100, useNativeDriver: true }),
+        Animated.timing(spotlightPulse, { toValue: 0, duration: 1100, useNativeDriver: true }),
+      ]),
+    );
+    pulse.start();
+    return () => pulse.stop();
+  }, [currentStep, fadeIn, spotlightScale, spotlightPulse]);
 
   const handleNext = useCallback(async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
@@ -73,40 +202,39 @@ export function TourOverlay({ initialStep = 0, onComplete }: TourOverlayProps) {
 
   const isLast = currentStep === TOUR_STEPS.length - 1;
   const progress = (currentStep + 1) / TOUR_STEPS.length;
-  const spotlight = SPOTLIGHT_REGIONS[step.target] ?? SPOTLIGHT_REGIONS.final;
+  const borderRadius = borderRadiusForTarget(step.target);
 
-  // Position tooltip: above or below the spotlight depending on space
-  const spotlightBottom = spotlight.y + spotlight.h;
+  // Tooltip placement — above the spotlight if there isn't room below.
+  const PADDING = 12;
+  const spotlightBottom = rect.y + rect.h;
   const spaceBelow = SCREEN_HEIGHT - spotlightBottom;
-  const tooltipAbove = spaceBelow < 280;
+  const tooltipAbove = spaceBelow < 300;
+  const pulseOpacity = spotlightPulse.interpolate({ inputRange: [0, 1], outputRange: [0.35, 0.9] });
+  const pulseScale = spotlightPulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.05] });
 
   return (
     <View style={styles.overlay} pointerEvents="box-none">
-      {/* Dark backdrop with cutout effect using 4 rects */}
+      {/* Dark backdrop with cutout via 4 rects around the spotlight */}
       <Pressable style={StyleSheet.absoluteFill} onPress={handleNext}>
-        {/* Top section */}
-        <View style={[styles.backdropSection, { top: 0, left: 0, right: 0, height: spotlight.y }]} />
-        {/* Bottom section */}
-        <View style={[styles.backdropSection, { top: spotlightBottom, left: 0, right: 0, bottom: 0 }]} />
-        {/* Left section */}
-        <View style={[styles.backdropSection, { top: spotlight.y, left: 0, width: spotlight.x, height: spotlight.h }]} />
-        {/* Right section */}
-        <View style={[styles.backdropSection, { top: spotlight.y, left: spotlight.x + spotlight.w, right: 0, height: spotlight.h }]} />
+        <View style={[styles.backdropSection, { top: 0, left: 0, right: 0, height: Math.max(0, rect.y - PADDING) }]} />
+        <View style={[styles.backdropSection, { top: spotlightBottom + PADDING, left: 0, right: 0, bottom: 0 }]} />
+        <View style={[styles.backdropSection, { top: Math.max(0, rect.y - PADDING), left: 0, width: Math.max(0, rect.x - PADDING), height: rect.h + PADDING * 2 }]} />
+        <View style={[styles.backdropSection, { top: Math.max(0, rect.y - PADDING), left: rect.x + rect.w + PADDING, right: 0, height: rect.h + PADDING * 2 }]} />
       </Pressable>
 
-      {/* Spotlight ring — pulsing border around the highlighted element */}
+      {/* Pulsing spotlight ring */}
       <Animated.View
         pointerEvents="none"
         style={[
           styles.spotlightRing,
           {
-            top: spotlight.y - 4,
-            left: spotlight.x - 4,
-            width: spotlight.w + 8,
-            height: spotlight.h + 8,
-            borderRadius: spotlight.borderRadius + 4,
-            transform: [{ scale: spotlightScale }],
-            opacity: fadeIn,
+            top: rect.y - PADDING,
+            left: rect.x - PADDING,
+            width: rect.w + PADDING * 2,
+            height: rect.h + PADDING * 2,
+            borderRadius: borderRadius + PADDING,
+            transform: [{ scale: Animated.multiply(spotlightScale, pulseScale) }],
+            opacity: Animated.multiply(fadeIn, pulseOpacity),
           },
         ]}
       />
@@ -116,29 +244,23 @@ export function TourOverlay({ initialStep = 0, onComplete }: TourOverlayProps) {
         style={[
           styles.tooltipContainer,
           tooltipAbove
-            ? { bottom: SCREEN_HEIGHT - spotlight.y + 20 }
-            : { top: spotlightBottom + 20 },
+            ? { bottom: SCREEN_HEIGHT - rect.y + PADDING + 16 }
+            : { top: spotlightBottom + PADDING + 16 },
           { opacity: fadeIn, transform: [{ translateY: Animated.multiply(Animated.subtract(1, fadeIn), 10) }] },
         ]}
       >
         <View style={styles.tooltip}>
-          {/* Progress bar */}
           <View style={styles.progressTrack}>
             <View style={[styles.progressFill, { backgroundColor: c.accent.primary, width: `${progress * 100}%` }]} />
           </View>
 
-          {/* Step counter */}
           <Text style={{ color: c.text.tertiary, fontSize: 11, fontWeight: "700", letterSpacing: 0.5, marginTop: 12 }}>
             {currentStep + 1} of {TOUR_STEPS.length}
           </Text>
 
-          {/* Title */}
           <Text style={[styles.title, { color: c.text.primary }]}>{step.title}</Text>
-
-          {/* Description */}
           <Text style={[styles.description, { color: c.text.secondary }]}>{step.description}</Text>
 
-          {/* Buttons */}
           <View style={styles.buttonRow}>
             {!isLast && (
               <Pressable onPress={handleSkip} style={styles.skipBtn}>

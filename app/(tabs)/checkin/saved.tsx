@@ -1,6 +1,6 @@
 import { router } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
-import { Animated, Easing, Pressable, Text, View, useColorScheme } from "react-native";
+import { Animated, Easing, Pressable, ScrollView, Text, View, useColorScheme } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
 
@@ -31,8 +31,10 @@ export default function CheckInSavedScreen() {
   const isDark = scheme === "dark";
   const c = Colors[scheme ?? "light"];
 
-  const physioColor = "#2FA37A";
-  const mentalColor = "#6F9A90";
+  // Body/mind dot colours pulled from the theme so they stay legible on
+  // both light and dark backgrounds.
+  const physioColor = c.success;
+  const mentalColor = c.accent.primary;
 
   const [values, setValues] = useState<{ physio: number | null; mental: number | null }>({
     physio: null,
@@ -104,13 +106,11 @@ export default function CheckInSavedScreen() {
     } catch {
       // Non-fatal — the check-in itself is already saved.
     }
-    // Give the user a beat to see the confirmation, then return.
-    setTimeout(() => {
-      router.replace({ pathname: "/", params: { refresh: "1" } } as any);
-    }, 1100);
+    // Stay on the screen. The user chooses where to go next from the
+    // "What's next?" card below.
   };
 
-  const skip = () => {
+  const goHome = () => {
     Haptics.selectionAsync().catch(() => {});
     router.replace({ pathname: "/", params: { refresh: "1" } } as any);
   };
@@ -127,6 +127,10 @@ export default function CheckInSavedScreen() {
     <View style={{ flex: 1 }}>
       <AuroraBackground />
       <SafeAreaView style={{ flex: 1 }}>
+      <ScrollView
+        contentContainerStyle={{ paddingBottom: 40, flexGrow: 1 }}
+        showsVerticalScrollIndicator={false}
+      >
         <Animated.View
           style={{
             flex: 1,
@@ -134,6 +138,7 @@ export default function CheckInSavedScreen() {
             alignItems: "center",
             justifyContent: "center",
             paddingHorizontal: Spacing.base,
+            paddingTop: Spacing.xl,
           }}
         >
           <Text
@@ -302,9 +307,9 @@ export default function CheckInSavedScreen() {
                   </Pressable>
                 </View>
                 <Pressable
-                  onPress={skip}
+                  onPress={() => setFeedback("no")}
                   accessibilityRole="button"
-                  accessibilityLabel="Skip"
+                  accessibilityLabel="Skip reliability question"
                   style={({ pressed }) => [{ marginTop: 14 }, pressed && { opacity: 0.6 }]}
                 >
                   <Text style={{ color: c.text.tertiary, fontSize: 12, fontWeight: "700" }}>
@@ -315,21 +320,98 @@ export default function CheckInSavedScreen() {
             )}
           </View>
 
-          <GlassCard style={{ marginTop: Spacing.md }}>
+          <GlassCard style={{ marginTop: Spacing.md, width: "100%" }}>
             <Text style={{ color: c.text.primary, fontWeight: "800", fontSize: 16 }}>What's next?</Text>
+            <Text style={{ color: c.text.tertiary, fontSize: 12, marginTop: 2 }}>
+              Pick something — or come back later.
+            </Text>
             <View style={{ gap: 8, marginTop: Spacing.sm }}>
-              <Pressable onPress={() => router.replace("/insights/explain" as any)} style={({ pressed }) => [{ flexDirection: "row", alignItems: "center", gap: 10, padding: 12, borderRadius: BorderRadius.lg, backgroundColor: "rgba(0,0,0,0.02)" }, pressed && { opacity: 0.6 }]}>
-                <Text style={{ color: c.accent.primary, fontWeight: "700", fontSize: 14, flex: 1 }}>See what drives your score</Text>
-                <Text style={{ color: c.text.tertiary }}>›</Text>
-              </Pressable>
-              <Pressable onPress={() => router.replace("/checkin/grounding" as any)} style={({ pressed }) => [{ flexDirection: "row", alignItems: "center", gap: 10, padding: 12, borderRadius: BorderRadius.lg, backgroundColor: "rgba(0,0,0,0.02)" }, pressed && { opacity: 0.6 }]}>
-                <Text style={{ color: c.accent.primary, fontWeight: "700", fontSize: 14, flex: 1 }}>Try a grounding exercise</Text>
-                <Text style={{ color: c.text.tertiary }}>›</Text>
-              </Pressable>
+              <NextAction
+                c={c}
+                label="See what drives your score"
+                onPress={() => router.replace("/insights/explain" as any)}
+              />
+              <NextAction
+                c={c}
+                label="Try a grounding exercise"
+                onPress={() => router.replace("/checkin/grounding" as any)}
+              />
+              <NextAction
+                c={c}
+                label="Build a habit"
+                onPress={() => router.replace("/checkin/habits" as any)}
+              />
+              <NextAction
+                c={c}
+                label="Reframe a thought"
+                onPress={() => router.replace("/checkin/reframe" as any)}
+              />
+              <NextAction
+                c={c}
+                label="Review past check-ins"
+                onPress={() => router.replace("/checkins" as any)}
+              />
             </View>
+            <Pressable
+              onPress={goHome}
+              accessibilityRole="button"
+              accessibilityLabel="Back to home"
+              style={({ pressed }) => [
+                {
+                  marginTop: Spacing.md,
+                  paddingVertical: 12,
+                  paddingHorizontal: 20,
+                  borderRadius: BorderRadius.full,
+                  backgroundColor: c.accent.primary,
+                  alignItems: "center",
+                },
+                pressed && { opacity: 0.85 },
+              ]}
+            >
+              <Text style={{ color: c.onPrimary, fontWeight: "800", fontSize: 14 }}>
+                Back to home
+              </Text>
+            </Pressable>
           </GlassCard>
         </Animated.View>
+      </ScrollView>
       </SafeAreaView>
     </View>
+  );
+}
+
+function NextAction({
+  c,
+  label,
+  onPress,
+}: {
+  c: typeof Colors.light;
+  label: string;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      style={({ pressed }) => [
+        {
+          flexDirection: "row",
+          alignItems: "center",
+          gap: 10,
+          padding: 12,
+          borderRadius: BorderRadius.lg,
+          backgroundColor: c.glass.secondary ?? c.border.light,
+          borderWidth: 1,
+          borderColor: c.border.light,
+        },
+        pressed && { opacity: 0.6 },
+      ]}
+    >
+      <Text style={{ color: c.accent.primary, fontWeight: "700", fontSize: 14, flex: 1 }}>
+        {label}
+      </Text>
+      <Text style={{ color: c.text.tertiary }}>›</Text>
+    </Pressable>
   );
 }

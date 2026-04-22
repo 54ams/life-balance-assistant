@@ -13,34 +13,37 @@ export type WhoopContextSuggestion = {
 // the point is to reduce friction, not override their judgement.
 export function suggestContextFromWearable(w: WearableMetrics): WhoopContextSuggestion[] {
   const suggestions: WhoopContextSuggestion[] = [];
+  const sleep = w.sleepHours != null && Number.isFinite(w.sleepHours) ? w.sleepHours : null;
+  const recovery = w.recovery != null && Number.isFinite(w.recovery) ? w.recovery : null;
+  const strain = w.strain != null && Number.isFinite(w.strain) ? w.strain : null;
 
-  if (w.sleepHours < 6) {
+  if (sleep != null && sleep < 6) {
     suggestions.push({
       tagId: "poor_sleep",
       kind: "demand",
-      reason: `Short sleep last night (${w.sleepHours}h)`,
+      reason: `Short sleep last night (${sleep.toFixed(1)}h)`,
     });
   }
 
-  if ((w.strain ?? 0) >= 15) {
+  if (strain != null && strain >= 15) {
     suggestions.push({
       tagId: "movement",
       kind: "resource",
-      reason: `Heavy workout today (strain ${(w.strain ?? 0).toFixed(1)})`,
+      reason: `Heavy workout today (strain ${strain.toFixed(1)})`,
     });
   }
 
-  if (w.recovery < 35) {
+  if (recovery != null && recovery < 35) {
     suggestions.push({
       tagId: "illness",
       kind: "demand",
-      reason: `Low recovery (${Math.round(w.recovery)}%) — body needs slack`,
+      reason: `Low recovery (${Math.round(recovery)}%) — body needs slack`,
     });
-  } else if (w.recovery > 75 && w.sleepHours >= 7) {
+  } else if (recovery != null && recovery > 75 && sleep != null && sleep >= 7) {
     suggestions.push({
       tagId: "rest",
       kind: "resource",
-      reason: `Well rested today (recovery ${Math.round(w.recovery)}%)`,
+      reason: `Well rested today (recovery ${Math.round(recovery)}%)`,
     });
   }
 
@@ -48,16 +51,26 @@ export function suggestContextFromWearable(w: WearableMetrics): WhoopContextSugg
 }
 
 // One-liner shown in the check-in UI so users can see their WHOOP data at a glance.
+// Each metric is independently null-guarded — WHOOP can return partial data
+// (e.g. recovery but no sleep yet, or sleep without strain).
 export function wearableSummaryLine(w: WearableMetrics): string {
   const parts: string[] = [];
-  parts.push(`Recovery ${Math.round(w.recovery)}%`);
-  parts.push(`Sleep ${w.sleepHours.toFixed(1)}h`);
-  if (w.strain != null) parts.push(`Strain ${w.strain.toFixed(1)}`);
-  return parts.join("  ·  ");
+  if (w.recovery != null && Number.isFinite(w.recovery)) {
+    parts.push(`Recovery ${Math.round(w.recovery)}%`);
+  }
+  if (w.sleepHours != null && Number.isFinite(w.sleepHours)) {
+    parts.push(`Sleep ${w.sleepHours.toFixed(1)}h`);
+  }
+  if (w.strain != null && Number.isFinite(w.strain)) {
+    parts.push(`Strain ${w.strain.toFixed(1)}`);
+  }
+  return parts.length ? parts.join("  ·  ") : "No wearable data yet today";
 }
 
 // Traffic-light colour for recovery — matches WHOOP's own green/amber/red scheme.
-export function recoveryColor(recovery: number): string {
+// Accepts null/undefined so callers can pass raw WHOOP fields without guarding.
+export function recoveryColor(recovery: number | null | undefined): string {
+  if (recovery == null || !Number.isFinite(recovery)) return "#9CA3AF"; // neutral grey
   if (recovery >= 67) return "#34C759"; // green
   if (recovery >= 34) return "#FF9500"; // amber
   return "#FF3B30"; // red
