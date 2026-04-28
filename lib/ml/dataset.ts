@@ -1,12 +1,12 @@
 // lib/ml/dataset.ts
-import type { DailyRecord } from "../types";
+import type { DailyRecord, ISODate } from "../types";
 
 export const BASELINE_WINDOW_DAYS = 14;
 export const BASELINE_K = 0.75;
 
 // Features are z-scored vs rolling baseline at time t (window ending at t).
 export type FeatureRow = {
-  date: string; // day t
+  date: ISODate; // day t
   x: number[];
   yLbiDrop: 0 | 1; // label for day t+1
   yRecoveryDrop: 0 | 1; // label for day t+1

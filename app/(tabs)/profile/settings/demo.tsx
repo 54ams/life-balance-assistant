@@ -42,8 +42,8 @@ export default function DemoToolsScreen() {
   const onSeed = async () => {
     setSaving(true);
     try {
-      await seedDemoData(14);
-      Alert.alert("Done", "Seeded 14 days of demo data.");
+      await seedDemoData(30);
+      Alert.alert("Done", "Seeded 30 days of demo data.");
     } finally {
       setSaving(false);
     }
@@ -105,7 +105,7 @@ export default function DemoToolsScreen() {
           disabled={saving}
           style={({ pressed }) => [styles.primaryBtn, { backgroundColor: c.accent.primary }, pressed && styles.pressed]}
         >
-          <Text style={[styles.primaryText, { color: c.onPrimary }]}>Seed 14 days demo data</Text>
+          <Text style={[styles.primaryText, { color: c.onPrimary }]}>Seed 30 days demo data</Text>
         </Pressable>
         <View style={{ height: 12 }} />
         <Pressable

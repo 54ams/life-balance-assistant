@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, StyleSheet, ViewStyle } from 'react-native';
+import { StyleSheet, ViewStyle } from 'react-native';
 import { useColorScheme } from 'react-native';
 import { Colors } from '@/constants/Colors';
 import { BorderRadius, Spacing } from '@/constants/Spacing';
@@ -13,9 +13,9 @@ interface GlassCardProps {
   padding?: keyof typeof Spacing;
 }
 
-export function GlassCard({ 
-  children, 
-  style, 
+export function GlassCard({
+  children,
+  style,
   intensity = 'primary',
   padding = 'base',
 }: GlassCardProps) {
@@ -32,7 +32,7 @@ export function GlassCard({
         styles.container,
         {
           backgroundColor: colors.glass[intensity],
-          borderColor: colors.border.medium,
+          borderColor: colors.border.heavy,
           borderRadius: BorderRadius.xl,
           padding: Spacing[padding],
         },
@@ -40,40 +40,14 @@ export function GlassCard({
         style,
       ]}
     >
-      {/* Glass shine effect */}
-      <View style={[
-        styles.shine,
-        {
-          backgroundColor: isDark 
-            ? 'rgba(255, 255, 255, 0.04)' 
-            : 'rgba(255, 255, 255, 0.4)',
-        }
-      ]} />
-      
-      <View style={styles.content}>
-        {children}
-      </View>
+      {children}
     </BlurView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    borderWidth: 2,
+    borderWidth: 1,
     overflow: 'hidden',
-    position: 'relative',
-  },
-  shine: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: '33%',
-    borderTopLeftRadius: BorderRadius.xl,
-    borderTopRightRadius: BorderRadius.xl,
-  },
-  content: {
-    position: 'relative',
-    zIndex: 1,
   },
 });

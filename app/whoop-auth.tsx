@@ -20,7 +20,7 @@ import { Colors } from "@/constants/Colors";
 import { upsertWearable } from "@/lib/storage";
 import { refreshDerivedForDate } from "@/lib/pipeline";
 import { todayISO } from "@/lib/util/todayISO";
-import { getBackendBaseUrl } from "@/lib/backend";
+import { getBackendBaseUrl, getWhoopWebRedirectUri } from "@/lib/backend";
 import { resetTour, hasCompletedTour } from "@/lib/tour";
 
 const SESSION_KEY = "whoop_session_token";
@@ -85,8 +85,10 @@ export default function WhoopAuthCallback() {
           return;
         }
 
-        const redirectUri = `${window.location.origin}/whoop-auth`;
-        console.log("[WHOOP] callback exchanging code", { redirectUri });
+        // MUST match exactly the redirect URI used in the authorize step —
+        // WHOOP rejects the token exchange otherwise. Same canonical helper
+        // as `app/(tabs)/profile/integrations/whoop.tsx` to prevent drift.
+        const redirectUri = getWhoopWebRedirectUri();
 
         const res = await fetch(`${backendUrl}/whoop/exchange`, {
           method: "POST",

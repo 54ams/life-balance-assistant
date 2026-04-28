@@ -18,7 +18,7 @@ import { InsightsDatePicker } from "@/components/InsightsDatePicker";
 import { getWearableDays } from "@/lib/storage";
 import { AppError, toAppError } from "@/lib/errors";
 import { refreshDerivedForDate } from "@/lib/pipeline";
-import { getBackendBaseUrl } from "@/lib/backend";
+import { getBackendBaseUrl, getWhoopWebRedirectUri } from "@/lib/backend";
 import { formatDateFriendly } from "@/lib/util/formatDate";
 import {
   activateDemoWhoop,
@@ -103,16 +103,17 @@ export default function WhoopScreen() {
 
   // Platform-aware OAuth redirect URI:
   //  - native: app deep link handled by expo-web-browser
-  //  - web: a top-level page in the deployed origin that handles ?code=...
-  // The web URI must be registered with WHOOP exactly as it appears here
-  // (e.g. https://life-balance-assistant.vercel.app/whoop-auth).
+  //  - web: a fixed canonical URL pre-registered with WHOOP
+  //
+  // WHOOP enforces exact-match against the redirect URIs registered in
+  // its developer dashboard, so we MUST NOT derive the production web
+  // URI from `window.location.origin` — Vercel preview deploys (e.g.
+  // life-balance-assistant-git-*.vercel.app) and any other origin would
+  // cause a `redirect_uri mismatch`. The canonical URL is centralised
+  // in `getWhoopWebRedirectUri()` so the authorize step and the token
+  // exchange in `app/whoop-auth.tsx` always agree.
   const redirectUri = useMemo(() => {
-    if (Platform.OS === "web") {
-      if (typeof window !== "undefined" && window.location?.origin) {
-        return `${window.location.origin}/whoop-auth`;
-      }
-      return "https://life-balance-assistant.vercel.app/whoop-auth";
-    }
+    if (Platform.OS === "web") return getWhoopWebRedirectUri();
     return "lifebalanceapp://whoop-auth";
   }, []);
   const ready = !!participantId;
@@ -156,7 +157,6 @@ export default function WhoopScreen() {
         if (typeof window !== "undefined") {
           sessionStorage.setItem("whoop_oauth_state", state);
           sessionStorage.setItem("whoop_oauth_participant", participantId ?? "");
-          console.log("[WHOOP] starting OAuth (web)", { redirectUri });
           window.location.assign(authUrl);
         }
       } catch (err: any) {
@@ -165,7 +165,6 @@ export default function WhoopScreen() {
       return;
     }
 
-    console.log("[WHOOP] starting OAuth (native)", { redirectUri });
     const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUri);
     if (result.type !== "success" || !result.url) {
       Alert.alert("WHOOP", "Authentication was cancelled or failed.");
@@ -244,7 +243,17 @@ export default function WhoopScreen() {
       ]);
     } catch (err: any) {
       const e = toAppError(err, "Failed to connect WHOOP.");
-      Alert.alert("WHOOP", e.userMessage);
+      // Offer a graceful fallback so the user is never stuck — they can retry
+      // the OAuth flow or fall back to the labelled demo data path.
+      Alert.alert(
+        "WHOOP",
+        `${e.userMessage}\n\nYou can try again, or continue with simulated WHOOP-shaped data so the rest of the app still works.`,
+        [
+          { text: "Try again", onPress: () => doConnect() },
+          { text: "Use demo data", onPress: () => useDemoWhoop() },
+          { text: "Cancel", style: "cancel" },
+        ],
+      );
     } finally {
       setBusy(false);
     }
@@ -536,7 +545,7 @@ export default function WhoopScreen() {
             keyboardType="number-pad"
             placeholder="Recovery (0–100)"
             placeholderTextColor={c.text.tertiary}
-            style={[styles.input, { borderColor: c.border.medium, color: c.text.primary }]}
+            style={[styles.input, { borderColor: "rgba(44,54,42,0.25)", color: c.text.primary }]}
           />
           <TextInput
             value={manualSleep}
@@ -544,7 +553,7 @@ export default function WhoopScreen() {
             keyboardType="decimal-pad"
             placeholder="Sleep hours"
             placeholderTextColor={c.text.tertiary}
-            style={[styles.input, { borderColor: c.border.medium, color: c.text.primary }]}
+            style={[styles.input, { borderColor: "rgba(44,54,42,0.25)", color: c.text.primary }]}
           />
           <TextInput
             value={manualStrain}
@@ -552,7 +561,7 @@ export default function WhoopScreen() {
             keyboardType="decimal-pad"
             placeholder="Strain (optional, 0–21)"
             placeholderTextColor={c.text.tertiary}
-            style={[styles.input, { borderColor: c.border.medium, color: c.text.primary }]}
+            style={[styles.input, { borderColor: "rgba(44,54,42,0.25)", color: c.text.primary }]}
           />
           <Button title={`Save for ${formatDateFriendly(selectedDate)}`} onPress={saveManual} accessibilityLabel="Save manual wearable data" />
         </View>
@@ -597,9 +606,10 @@ const styles = StyleSheet.create({
   card: { padding: 16, marginBottom: 12 },
   title: { fontSize: 16, fontWeight: "800" },
   input: {
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 10,
+    backgroundColor: "#FFFFFF",
   },
 });

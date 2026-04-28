@@ -93,7 +93,10 @@ export function AuroraBackground({ state = "neutral", intensity = "ambient" }: P
     };
   }, [gradient]);
 
-  const orbOpacity = 0.75;
+  // Kept intentionally subtle so a change in bridge state reads as a soft
+  // hue shift rather than a "theme change". The cream canvas should remain
+  // dominant across all states.
+  const orbOpacity = 0.5;
 
   return (
     <View style={[StyleSheet.absoluteFill, { backgroundColor: c.background }]} pointerEvents="none">

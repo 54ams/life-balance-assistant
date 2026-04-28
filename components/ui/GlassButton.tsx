@@ -1,21 +1,20 @@
-// Primary button with glassmorphism styling. Uses c.onPrimary for text
-// so it works in both light (white on dark green) and dark (dark on cream) modes.
+// Primary button. Primary variant: dark forest with cream text.
+// Secondary variant: cream-glass with dark text and a visible rim.
 
-import React from 'react';
-import { 
-  TouchableOpacity, 
-  View, 
-  Text, 
-  StyleSheet, 
+import React, { useRef } from 'react';
+import {
+  TouchableOpacity,
+  View,
+  Text,
+  StyleSheet,
   ViewStyle,
-  Animated 
+  Animated,
 } from 'react-native';
 import { useColorScheme } from 'react-native';
 import { Colors } from '@/constants/Colors';
 import { BorderRadius, Spacing } from '@/constants/Spacing';
 import { Shadows } from '@/constants/Shadows';
 import { Typography } from '@/constants/Typography';
-import { BlurView } from 'expo-blur';
 
 interface GlassButtonProps {
   title: string;
@@ -23,23 +22,26 @@ interface GlassButtonProps {
   icon?: React.ReactNode;
   style?: ViewStyle;
   variant?: 'primary' | 'secondary';
+  disabled?: boolean;
 }
 
-export function GlassButton({ 
-  title, 
-  onPress, 
-  icon, 
+export function GlassButton({
+  title,
+  onPress,
+  icon,
   style,
   variant = 'secondary',
+  disabled = false,
 }: GlassButtonProps) {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
   const colors = isDark ? Colors.dark : Colors.light;
   const shadows = isDark ? Shadows.dark : Shadows.light;
-  
-  const scaleAnim = new Animated.Value(1);
+
+  const scaleAnim = useRef(new Animated.Value(1)).current;
 
   const handlePressIn = () => {
+    if (disabled) return;
     Animated.spring(scaleAnim, {
       toValue: 0.97,
       useNativeDriver: true,
@@ -49,6 +51,7 @@ export function GlassButton({
   };
 
   const handlePressOut = () => {
+    if (disabled) return;
     Animated.spring(scaleAnim, {
       toValue: 1,
       useNativeDriver: true,
@@ -57,61 +60,50 @@ export function GlassButton({
     }).start();
   };
 
+  const isPrimary = variant === 'primary';
+
   return (
-    <Animated.View style={[{ transform: [{ scale: scaleAnim }] }]}>
+    <Animated.View style={[{ transform: [{ scale: scaleAnim }] }, disabled && { opacity: 0.5 }]}>
       <TouchableOpacity
         onPress={onPress}
         onPressIn={handlePressIn}
         onPressOut={handlePressOut}
-        activeOpacity={1}
+        activeOpacity={0.9}
+        disabled={disabled}
       >
-        <BlurView
-          intensity={80}
-          tint={'light'}
+        <View
           style={[
             styles.container,
             {
-              backgroundColor: variant === 'primary' 
+              backgroundColor: isPrimary
                 ? colors.accent.primary
-                : colors.glass.primary,
-              borderColor: variant === 'primary'
-                ? 'rgba(255, 255, 255, 0.15)'
-                : colors.border.medium,
+                : colors.glass.elevated,
+              borderColor: isPrimary
+                ? colors.accent.primary
+                : colors.border.heavy,
               borderRadius: BorderRadius.xl,
               padding: Spacing.base,
             },
-            shadows.lg,
+            shadows.md,
             style,
           ]}
         >
-          {/* Glass reflection */}
-          <View style={[
-            styles.reflection,
-            {
-              backgroundColor: variant === 'primary'
-                ? 'rgba(255, 255, 255, 0.2)'
-                : isDark 
-                  ? 'rgba(255, 255, 255, 0.06)' 
-                  : 'rgba(255, 255, 255, 0.5)',
-            }
-          ]} />
-          
           <View style={styles.content}>
             {icon && <View style={styles.icon}>{icon}</View>}
-            <Text style={[
-              styles.text,
-              {
-                color: variant === 'primary'
-                  ? colors.onPrimary
-                  : colors.text.primary,
-                fontSize: Typography.fontSize.base,
-                fontWeight: Typography.fontWeight.bold,
-              }
-            ]}>
+            <Text
+              style={[
+                styles.text,
+                {
+                  color: isPrimary ? colors.onPrimary : colors.text.primary,
+                  fontSize: Typography.fontSize.base,
+                  fontWeight: Typography.fontWeight.bold,
+                },
+              ]}
+            >
               {title}
             </Text>
           </View>
-        </BlurView>
+        </View>
       </TouchableOpacity>
     </Animated.View>
   );
@@ -119,26 +111,14 @@ export function GlassButton({
 
 const styles = StyleSheet.create({
   container: {
-    borderWidth: 2,
+    borderWidth: 1,
     overflow: 'hidden',
-    position: 'relative',
-  },
-  reflection: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: '50%',
-    borderTopLeftRadius: BorderRadius.xl,
-    borderTopRightRadius: BorderRadius.xl,
   },
   content: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: Spacing.sm,
-    position: 'relative',
-    zIndex: 1,
   },
   icon: {
     marginRight: Spacing.xs,

@@ -59,7 +59,7 @@ test("SmartRecInput with null wearable is valid", () => {
 test("SmartRecInput with upcoming events", () => {
   const input = baseInput({
     upcomingEvents: [
-      { title: "Exam", dateISO: "2025-06-16" as any, impactLevel: "high" },
+      { id: "e1", title: "Exam", dateISO: "2025-06-16" as any, impactLevel: "high" },
     ],
   });
   assert.equal(input.upcomingEvents.length, 1);
@@ -76,7 +76,7 @@ test("SmartRecInput with life contexts", () => {
 test("SmartRecInput with schedule items", () => {
   const input = baseInput({
     schedule: [
-      { label: "Meeting", kind: "demand" as any, timeSlot: "morning" as any },
+      { id: "s1", label: "Meeting", kind: "demand", daysOfWeek: [1, 2, 3, 4, 5] },
     ],
   });
   assert.equal(input.schedule.length, 1);

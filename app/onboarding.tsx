@@ -8,7 +8,7 @@ import { Screen } from "@/components/Screen";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { GlassButton } from "@/components/ui/GlassButton";
 import { Colors } from "@/constants/Colors";
-import { Spacing, BorderRadius } from "@/constants/Spacing";
+import { BorderRadius } from "@/constants/Spacing";
 import {
   saveAppConsent,
   setPreferredTone,
@@ -198,7 +198,7 @@ export default function OnboardingScreen() {
 
       <View style={styles.navRow}>
         {step > 0 ? (
-          <Pressable onPress={back} style={[styles.backButton, { borderColor: c.border.medium }]}>
+          <Pressable onPress={back} style={[styles.backButton, { borderColor: "rgba(44,54,42,0.35)", backgroundColor: "#FFFFFF" }]}>
             <Text style={{ color: c.text.primary, fontWeight: "700" }}>Back</Text>
           </Pressable>
         ) : (
@@ -237,7 +237,8 @@ function WelcomeStep({ c, userName, setUserName }: { c: typeof Colors.light; use
             padding: 14,
             borderRadius: BorderRadius.lg,
             borderWidth: 1.5,
-            borderColor: c.border.medium,
+            borderColor: "rgba(44,54,42,0.25)",
+            backgroundColor: "#FFFFFF",
             color: c.text.primary,
             fontSize: 16,
             fontWeight: "600",
@@ -297,8 +298,8 @@ function ValuesStep({ c, selected, toggle }: { c: typeof Colors.light; selected:
               style={[
                 styles.valueChip,
                 {
-                  backgroundColor: active ? c.accent.primary : "rgba(255,255,255,0.55)",
-                  borderColor: active ? c.accent.primary : c.border.heavy,
+                  backgroundColor: active ? c.accent.primary : "#FFFFFF",
+                  borderColor: active ? c.accent.primary : "rgba(44,54,42,0.35)",
                 },
               ]}
             >
@@ -335,8 +336,8 @@ function ContextStep({ c, selected, toggle }: { c: typeof Colors.light; selected
               style={[
                 styles.valueChip,
                 {
-                  backgroundColor: active ? c.accent.primary : "rgba(255,255,255,0.55)",
-                  borderColor: active ? c.accent.primary : c.border.heavy,
+                  backgroundColor: active ? c.accent.primary : "#FFFFFF",
+                  borderColor: active ? c.accent.primary : "rgba(44,54,42,0.35)",
                 },
               ]}
             >
@@ -395,8 +396,8 @@ function PersonaliseStep({
                 style={[
                   styles.valueChip,
                   {
-                    backgroundColor: active ? c.accent.primary : "transparent",
-                    borderColor: active ? c.accent.primary : c.border.medium,
+                    backgroundColor: active ? c.accent.primary : "#FFFFFF",
+                    borderColor: active ? c.accent.primary : "rgba(44,54,42,0.35)",
                   },
                 ]}
               >
@@ -422,12 +423,12 @@ function PersonaliseStep({
                 style={[
                   styles.rowPick,
                   {
-                    borderColor: active ? c.accent.primary : c.border.medium,
-                    backgroundColor: active ? `${c.accent.primary}10` : "transparent",
+                    borderColor: active ? c.accent.primary : "rgba(44,54,42,0.25)",
+                    backgroundColor: active ? `${c.accent.primary}12` : "#FFFFFF",
                   },
                 ]}
               >
-                <View style={[styles.radio, { borderColor: active ? c.accent.primary : c.border.heavy }]}>
+                <View style={[styles.radio, { borderColor: active ? c.accent.primary : "rgba(44,54,42,0.45)" }]}>
                   {active && <View style={[styles.radioDot, { backgroundColor: c.accent.primary }]} />}
                 </View>
                 <View style={{ flex: 1 }}>
@@ -453,12 +454,12 @@ function PersonaliseStep({
                 style={[
                   styles.rowPick,
                   {
-                    borderColor: active ? c.accent.primary : c.border.medium,
-                    backgroundColor: active ? `${c.accent.primary}10` : "transparent",
+                    borderColor: active ? c.accent.primary : "rgba(44,54,42,0.25)",
+                    backgroundColor: active ? `${c.accent.primary}12` : "#FFFFFF",
                   },
                 ]}
               >
-                <View style={[styles.radio, { borderColor: active ? c.accent.primary : c.border.heavy }]}>
+                <View style={[styles.radio, { borderColor: active ? c.accent.primary : "rgba(44,54,42,0.45)" }]}>
                   {active && <View style={[styles.radioDot, { backgroundColor: c.accent.primary }]} />}
                 </View>
                 <View style={{ flex: 1 }}>
@@ -526,12 +527,12 @@ function ConsentRow({ label, checked, onPress, c }: { label: string; checked: bo
       style={[
         styles.consentRow,
         {
-          borderColor: checked ? c.accent.primary : c.border.medium,
-          backgroundColor: checked ? `${c.accent.primary}10` : "transparent",
+          borderColor: checked ? c.accent.primary : "rgba(44,54,42,0.25)",
+          backgroundColor: checked ? `${c.accent.primary}12` : "#FFFFFF",
         },
       ]}
     >
-      <View style={[styles.checkbox, { borderColor: checked ? c.accent.primary : c.border.heavy, backgroundColor: checked ? c.accent.primary : "transparent" }]}>
+      <View style={[styles.checkbox, { borderColor: checked ? c.accent.primary : "rgba(44,54,42,0.45)", backgroundColor: checked ? c.accent.primary : "#FFFFFF" }]}>
         {checked && <Text style={{ color: c.onPrimary, fontSize: 12, fontWeight: "800" }}>✓</Text>}
       </View>
       <Text style={{ color: c.text.primary, flex: 1, fontSize: 14, lineHeight: 20 }}>{label}</Text>

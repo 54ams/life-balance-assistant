@@ -50,6 +50,36 @@ export function hasBackendBaseUrl(): boolean {
   return !!getBackendBaseUrl();
 }
 
+/**
+ * Canonical web redirect URI for WHOOP OAuth.
+ *
+ * WHOOP requires an EXACT match against the redirect URIs pre-registered
+ * in the WHOOP developer dashboard — any other origin (Vercel preview
+ * deploys at *.vercel.app, custom domains, localhost ports, alternative
+ * canonical hosts) will be rejected with `redirect_uri mismatch`.
+ *
+ * We therefore hard-code the production canonical origin and use it for
+ * BOTH the initial authorize URL and the subsequent token exchange.
+ * Both call sites MUST agree, since WHOOP also enforces equality between
+ * the two values during /oauth/token.
+ *
+ * In development we fall back to the current `window.location.origin`
+ * so `npx expo start --web` (localhost:8081) still works after the
+ * dev origin is added to the WHOOP dashboard.
+ *
+ * Native deep link redirects use a separate scheme and are handled
+ * inline at each call site — they do not flow through this helper.
+ */
+export function getWhoopWebRedirectUri(): string {
+  const CANONICAL = "https://life-balance-assistant.vercel.app/whoop-auth";
+  if (__DEV__) {
+    if (typeof window !== "undefined" && window.location?.origin) {
+      return `${window.location.origin}/whoop-auth`;
+    }
+  }
+  return CANONICAL;
+}
+
 export function getBackendFeatureMessage(): string | null {
   if (hasBackendBaseUrl()) return null;
   return "Backend features are disabled. Set EXPO_PUBLIC_BACKEND_URL to connect.";

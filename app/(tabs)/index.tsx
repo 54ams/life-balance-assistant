@@ -47,7 +47,7 @@ import { detectDecline, type PatternAlert } from "@/lib/patternInterrupt";
 import { shouldPromptWeeklyReflection } from "@/lib/weeklyReflection";
 import { hasCompletedTour } from "@/lib/tour";
 import { computeBaselineMeta, type BaselineMeta } from "@/lib/baseline";
-import { TourOverlay, TourTarget, TourTargetProvider } from "@/components/ui/TourOverlay";
+import { TourOverlay, TourTarget } from "@/components/ui/TourOverlay";
 
 function greetingForHour(h: number) {
   if (h < 12) return "Good morning";
@@ -554,7 +554,6 @@ export default function HomeScreen() {
   /* ---------------- Main ---------------- */
 
   return (
-    <TourTargetProvider>
     <View style={{ flex: 1 }}>
       <AuroraBackground state={state} />
       <SafeAreaView style={{ flex: 1 }}>
@@ -1024,7 +1023,6 @@ export default function HomeScreen() {
         )}
       </SafeAreaView>
     </View>
-    </TourTargetProvider>
   );
 }
 

@@ -1,305 +1,325 @@
 # Life Balance Assistant (LBA)
 
-Expo Router + TypeScript mobile app with an optional Node backend for WHOOP OAuth/token handling and optional LLM narrative reflection.
+An Expo Router + TypeScript prototype that brings physiological signals
+(WHOOP recovery, sleep, strain) and psychological signals (daily check-in,
+mood, stress, habits) onto a single canvas — the **Mind–Body Bridge** —
+so users can see their day-to-day life balance in one calm, observational
+view.
 
-> **For dissertation markers / academic assessors:** see [Examiner quick start](#examiner-quick-start) below. You do **not** need WHOOP credentials, an Apple ID, or my laptop to evaluate this prototype — a 30-day demo dataset is built in.
->
-> **For pilot testers:** see [Pilot install](#pilot-install) below. The deployed backend is at `https://life-balance-assistant.onrender.com` and is already wired into the EAS build.
+Built as a final-year synoptic dissertation prototype (BCS).
 
-## Architecture
+| | URL |
+|---|---|
+| Live web/PWA | https://life-balance-assistant.vercel.app |
+| Backend (Render) | https://life-balance-assistant.onrender.com |
+| Backend health | https://life-balance-assistant.onrender.com/health |
 
-- Mobile app: `app/`, `components/`, `lib/`
-- Backend: `backend/server.ts`, `backend/whoop.ts`, `backend/api/explain.ts`
-- Storage:
-  - Device: AsyncStorage (`lib/storage.ts`)
-  - WHOOP tokens/cache: `backend/.data/*.json` (server-side only)
+> **For dissertation markers:** see [Examiner quick start](#examiner-quick-start).
+> A 30-day demo dataset is built in — you do **not** need a WHOOP device,
+> WHOOP credentials, or Apple Developer access to evaluate the prototype.
 
-## Core features
+---
 
-- Daily check-in pipeline -> LBI -> explainability/trends/correlations/ML
-- WHOOP OAuth + sync (client secret never in app)
-- Consent gating and privacy controls
-- Retention policy with purge
-- Export pack with anonymisation/redaction options
-- Plan adherence tracking (action completion, weekly adherence, streaks)
+## What problem this solves
 
-## Build and install like a normal app
+Existing wearable apps (WHOOP, Whoop, Garmin, Apple Health) report
+physiological recovery in great detail but treat the mind as a separate
+silo. Mental-health apps (mood trackers, CBT journals) do the inverse.
+Users have to do the cross-referencing in their head. The dissertation
+argues — and the prototype demonstrates — that a single, opinionated
+view (the Mind–Body Bridge) plus a Life Balance Index (LBI) gives more
+useful day-to-day feedback than either side alone.
 
-1. Configure app env:
-   - `EXPO_PUBLIC_BACKEND_URL`:
-     - Leave blank if you want an installable app with no backend dependency.
-     - Set this to a deployed backend URL if you want WHOOP OAuth/sync and backend-powered reflections in the installed build.
-   - `EXPO_PUBLIC_WHOOP_CLIENT_ID`:
-     - Required only if using WHOOP in the installed build.
-   - `EXPO_PUBLIC_LLM_URL`:
-     - Optional. If omitted, the app uses `${EXPO_PUBLIC_BACKEND_URL}/explain` when a backend URL is configured.
-2. Configure backend env only if you are deploying the backend:
-   - `WHOOP_CLIENT_ID`
-   - `WHOOP_CLIENT_SECRET`
-   - `WHOOP_STORE_KEY` (recommended)
-   - `OPENAI_API_KEY` (optional)
-3. Build with EAS:
-   - Android: `npx eas build -p android --profile preview`
-   - iPhone device: `npx eas build -p ios --profile preview`
-   - iPhone simulator: `npx eas build -p ios --profile ios-simulator`
+This is a **non-diagnostic, observational** tool. It does not give medical
+advice and does not provide crisis support.
 
-Installed-build behaviour:
-- No backend URL configured:
-  - Core check-in, LBI, rule-based plan, explainability, history, trends, and exports still work.
-  - WHOOP sync and backend LLM reflections are disabled gracefully.
-- Backend URL configured:
-  - WHOOP OAuth/sync and backend-powered reflections are available.
+## Key features
 
-## Simplest full deployment path
+- **Daily check-in** (60 seconds) — mood, energy, stress, sleep quality,
+  stress indicators, habits, optional notes.
+- **WHOOP integration** — OAuth 2.0 connect for recovery, sleep, strain.
+  Web (PWA) and native both supported.
+- **Mind–Body Bridge** — single dual-axis state (`physio` × `mental`) with
+  a calm aurora-coloured orb that reflects today's balance.
+- **Life Balance Index (LBI)** — composite score with explainability
+  (which features moved the score, why).
+- **Insights tab** — correlations (with FDR), baselines (median/IQR),
+  pattern interrupts, ML risk outlook, weekly reflection prompts,
+  cycles and trends.
+- **Habits, anchors (dawn/dusk rituals), micro-interventions** —
+  realign breath sessions when the bridge is divergent.
+- **Demo mode** — seeds 30 days of synthetic but realistic check-ins,
+  wearable data, and computed LBI scores. Clearly labelled "Demo data".
+- **Privacy by design** — all data is stored on-device (AsyncStorage).
+  Nothing leaves the phone unless the user explicitly exports. WHOOP
+  tokens live only on the backend, encrypted at rest.
 
-If you want the installed app to work fully for a supervisor or tester, the simplest setup is:
+## Tech stack
 
-1. Deploy the backend as a single Node web service.
-   - This repo includes [render.yaml](/Users/ami/Projects/life-balance-app/render.yaml) for a Render deployment from the repo root.
-2. Set these backend env vars in the host:
-   - `WHOOP_CLIENT_ID`
-   - `WHOOP_CLIENT_SECRET`
-   - `WHOOP_STORE_KEY`
-   - `OPENAI_API_KEY` (optional)
-3. Confirm backend health:
-   - `https://your-backend-url/health`
-4. Set app env before the EAS build:
-   - `EXPO_PUBLIC_BACKEND_URL=https://your-backend-url`
-   - `EXPO_PUBLIC_WHOOP_CLIENT_ID=your_whoop_client_id`
-5. In the WHOOP developer dashboard, allow the app redirect URI using the app scheme:
-   - `lifebalanceapp://whoop-auth`
-6. Build the app with EAS and install it from the generated link.
+| Layer | Choice | Notes |
+|---|---|---|
+| Mobile / web | Expo SDK 54, React Native 0.81, expo-router | Web export deploys as a PWA |
+| Language | TypeScript 5.9 | strict |
+| Styling | StyleSheet + custom theme (`constants/Colors.ts`) | Cream canvas + lime accent |
+| Storage | `@react-native-async-storage/async-storage` | All user data on-device |
+| Backend | Node + TypeScript | Render web service |
+| OAuth | WHOOP API v2 | client secret only on backend |
+| LLM (optional) | OpenAI via backend | Local fallback if backend offline |
+| Testing | Built-in `node --import tsx` test runner | `tests/*.test.ts` |
 
-## Run locally for development
+## Architecture overview
 
-1. Install dependencies:
-   - `npm install`
-   - `cd backend && npm install`
-2. Configure env:
-   - App `.env`:
-   - `EXPO_PUBLIC_BACKEND_URL` (optional in installable builds; required for local WHOOP/LLM backend testing)
-   - `EXPO_PUBLIC_WHOOP_CLIENT_ID`
-   - `EXPO_PUBLIC_LLM_URL` (optional)
-   - Backend `backend/.env`:
-     - `WHOOP_CLIENT_ID`
-     - `WHOOP_CLIENT_SECRET`
-     - `WHOOP_STORE_KEY` (recommended, encrypts server-side WHOOP token store at rest)
-     - `OPENAI_API_KEY` (optional if using LLM route)
-     - `SERVER_API_KEY` (optional)
-     - `CORS_ORIGINS` (comma-separated dev origins)
-3. Start backend:
-   - `cd backend && npm run dev`
-4. Start app:
-   - `npm run start`
-5. Health check backend:
-   - `curl http://localhost:3333/health`
-
-## Verification
-
-- TypeScript: `npx tsc --noEmit`
-- Unit tests (all 11 suites, 22 tests):
-  - `npm test`
-  - Individual: `node --no-warnings --import tsx tests/<name>.test.ts`
-  - Suites: errors, privacy, retention, whoop-normalize, baseline, analytics, ml-eval, plan, report, transparency, counterfactual
-
-## Ethics and safety features
-
-- App consent with explicit items and timestamp (`/profile/settings/consent`)
-- WHOOP-specific consent and withdrawal (`/profile/settings/consent-whoop`)
-- Privacy notice (`/profile/settings/privacy`)
-- Retention controls + purge now (`/profile/settings/data`)
-- Insights hidden when consent withdrawn
-- Export controls: anonymise participant ID + redact free text
-- LLM toggle and safety short-circuit for self-harm language
-
-## Backend hardening implemented
-
-- WHOOP session token required via `Authorization: Bearer` (no query-token flow)
-- Session expiry enforced server-side with refresh route
-- Per-IP and per-session rate limiting
-- Request body size limits and invalid JSON handling
-- Strict `YYYY-MM-DD` validation for WHOOP day fetch
-- Origin allow-list enforcement for browser requests
-- WHOOP token store encryption-at-rest when `WHOOP_STORE_KEY` is set
-- Health endpoint: `GET /health`
-
-## Demo WHOOP mode (for markers and no-device evaluation)
-
-The real WHOOP OAuth path remains the primary integration. For academic
-markers and supervisors who do not have a WHOOP account, the app exposes
-a clearly-labelled **Demo WHOOP** path that seeds 7 days of realistic,
-deterministic, normalized wearable data through the same pipeline the live
-sync uses.
-
-How to activate:
-
-1. Open the app (any route — Expo Go or installed pilot build).
-2. Tab to **Profile → Integrations → WHOOP**.
-3. In the **Demo WHOOP data** card, tap **Use 7-day demo WHOOP data**.
-
-What this unlocks:
-
-- LBI scoring with full physiological inputs (recovery, sleep, strain)
-- Plan generation conditioned on wearable data
-- History, trends, correlations
-- ML risk outlook and adherence analyses (H3, H7)
-- Transparency / data-coverage panels (which render every demo day as
-  **WHOOP (demo)**, never as live WHOOP)
-- Research export bundles (provenance is preserved as `whoop_demo` in JSON)
-
-Implementation: [lib/demoWhoop.ts](/Users/ami/Projects/life-balance-app/lib/demoWhoop.ts).
-The real OAuth path in [app/(tabs)/profile/integrations/whoop.tsx](/Users/ami/Projects/life-balance-app/app/(tabs)/profile/integrations/whoop.tsx)
-and [backend/whoop.ts](/Users/ami/Projects/life-balance-app/backend/whoop.ts)
-is untouched and continues to be the production code path for the viva
-demonstration and pilot testers with real devices.
-
-## Pilot install
-
-The pilot build is distributed via EAS internal distribution. The deployed
-backend (`https://life-balance-assistant.onrender.com`) is already baked into
-the build profile in [eas.json](/Users/ami/Projects/life-balance-app/eas.json),
-so testers do not need to set environment variables themselves.
-
-### For testers
-
-1. Open the install link sent to you (Android APK or iOS TestFlight invite).
-2. Install and open **Life Balance Assistant**.
-3. On first launch, complete onboarding and consent.
-4. Optional: connect WHOOP under **Profile → Integrations → WHOOP**.
-   The deep-link redirect URI is `lifebalanceapp://whoop-auth` — already
-   registered on the WHOOP developer dashboard for this client.
-5. Use the app daily for 5–7 days. All data is stored on-device
-   (AsyncStorage); the backend only handles WHOOP OAuth proxying and
-   optional LLM narrative reflections.
-
-### For me (releasing a pilot build)
-
-```bash
-# Android APK (sideload-friendly):
-npx eas build -p android --profile preview
-
-# iOS internal distribution build:
-npx eas build -p ios --profile preview
+```
+app/                  Expo Router routes
+  (tabs)/             Home, Check-in, Insights, Profile
+  welcome.tsx         First-launch animation
+  onboarding.tsx      Values, context, consent
+  first-run.tsx       Demo vs fresh start
+  whoop-auth.tsx      Web OAuth callback (WHOOP redirects here)
+components/
+  ui/                 GlassCard, GlassButton, AuroraBackground, StateOrb,
+                      TourOverlay, FloatingTabBar, etc.
+constants/            Colors, Spacing, Shadows, Typography
+lib/                  Domain logic (LBI, bridge, plan, baselines, ML, etc.)
+  demo.ts             30-day demo seeder
+  demoWhoop.ts        WHOOP-shaped demo wearable data (labelled provenance)
+  backend.ts          Backend URL resolution + cold-start handling
+  errors.ts           User-friendly error mapping
+backend/              Node service for WHOOP OAuth + optional LLM
+  server.ts           Express server (health, /whoop/exchange, /whoop/day, /explain)
+  whoop.ts            WHOOP token exchange + refresh
+docs/                 Dissertation supporting docs
+tests/                Unit tests
 ```
 
-The `preview` profile in `eas.json` already injects:
+## Environment variables
 
-- `EXPO_PUBLIC_BACKEND_URL=https://life-balance-assistant.onrender.com`
-- `EXPO_PUBLIC_WHOOP_CLIENT_ID` (the OAuth public client ID — not secret)
+> **Secrets (`*_SECRET`, `OPENAI_API_KEY`) belong on Render only.** Anything
+> with the `EXPO_PUBLIC_` prefix is bundled into the client and is *not*
+> secret — only the WHOOP **client ID** is public.
 
-If the backend is unreachable when a tester opens the app, **the app still
-works**: check-in, LBI, plan, history, exports, and ML risk all run locally;
-only WHOOP sync and LLM-powered reflections degrade gracefully (the app
-falls back to deterministic local reflections — see [lib/llm.ts](/Users/ami/Projects/life-balance-app/lib/llm.ts)).
+### Vercel (web/PWA build)
 
-## Examiner quick start
+| Variable | Required | Value |
+|---|---|---|
+| `EXPO_PUBLIC_BACKEND_URL` | yes | `https://life-balance-assistant.onrender.com` |
+| `EXPO_PUBLIC_WHOOP_CLIENT_ID` | yes | the WHOOP OAuth public client ID |
 
-This section is for dissertation examiners and supervisors evaluating the prototype.
+### Render (backend)
 
-### Option A — Installed app (recommended, no setup required)
+| Variable | Required | Notes |
+|---|---|---|
+| `WHOOP_CLIENT_ID` | yes | from the WHOOP developer dashboard |
+| `WHOOP_CLIENT_SECRET` | yes | secret — never expose to the client |
+| `WHOOP_STORE_KEY` | recommended | encrypts the on-disk token store at rest |
+| `OPENAI_API_KEY` | optional | enables LLM-powered reflection text |
+| `OPENAI_MODEL` | optional | defaults to `gpt-4o-mini` |
+| `CORS_ORIGINS` | yes | comma-separated allow-list (must include the Vercel domain) |
 
-> An EAS build link and/or TestFlight/APK link will be included in the dissertation appendix.
+### EAS (native builds)
 
-1. Open the install link on your device (iPhone or Android).
-2. Install and open the app.
-3. On first launch, tap through the consent screen.
-4. The app works fully offline with no WHOOP device:
-   - Go to **Profile → Settings → Demo Tools**.
-   - Tap **Seed 30-day demo dataset** to populate realistic synthetic data.
-   - Navigate Home to see the LBI orb, weekly strip, and plan.
-   - Go to **Insights** to explore correlations, baselines, ML risk, and the H3 adherence analysis.
-   - Go to **Profile → Export** to generate a research JSON bundle.
+`eas.json` already injects `EXPO_PUBLIC_BACKEND_URL` and
+`EXPO_PUBLIC_WHOOP_CLIENT_ID` into the `preview` and `production` profiles
+so the APK/IPA do not require a `.env` file at build time.
 
-### Option B — Local development (Expo Go)
+---
 
-Requires: Node 20+, npm, Expo Go app on your phone or an iOS/Android simulator.
+## Running locally
+
+### Prerequisites
+
+- Node 20+
+- npm
+- Optional: Expo Go on iPhone/Android, or an iOS/Android simulator
+
+### Web/PWA (fastest)
 
 ```bash
-git clone <repo>
+npm install
+npx expo start --web
+```
+
+Opens at `http://localhost:8081`. The app autodetects whether the backend
+is reachable; with the `.env.example` defaults the prototype works fully
+on-device (no backend needed).
+
+### Mobile via Expo Go
+
+```bash
 npm install
 npm start
 ```
 
-Scan the QR code with **Expo Go** (Android) or the Camera app (iPhone, when using Expo Go from App Store).
+Scan the QR code with Expo Go (Android) or the Camera app (iPhone).
 
-- No backend or WHOOP credentials required — demo mode works standalone.
-- To run the unit test suite: `npm test`
-
-### What to look for
-
-| Area | Where |
-|------|--------|
-| LBI score + explanation | Home tab → tap the orb |
-| Daily check-in | Check-in tab |
-| Rule-based plan + action completion | Home → Today's plan / History tab |
-| Correlations with CI + FDR | Insights → Correlations |
-| H3 adherence vs next-day LBI | Insights → Adherence & LBI (H3) |
-| ML risk outlook | Insights → Risk outlook |
-| Model performance (accuracy, AUC) | Insights → Model performance |
-| Baseline calibration (median/IQR) | Insights → Baselines |
-| Data coverage + transparency | Home → orb long-press OR Insights → Integration |
-| SUS usability questionnaire | Profile → Settings → Usability |
-| Research export (JSON) | Profile → Export |
-| Privacy notice + consent | Profile → Settings → Consent |
-| Ethics + safety resources | Profile → Settings → Help |
-
-## Web / PWA deployment (browser access for markers)
-
-The Expo app can also be exported as a static web/PWA build so assessors can open it via a normal URL — Expo Go and EAS native builds remain the primary route and are unaffected.
-
-### Local web testing
-
-```bash
-# 1. Set the deployed backend URL so the web build talks to Render
-echo "EXPO_PUBLIC_BACKEND_URL=https://life-balance-assistant.onrender.com" >> .env
-
-# 2. Run the dev server in browser mode
-npx expo start --web
-```
-
-### Production export
+### Production web export (matches Vercel deploy)
 
 ```bash
 npx expo export --platform web
-# Output: ./dist (static HTML/JS/CSS — ready to host)
+# Output: ./dist
+npx serve dist          # preview locally
 ```
 
-You can preview the export locally with any static server, e.g. `npx serve dist`.
+### Backend
 
-### Vercel deployment
+```bash
+cd backend
+npm install
+npm run dev            # http://localhost:3333
+curl http://localhost:3333/health
+```
 
-A [vercel.json](/Users/ami/Projects/life-balance-app/vercel.json) is included with SPA rewrites so deep links (e.g. `/checkin`) resolve to `index.html`.
+You only need the backend running locally if you want to test WHOOP OAuth
+or LLM reflections end-to-end. The mobile app degrades gracefully without it.
 
-Vercel project settings:
+---
+
+## Production deployment
+
+### Frontend (Vercel)
+
+`vercel.json` is included with SPA rewrites so deep links resolve to
+`index.html`. Vercel project settings:
+
 - Framework preset: **Other**
 - Build command: `npx expo export --platform web`
 - Output directory: `dist`
 - Install command: `npm install`
-- Environment variables (Production + Preview):
-  - `EXPO_PUBLIC_BACKEND_URL=https://life-balance-assistant.onrender.com`
-  - `EXPO_PUBLIC_WHOOP_CLIENT_ID=` *(optional — only if testing WHOOP via web)*
+- Env vars: `EXPO_PUBLIC_BACKEND_URL`, `EXPO_PUBLIC_WHOOP_CLIENT_ID`
 
-After the first deploy, add the Vercel domain to the backend's `CORS_ORIGINS` env on Render (e.g. `CORS_ORIGINS=https://life-balance-app.vercel.app`).
+### Backend (Render)
 
-### Testing the PWA on your phone
+`render.yaml` is included with the service definition. After the first
+deploy, add the deployed Vercel domain to `CORS_ORIGINS` so the browser
+can call `/whoop/exchange`.
 
-1. Open the deployed Vercel URL in mobile Safari (iOS) or Chrome (Android).
-2. iOS: Share → **Add to Home Screen**. Android: menu → **Install app**.
-3. Launch from the home-screen icon — it runs full-screen using the manifest from `app.json` (`web.name`, `web.themeColor`, `display: standalone`).
+### Native (EAS)
 
-### Web-build limitations (note for dissertation)
+```bash
+npx eas build -p android --profile preview     # APK
+npx eas build -p ios --profile preview         # internal distribution
+```
 
-- **Local notifications** are disabled on web (`expo-notifications` has no browser parity here). Daily reminders work on the native build only.
-- **File export** uses a browser blob download instead of `expo-file-system`. Same data, different delivery.
-- **WHOOP OAuth** on web requires the deployed origin to be added as an allowed redirect URI in the WHOOP developer portal. The native build is the validated path; web WHOOP is best-effort.
-- **Haptics, blur effects, native gestures** degrade gracefully or no-op in browsers.
+`eas.json` already injects the env vars, so no extra setup is required.
 
-Mobile/Expo Go remains the primary delivery channel and is unchanged by these additions.
+---
+
+## WHOOP OAuth notes
+
+- **Redirect URIs (must be registered exactly in the WHOOP dashboard):**
+  - Web: `https://life-balance-assistant.vercel.app/whoop-auth`
+  - Native: `lifebalanceapp://whoop-auth`
+- Web flow uses a **full-page navigation** (not a popup) because WHOOP
+  enforces strict redirect-URI matching and blocks cross-origin popups.
+  See `app/(tabs)/profile/integrations/whoop.tsx` and
+  `app/whoop-auth.tsx`.
+- Client secret is **never** in the client bundle — token exchange
+  happens on the Render backend (`backend/whoop.ts`).
+- If the user has just allowed WHOOP access in a fresh browser session,
+  use a normal (non-incognito) window — Safari ITP can drop the
+  sessionStorage state across tabs.
+
+## Demo mode
+
+Two clearly-labelled demo paths exist so the prototype is fully evaluable
+without a WHOOP device:
+
+1. **30-day full demo** — Profile → Settings → Demo tools →
+   *Seed 30 days demo data*. Populates check-ins, wearable values, and
+   LBI scores. Used by every screen so charts, correlations, ML risk and
+   the bridge all have signal.
+2. **Demo WHOOP path** — Profile → Integrations → WHOOP →
+   *Use 30-day demo WHOOP data*. Routes through the **same** wearable
+   pipeline the live OAuth sync uses. Every day is labelled
+   "WHOOP (demo)" in the UI, transparency drawer, and exports — never
+   presented as live data.
+
+The first-launch flow (`first-run.tsx`) defaults to the 30-day demo so
+testers see a populated app immediately.
+
+---
+
+## Examiner quick start
+
+The fastest way to evaluate the prototype:
+
+1. Open <https://life-balance-assistant.vercel.app> in a desktop or
+   mobile browser.
+2. Tap through the welcome animation and onboarding consent
+   (~30 seconds).
+3. On "How would you like to start?" pick **Have a look around first**.
+   The app seeds 30 days of synthetic data and lands on Home.
+4. The **guided tour** runs once. Step through it (or skip).
+5. Suggested route to see the dissertation arguments in code:
+
+| What it demonstrates | Where to look |
+|---|---|
+| Mind–Body Bridge (H8 novelty) | Home → tap the orb → /insights/bridge |
+| LBI explainability | Home → `Today's insight` card |
+| Correlations with FDR | Insights → Correlations |
+| Baselines (median/IQR) | Insights → Baselines |
+| ML risk outlook | Insights → Risk outlook |
+| WHOOP demo path | Profile → Integrations → WHOOP |
+| Privacy / consent / retention | Profile → Settings |
+| Research export | Profile → Export |
+
+`SUBMISSION.md` has a recommended viva demo script.
+
+---
+
+## Verification
+
+```bash
+npx tsc --noEmit       # type-check
+npm test               # unit tests (privacy, baselines, ML, etc.)
+```
+
+The app is also exercised end-to-end via the live deploy.
+
+## Known limitations
+
+- **Render free-tier cold start.** The backend sleeps after ~15 minutes
+  idle and takes ~30 s to wake. The app surfaces a *"Backend is waking
+  up — try again in a moment"* message and keeps working on-device. For
+  the viva, *warm the backend in advance* by hitting `/health`.
+- **Web build vs native parity.**
+  - Local notifications and haptics no-op on web.
+  - File export uses a browser blob download (same JSON, different delivery).
+  - Some BlurView effects render slightly differently across browsers.
+- **PWA caching.** If you previously visited the site, hard-reload
+  (Cmd-Shift-R) or test in a private window — service-worker caching
+  can serve a stale build for up to ~24 h.
+- **WHOOP in incognito on iOS Safari.** ITP sometimes drops
+  sessionStorage across tabs. Use a normal window if you can.
+
+## Troubleshooting
+
+| Symptom | Likely cause | Fix |
+|---|---|---|
+| "Backend is waking up" alert | Render cold start | Wait ~30 s and retry |
+| WHOOP "auth state mismatch" | Browser blocked sessionStorage | Use a non-incognito window |
+| Empty home screen | Fresh-mode user with no check-ins | Tap "Start your first check-in" or load 30-day demo from Profile → Settings |
+| Charts look flat | Fewer than 5 days of data | Seed the 30-day demo data |
+| App "theme" looks different than expected | Aurora hue follows the bridge state — this is intentional. Once the user has data, the orb / aurora reflect today's balance (sage when aligned, terracotta when body, teal when mind, olive when neutral). |
 
 ## Dissertation docs
 
-- `docs/DataFlow.md` — end-to-end data flow diagram
+- `docs/Hypotheses.md` — H1–H8 (all exploratory)
 - `docs/Operationalisation.md` — variable definitions mapped to code
-- `docs/Hypotheses.md` — H1–H7 (all exploratory)
+- `docs/DataFlow.md` — end-to-end data flow
 - `docs/StudyProtocol.md` — feasibility study design
 - `docs/ThreatsToValidity.md` — validity threats and mitigations
+
+## Ethics and safety
+
+- Consent is gated and timestamped (`/profile/settings/consent`).
+- WHOOP-specific consent and withdrawal (`/profile/settings/consent-whoop`).
+- Retention policy with manual purge (`/profile/settings/data`).
+- No PII is collected; the optional name field stays on-device.
+- Self-harm language short-circuits LLM reflection and shows safety
+  resources (Samaritans 116 123, 999) instead.
+
+## Licence and attribution
+
+Final-year dissertation prototype. Built by the author for academic
+assessment. Not for commercial use.

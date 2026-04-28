@@ -6,7 +6,7 @@ import * as Haptics from "expo-haptics";
 import { Screen } from "@/components/Screen";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { Colors } from "@/constants/Colors";
-import { BorderRadius, Spacing } from "@/constants/Spacing";
+import { BorderRadius } from "@/constants/Spacing";
 import { seedDemo, setDemoEnabled, setDemoModeChoice, setFirstRunDone } from "@/lib/demo";
 import { resetTour } from "@/lib/tour";
 
@@ -14,7 +14,7 @@ import { resetTour } from "@/lib/tour";
  * First-run picker shown once, immediately after onboarding consent.
  *
  * Two options:
- *   - "Exploring the demo" → seeds 14 days of realistic data, flags the
+ *   - "Exploring the demo" → seeds 30 days of realistic data, flags the
  *     session as demo so the home screen can show a "Demo data" chip.
  *   - "Starting fresh" → no data is seeded; the app starts empty.
  */
@@ -31,7 +31,7 @@ export default function FirstRunScreen() {
     try {
       await setDemoModeChoice("demo");
       await setDemoEnabled(true);
-      await seedDemo(14);
+      await seedDemo(30);
       await setFirstRunDone(true);
       await resetTour();
       router.replace("/");
@@ -78,10 +78,10 @@ export default function FirstRunScreen() {
             </View>
           </View>
           <Text style={[styles.body, { color: c.text.secondary, marginTop: 8 }]}>
-            Loads two weeks of example data so every screen has something to show straight away. Everything stays on this device.
+            Loads a month of example data so every screen has something to show straight away. Everything stays on this device.
           </Text>
           <View style={styles.bulletList}>
-            <Bullet c={c} text="14 days of pretend wearable numbers — recovery, sleep, and strain" />
+            <Bullet c={c} text="30 days of pretend wearable numbers — recovery, sleep, and strain" />
             <Bullet c={c} text="Made-up check-ins and emotion notes, so charts aren't empty" />
             <Bullet c={c} text="A little 'Demo data' tag on the home screen so you always know it's not real" />
           </View>

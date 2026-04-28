@@ -26,13 +26,15 @@ export function Button({ title, variant = "primary", fullWidth = true, style, ..
   const c = scheme === "dark" ? Colors.dark : Colors.light;
 
   const base: ViewStyle = {
-    backgroundColor: variant === "primary" ? c.accent.primary : variant === "secondary" ? c.glass.primary : "transparent",
-    borderColor: variant === "ghost" ? "transparent" : c.border.medium,
+    backgroundColor: variant === "primary" ? c.accent.primary : variant === "secondary" ? c.glass.elevated : "transparent",
+    borderColor: variant === "primary" ? c.accent.primary : variant === "ghost" ? "transparent" : "rgba(44,54,42,0.35)",
   };
 
   const text: TextStyle = {
     color: variant === "primary" ? c.text.inverse : c.text.primary,
   };
+
+  const isDisabled = !!props.disabled;
 
   return (
     <Pressable
@@ -43,7 +45,8 @@ export function Button({ title, variant = "primary", fullWidth = true, style, ..
           styles.base,
           base,
           fullWidth && { alignSelf: "stretch" },
-          state.pressed && { opacity: 0.9, transform: [{ scale: 0.97 }] },
+          state.pressed && !isDisabled && { opacity: 0.9, transform: [{ scale: 0.97 }] },
+          isDisabled && { opacity: 0.5 },
           userStyle,
         ];
       }}

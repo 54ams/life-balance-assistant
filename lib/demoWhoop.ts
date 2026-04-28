@@ -23,7 +23,7 @@ import { clamp } from "./util/clamp";
 export const WHOOP_DEMO_FLAG_KEY = "whoop_demo_active_v1";
 const LAST_SYNC_KEY = "whoop_last_sync";
 
-export const WHOOP_DEMO_DAYS = 7;
+export const WHOOP_DEMO_DAYS = 30;
 
 export type DemoWhoopResult = {
   daysSeeded: number;

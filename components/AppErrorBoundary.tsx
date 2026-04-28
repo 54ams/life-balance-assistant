@@ -39,7 +39,7 @@ export class AppErrorBoundary extends React.Component<Props, State> {
     this.setState({ resetting: true });
     try {
       await clearAll();
-      await seedDemo(14);
+      await seedDemo(30);
       this.setState({ hasError: false, message: "", resetting: false });
     } catch (e: any) {
       Alert.alert("Reset failed", e?.message ?? "Could not reset demo data.");
@@ -109,7 +109,7 @@ function BoundaryFallback({
         onPress={() => {
           Alert.alert(
             "Reset demo data?",
-            "This will clear all local data and reseed a 14-day demo set. Use this if you need to recover quickly during a demo.",
+            "This will clear all local data and reseed a 30-day demo set. Use this if you need to recover quickly during a demo.",
             [
               { text: "Cancel", style: "cancel" },
               { text: "Reset demo", style: "destructive", onPress: onResetDemo },
