@@ -6,16 +6,28 @@
   "build": {
     "development": {
       "developmentClient": true,
-      "distribution": "internal"
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_BACKEND_URL": "https://life-balance-assistant.onrender.com",
+        "EXPO_PUBLIC_WHOOP_CLIENT_ID": "97dce4de-e0dc-4841-879b-1c3477560a11"
+      }
     },
     "preview": {
       "distribution": "internal",
       "android": {
         "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_BACKEND_URL": "https://life-balance-assistant.onrender.com",
+        "EXPO_PUBLIC_WHOOP_CLIENT_ID": "97dce4de-e0dc-4841-879b-1c3477560a11"
       }
     },
     "production": {
-      "autoIncrement": true
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_BACKEND_URL": "https://life-balance-assistant.onrender.com",
+        "EXPO_PUBLIC_WHOOP_CLIENT_ID": "97dce4de-e0dc-4841-879b-1c3477560a11"
+      }
     },
     "ios-simulator": {
       "extends": "preview",

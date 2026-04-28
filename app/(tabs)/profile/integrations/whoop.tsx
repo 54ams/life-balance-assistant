@@ -2,6 +2,8 @@ import * as WebBrowser from "expo-web-browser";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { useEffect, useMemo, useState } from "react";
 import { Alert, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { router } from "expo-router";
+import { hasCompletedTour, resetTour } from "@/lib/tour";
 
 import { Screen } from "@/components/Screen";
 import { Button } from "@/components/ui/button";
@@ -18,6 +20,12 @@ import { AppError, toAppError } from "@/lib/errors";
 import { refreshDerivedForDate } from "@/lib/pipeline";
 import { getBackendBaseUrl } from "@/lib/backend";
 import { formatDateFriendly } from "@/lib/util/formatDate";
+import {
+  activateDemoWhoop,
+  deactivateDemoWhoop,
+  isDemoWhoopActive,
+  WHOOP_DEMO_DAYS,
+} from "@/lib/demoWhoop";
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -49,6 +57,7 @@ export default function WhoopScreen() {
   const [manualStrain, setManualStrain] = useState("");
   const [consentGranted, setConsentGranted] = useState(false);
   const [showConsent, setShowConsent] = useState(false);
+  const [demoActive, setDemoActive] = useState(false);
   const backendUrl = getBackendBaseUrl();
 
   useEffect(() => {
@@ -85,6 +94,7 @@ export default function WhoopScreen() {
       }
       if (last) setLastSynced(last);
       if (consent) setConsentGranted(true);
+      setDemoActive(await isDemoWhoopActive());
       const days = await getWearableDays();
       const recentWhoop = days.filter((d) => String(d.source).startsWith("whoop"));
       setWhoopDaysLast7(recentWhoop.slice(-7).length);
@@ -159,6 +169,7 @@ export default function WhoopScreen() {
       setConnected(true);
       // Auto-sync today after connecting
       const todayDate = todayISO();
+      let connectMessage = "Connected! Sync will be available shortly.";
       try {
         const syncUrl = `${backendUrl}/whoop/day?date=${encodeURIComponent(todayDate)}`;
         const syncRes = await fetch(syncUrl, {
@@ -173,17 +184,33 @@ export default function WhoopScreen() {
             await refreshDerivedForDate(todayDate as any);
             setLastSynced(todayDate);
             await AsyncStorage.setItem(LAST_SYNC_KEY, todayDate);
-            Alert.alert("WHOOP", `Connected and synced ${formatDateFriendly(todayDate)}.`);
+            connectMessage = `Connected and synced ${formatDateFriendly(todayDate)}.`;
           } else {
-            Alert.alert("WHOOP", "Connected! No data for today yet \u2014 your cycle may not have completed. Try syncing later or sync a past date.");
+            connectMessage =
+              "Connected! No data for today yet — your cycle may not have completed. Try syncing later or sync a past date.";
           }
         } else {
           const errJson = await syncRes.json().catch(() => ({}));
-          Alert.alert("WHOOP", `Connected, but sync failed: ${(errJson as any)?.error || syncRes.status}`);
+          connectMessage = `Connected, but sync failed: ${(errJson as any)?.error || syncRes.status}`;
         }
       } catch {
-        Alert.alert("WHOOP", "Connected! Sync will be available shortly.");
+        connectMessage = "Connected! Sync will be available shortly.";
       }
+      // Drop the user back at Home and re-trigger the guided tour if they
+      // haven't seen it yet — onboarding flows here from first-run, so the
+      // natural next moment is "show them what they just unlocked".
+      const tourDone = await hasCompletedTour();
+      if (!tourDone) {
+        await resetTour();
+      }
+      Alert.alert("WHOOP", connectMessage, [
+        {
+          text: "OK",
+          onPress: () => {
+            router.replace("/" as any);
+          },
+        },
+      ]);
     } catch (err: any) {
       const e = toAppError(err, "Failed to connect WHOOP.");
       Alert.alert("WHOOP", e.userMessage);
@@ -254,6 +281,32 @@ export default function WhoopScreen() {
     setSessionToken(null);
     setConnected(false);
     setLastSynced(null);
+  };
+
+  const useDemoWhoop = async () => {
+    setBusy(true);
+    try {
+      const result = await activateDemoWhoop();
+      setDemoActive(true);
+      setLastSynced(result.lastDate);
+      Alert.alert(
+        "Demo WHOOP",
+        `Seeded ${result.daysSeeded} days of simulated WHOOP-shaped data (${formatDateFriendly(result.firstDate)} — ${formatDateFriendly(result.lastDate)}). The app now treats this as wearable input for LBI, plan, history, ML risk, and exports. Provenance is recorded as "WHOOP (demo)".`,
+      );
+    } catch (err: any) {
+      Alert.alert("Demo WHOOP", err?.message ?? "Failed to seed demo WHOOP data.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const stopDemoWhoop = async () => {
+    await deactivateDemoWhoop();
+    setDemoActive(false);
+    Alert.alert(
+      "Demo WHOOP",
+      "Demo flag cleared. Existing demo days remain on the device tagged as 'WHOOP (demo)'. Use Profile → Settings → Data → Purge now to remove them entirely.",
+    );
   };
 
   const saveManual = async () => {
@@ -369,6 +422,50 @@ export default function WhoopScreen() {
                 accessibilityLabel="Disconnect WHOOP"
               />
             </>
+          )}
+        </View>
+      </GlassCard>
+
+      {/* ── Demo WHOOP (for markers / no-device evaluation) ── */}
+      <GlassCard style={styles.card}>
+        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+          <Text style={[styles.title, { color: c.text.primary }]}>Demo WHOOP data</Text>
+          {demoActive && (
+            <View
+              style={{
+                paddingHorizontal: 8,
+                paddingVertical: 3,
+                borderRadius: 999,
+                backgroundColor: "rgba(255,149,0,0.15)",
+              }}
+              accessibilityLabel="Demo WHOOP data is active"
+            >
+              <Text style={{ color: "#FF9500", fontWeight: "700", fontSize: 11 }}>DEMO ACTIVE</Text>
+            </View>
+          )}
+        </View>
+        <Text style={{ color: c.text.secondary, marginTop: 6, fontSize: 13, lineHeight: 18 }}>
+          For markers and supervisors without a WHOOP account. Seeds {WHOOP_DEMO_DAYS} days of
+          realistic simulated recovery, sleep, and strain through the same wearable pipeline the
+          live integration uses. Data is clearly labelled as <Text style={{ fontWeight: "700" }}>WHOOP (demo)</Text> in
+          insights, transparency, and exports — it is never presented as live data.
+        </Text>
+        <View style={{ marginTop: 10, gap: 8 }}>
+          {!demoActive ? (
+            <Button
+              title={busy ? "Seeding…" : `Use ${WHOOP_DEMO_DAYS}-day demo WHOOP data`}
+              onPress={useDemoWhoop}
+              disabled={busy}
+              accessibilityLabel="Activate demo WHOOP data"
+            />
+          ) : (
+            <Button
+              title="Clear demo flag"
+              variant="secondary"
+              onPress={stopDemoWhoop}
+              disabled={busy}
+              accessibilityLabel="Clear demo WHOOP flag"
+            />
           )}
         </View>
       </GlassCard>

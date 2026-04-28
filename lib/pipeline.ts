@@ -2,6 +2,11 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { computeBaseline } from "./baseline";
 import { calculateLBI, type LbiOutput } from "./lbi";
 import { trainIfReady, predictTomorrowRisk } from "./ml/models";
+import {
+  ensureRecommenderReady,
+  predictRecommendationCategory,
+  trainRecommender,
+} from "./ml/recommender";
 import { generatePlan, type GeneratedPlan } from "./plan";
 import { getActiveValues, getDay, getLifeContexts, listUpcomingEvents, loadPlan, savePlan, upsertLBI } from "./storage";
 import { getPrimaryGoals } from "./privacy";
@@ -76,7 +81,27 @@ export async function refreshDerivedForDate(date: ISODate): Promise<DerivedRefre
 
   await trainIfReady();
 
-  // Get ML risk predictions (if model is trained) to feed into recommendations
+  // Train (or refresh) the recommendation classifier. ensureRecommenderReady
+  // will train on the cold-start prior at first run; trainRecommender retrains
+  // on personal data once enough rows exist. We always retrain here so the
+  // model reflects whatever new data the user just logged.
+  try {
+    await trainRecommender();
+  } catch {
+    // Training failure is non-fatal — predictRecommendationCategory will
+    // still work against the previously cached model (or the cold-start
+    // prior via ensureRecommenderReady).
+    await ensureRecommenderReady().catch(() => {});
+  }
+
+  // Primary ML signal for the recommendation: the category classifier.
+  let mlCategory = null as Awaited<ReturnType<typeof predictRecommendationCategory>>;
+  try {
+    mlCategory = await predictRecommendationCategory();
+  } catch {}
+
+  // Secondary ML signal: tomorrow-risk overlay (only fires once the
+  // 21-day risk model is trained — see lib/ml/models.ts).
   let mlRisk: { lbiRiskProb: number | null; recoveryRiskProb: number | null; topDrivers: { name: string; direction: "up" | "down"; strength: number }[] } | null = null;
   try {
     const riskResult = await predictTomorrowRisk();
@@ -100,6 +125,7 @@ export async function refreshDerivedForDate(date: ISODate): Promise<DerivedRefre
     schedule,
     upcomingEvents,
     values,
+    mlCategory,
     mlRisk,
   }).catch(() => {}); // fire and forget — non-blocking
 

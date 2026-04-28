@@ -329,27 +329,27 @@ export default function CheckInSavedScreen() {
               <NextAction
                 c={c}
                 label="See what drives your score"
-                onPress={() => router.replace("/insights/explain" as any)}
+                onPress={() => router.push("/insights/explain" as any)}
               />
               <NextAction
                 c={c}
                 label="Try a grounding exercise"
-                onPress={() => router.replace("/checkin/grounding" as any)}
+                onPress={() => router.push("/checkin/grounding" as any)}
               />
               <NextAction
                 c={c}
                 label="Build a habit"
-                onPress={() => router.replace("/checkin/habits" as any)}
+                onPress={() => router.push("/checkin/habits" as any)}
               />
               <NextAction
                 c={c}
                 label="Reframe a thought"
-                onPress={() => router.replace("/checkin/reframe" as any)}
+                onPress={() => router.push("/checkin/reframe" as any)}
               />
               <NextAction
                 c={c}
                 label="Review past check-ins"
-                onPress={() => router.replace("/checkins" as any)}
+                onPress={() => router.push("/checkins" as any)}
               />
             </View>
             <Pressable

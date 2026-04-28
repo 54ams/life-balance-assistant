@@ -39,7 +39,8 @@ import { suggestContextFromWearable, wearableSummaryLine, recoveryColor } from "
 import { deriveIntensity } from "@/lib/emotion";
 import { containsSelfHarmSignals } from "@/lib/privacy";
 import { refreshDerivedForDate } from "@/lib/pipeline";
-import { LIFE_CONTEXT_TAGS, getTagDef } from "@/lib/lifeContext";
+import { getTagDef, tagsByKind } from "@/lib/lifeContext";
+import { addCustomTag, loadCustomTags } from "@/lib/customTags";
 import { deriveLegacyScales } from "@/lib/derive";
 import { llmDeeperRead, localMatch, type NoteSuggestion } from "@/lib/noteInterpret";
 
@@ -82,6 +83,12 @@ export default function DailyCheckInScreen() {
   // WHOOP wearable data for today (Layer 2)
   const [wearable, setWearable] = useState<WearableMetrics | null>(null);
 
+  // Custom tag entry state for pressures + replenishers.
+  const [customDemandText, setCustomDemandText] = useState("");
+  const [customResourceText, setCustomResourceText] = useState("");
+  // Bumped whenever a new custom tag is registered, so chip lists re-render.
+  const [customTagVersion, setCustomTagVersion] = useState(0);
+
   // Local-matcher suggestions + LLM deeper-read state.
   const [localSuggestions, setLocalSuggestions] = useState<NoteSuggestion[]>([]);
   const [llmSuggestions, setLlmSuggestions] = useState<NoteSuggestion[]>([]);
@@ -91,6 +98,11 @@ export default function DailyCheckInScreen() {
   // Load any existing check-in for today (editing case).
   useEffect(() => {
     (async () => {
+      // Hydrate user-defined tags into the runtime registry first so
+      // tagsByKind() picks them up alongside the built-ins.
+      await loadCustomTags();
+      setCustomTagVersion((v) => v + 1);
+
       const values = await getActiveValues();
       setActiveValues(values);
       setValueChosen(values[0] ?? "Health");
@@ -251,9 +263,34 @@ export default function DailyCheckInScreen() {
   };
 
   // --- Render helpers -----------------------------------------
-  const demandTags = LIFE_CONTEXT_TAGS.filter((t) => t.kind === "demand");
-  const resourceTags = LIFE_CONTEXT_TAGS.filter((t) => t.kind === "resource");
+  // Re-read from the registry on each render-eligible change so newly
+  // added custom tags appear inline. `customTagVersion` is the trigger.
+  const demandTags = useMemo(
+    () => tagsByKind("demand"),
+    [customTagVersion],
+  );
+  const resourceTags = useMemo(
+    () => tagsByKind("resource"),
+    [customTagVersion],
+  );
   const selected = new Set(tags.map((t) => t.id));
+
+  const submitCustomTag = async (kind: "demand" | "resource") => {
+    const text = kind === "demand" ? customDemandText : customResourceText;
+    const trimmed = text.trim();
+    if (!trimmed) return;
+    const def = await addCustomTag(trimmed, kind);
+    if (!def) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    if (kind === "demand") setCustomDemandText("");
+    else setCustomResourceText("");
+    setCustomTagVersion((v) => v + 1);
+    // Auto-select the freshly created tag.
+    setTags((prev) => {
+      if (prev.find((t) => t.id === def.id)) return prev;
+      return [...prev, { id: def.id, kind: def.kind }];
+    });
+  };
 
   return (
     <Screen scroll padded contentStyle={{ gap: Spacing.md, paddingBottom: 140 }}>
@@ -357,9 +394,9 @@ export default function DailyCheckInScreen() {
               How does today feel?
             </Text>
             <Text style={{ color: c.text.secondary, fontSize: 13, marginTop: 6, lineHeight: 18 }}>
-              Drag the dot anywhere that matches. No scales, no right answer — just
-              where you are right now. Horizontal is pleasant ↔ unpleasant, vertical
-              is activated ↔ calm.
+              Tap whichever one fits best right now. No right answer — just where
+              you are. Horizontal is pleasant ↔ unpleasant, vertical is
+              activated ↔ calm.
             </Text>
 
             <View style={{ marginTop: Spacing.md, alignItems: "center" }}>
@@ -516,6 +553,37 @@ export default function DailyCheckInScreen() {
                 );
               })}
             </View>
+            <View style={styles.customRow}>
+              <TextInput
+                value={customDemandText}
+                onChangeText={setCustomDemandText}
+                placeholder="Add your own pressure…"
+                placeholderTextColor={c.text.tertiary}
+                returnKeyType="done"
+                onSubmitEditing={() => submitCustomTag("demand")}
+                style={[
+                  styles.customInput,
+                  { borderColor: c.border.medium, color: c.text.primary },
+                ]}
+                accessibilityLabel="Add a custom pressure tag"
+              />
+              <Pressable
+                onPress={() => submitCustomTag("demand")}
+                disabled={!customDemandText.trim()}
+                accessibilityRole="button"
+                accessibilityLabel="Save custom pressure tag"
+                style={({ pressed }) => [
+                  styles.customAddBtn,
+                  {
+                    borderColor: c.accent.primary,
+                    backgroundColor: c.accent.primary,
+                    opacity: !customDemandText.trim() ? 0.4 : pressed ? 0.75 : 1,
+                  },
+                ]}
+              >
+                <Text style={{ color: c.text.inverse, fontWeight: "800", fontSize: 13 }}>Add</Text>
+              </Pressable>
+            </View>
 
             <Text
               style={{
@@ -559,6 +627,38 @@ export default function DailyCheckInScreen() {
                   </Pressable>
                 );
               })}
+            </View>
+
+            <View style={styles.customRow}>
+              <TextInput
+                value={customResourceText}
+                onChangeText={setCustomResourceText}
+                placeholder="Add your own replenisher…"
+                placeholderTextColor={c.text.tertiary}
+                returnKeyType="done"
+                onSubmitEditing={() => submitCustomTag("resource")}
+                style={[
+                  styles.customInput,
+                  { borderColor: c.border.medium, color: c.text.primary },
+                ]}
+                accessibilityLabel="Add a custom replenisher tag"
+              />
+              <Pressable
+                onPress={() => submitCustomTag("resource")}
+                disabled={!customResourceText.trim()}
+                accessibilityRole="button"
+                accessibilityLabel="Save custom replenisher tag"
+                style={({ pressed }) => [
+                  styles.customAddBtn,
+                  {
+                    borderColor: c.lime,
+                    backgroundColor: c.lime,
+                    opacity: !customResourceText.trim() ? 0.4 : pressed ? 0.75 : 1,
+                  },
+                ]}
+              >
+                <Text style={{ color: c.accent.primary, fontWeight: "800", fontSize: 13 }}>Add</Text>
+              </Pressable>
             </View>
 
             <Text style={{ color: c.text.tertiary, fontSize: 11, marginTop: Spacing.md, lineHeight: 16 }}>
@@ -636,8 +736,8 @@ export default function DailyCheckInScreen() {
                 </Text>
               ) : llmSource === "local" ? (
                 <Text style={{ color: c.text.tertiary, fontSize: 11, fontStyle: "italic", marginTop: 6 }}>
-                  Model unavailable — suggestions below are from the on-device
-                  matcher.
+                  Read locally on your device. Suggestions below are from the
+                  on-device matcher — no network needed.
                 </Text>
               ) : null}
             </GlassCard>
@@ -768,6 +868,26 @@ const styles = StyleSheet.create({
   fieldLabel: { fontWeight: "800", fontSize: 13, marginTop: Spacing.md, letterSpacing: 0.4 },
   chipWrap: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: Spacing.sm },
   chip: { paddingVertical: 9, paddingHorizontal: 14, borderRadius: BorderRadius.full, borderWidth: 1.5 },
+  customRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginTop: Spacing.sm,
+  },
+  customInput: {
+    flex: 1,
+    borderWidth: 1,
+    borderRadius: BorderRadius.full,
+    paddingVertical: 9,
+    paddingHorizontal: 14,
+    fontSize: 13,
+  },
+  customAddBtn: {
+    paddingVertical: 9,
+    paddingHorizontal: 14,
+    borderRadius: BorderRadius.full,
+    borderWidth: 1.5,
+  },
   input: {
     marginTop: Spacing.md,
     borderWidth: 1,

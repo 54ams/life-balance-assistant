@@ -46,6 +46,7 @@ import { getTodayProgress, getLongestActiveStreak } from "@/lib/habits";
 import { detectDecline, type PatternAlert } from "@/lib/patternInterrupt";
 import { shouldPromptWeeklyReflection } from "@/lib/weeklyReflection";
 import { hasCompletedTour } from "@/lib/tour";
+import { computeBaselineMeta, type BaselineMeta } from "@/lib/baseline";
 import { TourOverlay, TourTarget, TourTargetProvider } from "@/components/ui/TourOverlay";
 
 function greetingForHour(h: number) {
@@ -97,6 +98,10 @@ export default function HomeScreen() {
   const [isDemoMode, setIsDemoMode] = useState(false);
   const [tone, setTone] = useState<NarrativeTone>("Gentle");
   const [hasAnyData, setHasAnyData] = useState(true);
+  // Wearable / score baseline calibration status. Surfaced as a banner so
+  // testers and viva examiners understand why early-day scores can read low —
+  // the LBI needs a few days of data before its baseline is meaningful.
+  const [baselineMeta, setBaselineMeta] = useState<BaselineMeta | null>(null);
   const [breathVisible, setBreathVisible] = useState(false);
   const [rippleKey, setRippleKey] = useState(0);
   const [milestone, setMilestone] = useState<string | null>(null);
@@ -224,6 +229,13 @@ export default function HomeScreen() {
           listDailyRecords(14),
           listAnchors(14),
         ]);
+
+        try {
+          const meta = await computeBaselineMeta();
+          if (alive) setBaselineMeta(meta);
+        } catch {
+          /* non-fatal — banner just hides */
+        }
         if (alive) {
           const anchorDates = new Set(
             allAnchors.filter((a) => a.dawn || a.dusk).map((a) => a.date),
@@ -628,19 +640,47 @@ export default function HomeScreen() {
               {narrative}
             </Text>
 
-            {/* Smart recommendation — context-aware daily insight */}
+            {/* Smart recommendation — ML-classified daily insight */}
             {smartRec && (
               <GlassCard style={{ marginTop: Spacing.md }} padding="base">
-                <Text
-                  style={{
-                    color: c.text.tertiary,
-                    fontSize: 10,
-                    fontWeight: "800",
-                    letterSpacing: 1.6,
-                  }}
-                >
-                  TODAY'S INSIGHT
-                </Text>
+                <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+                  <Text
+                    style={{
+                      color: c.text.tertiary,
+                      fontSize: 10,
+                      fontWeight: "800",
+                      letterSpacing: 1.6,
+                    }}
+                  >
+                    TODAY'S INSIGHT
+                  </Text>
+                  {/* Provenance pill — surfaces honestly which signal drove
+                      the recommendation. ml = personal model, ml-cold-start
+                      = synthetic prior, +llm = phrasing enriched by the LLM,
+                      rules = no feature row available yet. */}
+                  {smartRec.category && (
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        gap: 6,
+                        paddingVertical: 3,
+                        paddingHorizontal: 8,
+                        borderRadius: 999,
+                        borderWidth: 1,
+                        borderColor: c.border.medium,
+                        backgroundColor: c.glass.secondary,
+                      }}
+                    >
+                      <Text style={{ color: c.text.tertiary, fontSize: 9, fontWeight: "800", letterSpacing: 1 }}>
+                        {smartRec.source.toUpperCase()}
+                      </Text>
+                      <Text style={{ color: c.accent.primary, fontSize: 9, fontWeight: "900", letterSpacing: 1 }}>
+                        · {smartRec.category}
+                      </Text>
+                    </View>
+                  )}
+                </View>
                 <Text
                   style={{
                     color: c.text.primary,
@@ -662,6 +702,43 @@ export default function HomeScreen() {
                 >
                   {smartRec.text}
                 </Text>
+                {smartRec.topDrivers && smartRec.topDrivers.length > 0 && (
+                  <Text
+                    style={{
+                      color: c.text.tertiary,
+                      fontSize: 11,
+                      marginTop: 8,
+                      fontStyle: "italic",
+                    }}
+                  >
+                    Why: {smartRec.topDrivers
+                      .slice(0, 2)
+                      .map((d) => `${d.name.replace("_z", "")} ${d.direction === "up" ? "↑" : "↓"}`)
+                      .join(", ")}
+                  </Text>
+                )}
+              </GlassCard>
+            )}
+
+            {/* Baseline calibration banner — shown until the LBI baseline is
+                stable. Without this, early-day scores can read low or jumpy
+                and testers (and the viva examiner) won't know why. */}
+            {baselineMeta && baselineMeta.status === "calibrating" && (
+              <GlassCard style={{ marginTop: Spacing.md }} padding="base">
+                <View style={{ flexDirection: "row", gap: 10, alignItems: "flex-start" }}>
+                  <IconSymbol name="waveform.path.ecg" size={18} color={c.accent.primary} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ color: c.text.primary, fontWeight: "800", fontSize: 14 }}>
+                      Still calibrating
+                    </Text>
+                    <Text style={{ color: c.text.secondary, fontSize: 12, marginTop: 4, lineHeight: 17 }}>
+                      Day {Math.min(baselineMeta.daysUsed, baselineMeta.targetDays)} of {baselineMeta.targetDays}.
+                      Your score finds its meaning by comparing today to your own
+                      pattern, so it'll read more reliably once a few more days
+                      are in.
+                    </Text>
+                  </View>
+                </View>
               </GlassCard>
             )}
 

@@ -51,7 +51,7 @@ export default function EmotionHistoryScreen() {
   const valenceChart = useMemo(() => {
     if (emotions.length < 2) return [];
     return [...emotions].reverse().map((e) => ({
-      label: new Date(e.date + "T12:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short" }),
+      label: formatDateFriendly(e.date),
       value: (e.valence + 1) * 50, // map -1..1 to 0..100
     }));
   }, [emotions]);

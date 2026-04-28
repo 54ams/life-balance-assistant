@@ -1,5 +1,6 @@
-import React, { useEffect, useMemo, useRef } from "react";
-import { Animated, PanResponder, StyleSheet, View, useColorScheme } from "react-native";
+import React, { useEffect, useMemo, useState } from "react";
+import { Pressable, StyleSheet, Text, View, useColorScheme } from "react-native";
+import * as Haptics from "expo-haptics";
 import { Colors } from "@/constants/Colors";
 
 type Props = {
@@ -8,116 +9,163 @@ type Props = {
   ghost?: { x: number; y: number } | null;
 };
 
-// valence/arousal are mapped from -1..1 to canvas -1..1 space.
+// Canonical cell centres on the Russell (1980) circumplex, mapped to
+// -1..1 valence (x, horizontal) and arousal (y, vertical-inverted).
+// The previous draggable implementation caused navigation gesture
+// conflicts and scroll issues on real devices; tap targets are
+// unambiguous, accessible, and friendlier under time pressure.
+const CELLS: Array<{
+  key: string;
+  label: string;
+  valence: number;
+  arousal: number;
+  emoji: string;
+}> = [
+  { key: "tense",    label: "Tense",     valence: -0.7, arousal:  0.7, emoji: "😖" },
+  { key: "alert",    label: "Alert",     valence:  0.0, arousal:  0.8, emoji: "⚡" },
+  { key: "excited",  label: "Excited",   valence:  0.7, arousal:  0.7, emoji: "🤩" },
+  { key: "low",      label: "Low",       valence: -0.8, arousal:  0.0, emoji: "😕" },
+  { key: "steady",   label: "Steady",    valence:  0.0, arousal:  0.0, emoji: "😐" },
+  { key: "content",  label: "Content",   valence:  0.8, arousal:  0.0, emoji: "🙂" },
+  { key: "drained",  label: "Drained",   valence: -0.7, arousal: -0.7, emoji: "😴" },
+  { key: "quiet",    label: "Quiet",     valence:  0.0, arousal: -0.8, emoji: "🌙" },
+  { key: "calm",     label: "Calm",      valence:  0.7, arousal: -0.7, emoji: "☺️" },
+];
+
+function nearestCellKey(valence: number, arousal: number): string {
+  let bestKey = "steady";
+  let bestDist = Infinity;
+  for (const cell of CELLS) {
+    const dv = cell.valence - valence;
+    const da = cell.arousal - arousal;
+    const d = dv * dv + da * da;
+    if (d < bestDist) {
+      bestDist = d;
+      bestKey = cell.key;
+    }
+  }
+  return bestKey;
+}
+
 export function AffectCanvas({ initial, onChange, ghost }: Props) {
   const scheme = useColorScheme();
   const isDark = scheme === "dark";
   const c = isDark ? Colors.dark : Colors.light;
-  const radius = 140;
-  const pos = useRef(new Animated.ValueXY({ x: initial.x, y: initial.y })).current;
-  const latest = useRef({ x: initial.x, y: initial.y });
-  const initialRef = useRef(initial);
-  initialRef.current = initial;
+  const radius = 140; // kept in scope for parity with how callers compute `initial`
 
-  const accentGradientSoft = ["#C2E9FB", "#E2D4FF"];
-  const glowSoft = "rgba(122,215,240,0.22)";
-
-  useEffect(() => {
-    pos.setValue(initial);
-    latest.current = initial;
-  }, [initial, pos]);
-
-  const onChangeRef = useRef(onChange);
-  onChangeRef.current = onChange;
-
-  const pan = useMemo(
-    () =>
-      PanResponder.create({
-        onStartShouldSetPanResponder: () => true,
-        onPanResponderGrant: () => {
-          // Capture position at drag start
-          latest.current = { x: initialRef.current.x, y: initialRef.current.y };
-        },
-        onPanResponderMove: (_, g) => {
-          const x = Math.max(-radius, Math.min(radius, g.dx + initialRef.current.x));
-          const y = Math.max(-radius, Math.min(radius, g.dy + initialRef.current.y));
-          latest.current = { x, y };
-          pos.setValue({ x, y });
-        },
-        onPanResponderRelease: () => {
-          const { x, y } = latest.current;
-          const valence = x / radius;
-          const arousal = -y / radius;
-          onChangeRef.current(valence, arousal);
-        },
-      }),
-    [pos]
+  // Infer the active cell from incoming valence/arousal (mapped back from
+  // the canvas coordinate the check-in page stores on state).
+  const initialValence = initial.x / radius;
+  const initialArousal = -initial.y / radius;
+  const [selected, setSelected] = useState<string>(() =>
+    nearestCellKey(initialValence, initialArousal),
   );
 
+  useEffect(() => {
+    setSelected(nearestCellKey(initialValence, initialArousal));
+  }, [initialValence, initialArousal]);
+
+  const ghostKey = useMemo(() => {
+    if (!ghost) return null;
+    return nearestCellKey(ghost.x / radius, -ghost.y / radius);
+  }, [ghost]);
+
+  const pick = (cell: (typeof CELLS)[number]) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    setSelected(cell.key);
+    onChange(cell.valence, cell.arousal);
+  };
+
   return (
-    <View style={[styles.wrap]}>
-      <View style={[styles.gradient, { backgroundColor: accentGradientSoft[0] }]} />
-      <View style={[styles.gradient, { backgroundColor: accentGradientSoft[1] }]} />
-      {ghost ? (
-        <View
-          pointerEvents="none"
-          style={[
-            styles.ghost,
-            {
-              left: radius + ghost.x - 8,
-              top: radius - ghost.y - 8,
-              borderColor: c.text.tertiary,
-            },
-          ]}
-        />
-      ) : null}
-      <Animated.View
-        {...pan.panHandlers}
-        style={[
-          styles.orb,
-          {
-            transform: [
-              { translateX: pos.x },
-              { translateY: pos.y },
-            ],
-            backgroundColor: c.glass.primary,
-            borderColor: c.glass.border,
-            shadowColor: glowSoft,
-          },
-        ]}
-      />
+    <View style={styles.wrap}>
+      <View style={styles.axisRow}>
+        <Text style={[styles.axisLabel, { color: c.text.tertiary }]}>ACTIVATED</Text>
+      </View>
+      <View style={styles.grid}>
+        {CELLS.map((cell) => {
+          const active = selected === cell.key;
+          const isGhost = ghostKey === cell.key && !active;
+          return (
+            <Pressable
+              key={cell.key}
+              onPress={() => pick(cell)}
+              accessibilityRole="button"
+              accessibilityLabel={cell.label}
+              accessibilityState={{ selected: active }}
+              style={({ pressed }) => [
+                styles.cell,
+                {
+                  backgroundColor: active ? c.accent.primary : "rgba(255,255,255,0.7)",
+                  borderColor: active
+                    ? c.accent.primary
+                    : isGhost
+                    ? c.text.tertiary
+                    : c.border.heavy,
+                  borderStyle: isGhost ? "dashed" : "solid",
+                },
+                pressed && { opacity: 0.75, transform: [{ scale: 0.97 }] },
+              ]}
+            >
+              <Text style={{ fontSize: 22 }}>{cell.emoji}</Text>
+              <Text
+                style={{
+                  marginTop: 4,
+                  fontSize: 12,
+                  fontWeight: "800",
+                  color: active ? c.text.inverse : c.text.primary,
+                }}
+              >
+                {cell.label}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+      <View style={styles.axisRow}>
+        <Text style={[styles.axisLabel, { color: c.text.tertiary }]}>CALM</Text>
+      </View>
+      <View style={styles.horizontalAxis}>
+        <Text style={[styles.axisLabel, { color: c.text.tertiary }]}>UNPLEASANT</Text>
+        <Text style={[styles.axisLabel, { color: c.text.tertiary }]}>PLEASANT</Text>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   wrap: {
-    width: 280,
-    height: 280,
-    borderRadius: 140,
-    overflow: "hidden",
+    width: "100%",
+    maxWidth: 360,
     alignSelf: "center",
-    backgroundColor: "transparent",
+  },
+  axisRow: {
     alignItems: "center",
+    paddingVertical: 4,
+  },
+  horizontalAxis: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingHorizontal: 4,
+    marginTop: 4,
+  },
+  axisLabel: {
+    fontSize: 10,
+    fontWeight: "800",
+    letterSpacing: 1.2,
+  },
+  grid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
     justifyContent: "center",
   },
-  gradient: {
-    ...StyleSheet.absoluteFillObject,
-    opacity: 0.18,
-  },
-  orb: {
-    position: "absolute",
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    borderWidth: 1,
-  },
-  ghost: {
-    position: "absolute",
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    borderWidth: 1,
-    opacity: 0.35,
+  cell: {
+    width: "31%",
+    aspectRatio: 1,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 4,
   },
 });

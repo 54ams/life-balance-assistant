@@ -2,6 +2,10 @@
 
 Expo Router + TypeScript mobile app with an optional Node backend for WHOOP OAuth/token handling and optional LLM narrative reflection.
 
+> **For dissertation markers / academic assessors:** see [Examiner quick start](#examiner-quick-start) below. You do **not** need WHOOP credentials, an Apple ID, or my laptop to evaluate this prototype — a 30-day demo dataset is built in.
+>
+> **For pilot testers:** see [Pilot install](#pilot-install) below. The deployed backend is at `https://life-balance-assistant.onrender.com` and is already wired into the EAS build.
+
 ## Architecture
 
 - Mobile app: `app/`, `components/`, `lib/`
@@ -118,6 +122,75 @@ If you want the installed app to work fully for a supervisor or tester, the simp
 - Origin allow-list enforcement for browser requests
 - WHOOP token store encryption-at-rest when `WHOOP_STORE_KEY` is set
 - Health endpoint: `GET /health`
+
+## Demo WHOOP mode (for markers and no-device evaluation)
+
+The real WHOOP OAuth path remains the primary integration. For academic
+markers and supervisors who do not have a WHOOP account, the app exposes
+a clearly-labelled **Demo WHOOP** path that seeds 7 days of realistic,
+deterministic, normalized wearable data through the same pipeline the live
+sync uses.
+
+How to activate:
+
+1. Open the app (any route — Expo Go or installed pilot build).
+2. Tab to **Profile → Integrations → WHOOP**.
+3. In the **Demo WHOOP data** card, tap **Use 7-day demo WHOOP data**.
+
+What this unlocks:
+
+- LBI scoring with full physiological inputs (recovery, sleep, strain)
+- Plan generation conditioned on wearable data
+- History, trends, correlations
+- ML risk outlook and adherence analyses (H3, H7)
+- Transparency / data-coverage panels (which render every demo day as
+  **WHOOP (demo)**, never as live WHOOP)
+- Research export bundles (provenance is preserved as `whoop_demo` in JSON)
+
+Implementation: [lib/demoWhoop.ts](/Users/ami/Projects/life-balance-app/lib/demoWhoop.ts).
+The real OAuth path in [app/(tabs)/profile/integrations/whoop.tsx](/Users/ami/Projects/life-balance-app/app/(tabs)/profile/integrations/whoop.tsx)
+and [backend/whoop.ts](/Users/ami/Projects/life-balance-app/backend/whoop.ts)
+is untouched and continues to be the production code path for the viva
+demonstration and pilot testers with real devices.
+
+## Pilot install
+
+The pilot build is distributed via EAS internal distribution. The deployed
+backend (`https://life-balance-assistant.onrender.com`) is already baked into
+the build profile in [eas.json](/Users/ami/Projects/life-balance-app/eas.json),
+so testers do not need to set environment variables themselves.
+
+### For testers
+
+1. Open the install link sent to you (Android APK or iOS TestFlight invite).
+2. Install and open **Life Balance Assistant**.
+3. On first launch, complete onboarding and consent.
+4. Optional: connect WHOOP under **Profile → Integrations → WHOOP**.
+   The deep-link redirect URI is `lifebalanceapp://whoop-auth` — already
+   registered on the WHOOP developer dashboard for this client.
+5. Use the app daily for 5–7 days. All data is stored on-device
+   (AsyncStorage); the backend only handles WHOOP OAuth proxying and
+   optional LLM narrative reflections.
+
+### For me (releasing a pilot build)
+
+```bash
+# Android APK (sideload-friendly):
+npx eas build -p android --profile preview
+
+# iOS internal distribution build:
+npx eas build -p ios --profile preview
+```
+
+The `preview` profile in `eas.json` already injects:
+
+- `EXPO_PUBLIC_BACKEND_URL=https://life-balance-assistant.onrender.com`
+- `EXPO_PUBLIC_WHOOP_CLIENT_ID` (the OAuth public client ID — not secret)
+
+If the backend is unreachable when a tester opens the app, **the app still
+works**: check-in, LBI, plan, history, exports, and ML risk all run locally;
+only WHOOP sync and LLM-powered reflections degrade gracefully (the app
+falls back to deterministic local reflections — see [lib/llm.ts](/Users/ami/Projects/life-balance-app/lib/llm.ts)).
 
 ## Examiner quick start
 

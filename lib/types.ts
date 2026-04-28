@@ -99,6 +99,7 @@ export type WearableMetrics = {
 
 export type WearableSource =
   | "whoop_export"
+  | "whoop_demo"
   | "apple_health_export"
   | "simulated_stub";
 

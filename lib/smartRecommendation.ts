@@ -1,17 +1,43 @@
-// smartRecommendation.ts — the "smart nudge" system (Layer 4).
-// This is where everything comes together: WHOOP data, check-in mood,
-// schedule, upcoming events, and LBI score all feed into one recommendation.
-// I chose a remote-first approach with a local fallback so it still works
-// offline — the local logic covers the most common patterns.
+// smartRecommendation.ts — the daily recommendation pipeline.
+//
+// Hierarchy (Objective 5):
+//   1. ML classifier (lib/ml/recommender.ts) selects a recommendation
+//      *category* from {RECOVER, MAINTAIN, PUSH}. This is the primary,
+//      always-on signal and is what we mean by "ML generates the
+//      personalised daily recommendation".
+//   2. The category's template is rendered against the current day's
+//      observations (recovery, sleep, strain, schedule, upcoming events)
+//      to produce a concrete, parameterised headline and action.
+//   3. The risk model (predictTomorrowRisk) overlays a clearly flagged
+//      warning when it is highly confident about a balance dip — purely
+//      additive, never silently overwriting the ML category choice.
+//   4. The LLM is offered the same context plus the chosen category; if
+//      it returns useable text we use it (richer phrasing); otherwise
+//      we keep the template output. The category is fixed by ML in
+//      either path so the user-facing recommendation is always ML-led.
+//
+// Each path records its `source` so the home screen can show provenance
+// honestly: "ml", "ml-cold-start", "ml + llm", or "rules" (only used as
+// a defensive fallback when no feature vector can be built — e.g. a
+// brand-new user with no wearable + no check-in).
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { generateExplanation } from "./llm";
 import type { DailyCheckIn, FutureEvent, WearableMetrics, ISODate } from "./types";
 import type { RecurringItem } from "./schedule";
+import type { RecCategory, RecPrediction } from "./ml/recommender";
 
 export type SmartRecommendation = {
-  headline: string;       // short bold line, e.g. "Low recovery + big day tomorrow"
+  headline: string;       // short bold line
   text: string;           // 1-3 sentence actionable advice
-  source: "remote" | "local";
+  /** Where the *category* came from. Text may be enriched by the LLM
+   *  but the recommendation choice is the ML category in all "ml" / "ml-cold-start" cases. */
+  source: "ml" | "ml-cold-start" | "ml+llm" | "ml-cold-start+llm" | "rules";
+  /** ML category that drove the recommendation (null only when source==="rules"). */
+  category: RecCategory | null;
+  /** Class probabilities, when ML was used. Surfaced for transparency. */
+  probs?: Record<RecCategory, number>;
+  /** Top 3 features that drove the category choice. */
+  topDrivers?: { name: string; direction: "up" | "down"; strength: number }[];
   generatedAt: string;
 };
 
@@ -44,7 +70,11 @@ export type SmartRecInput = {
   schedule: RecurringItem[];
   upcomingEvents: FutureEvent[];
   values: string[];
-  /** ML-predicted risk probabilities (if model is trained) */
+  /** Primary ML signal: category classifier output. When present, drives
+   *  the recommendation. */
+  mlCategory?: RecPrediction | null;
+  /** Secondary ML signal: next-day risk probabilities. Used as a high-
+   *  confidence overlay on top of the category-selected recommendation. */
   mlRisk?: {
     lbiRiskProb: number | null;
     recoveryRiskProb: number | null;
@@ -113,7 +143,25 @@ function buildPrompt(input: SmartRecInput): string {
     parts.push(`Life roles: ${input.lifeContexts.join(", ")}`);
   }
 
-  // Include ML risk predictions when available
+  // Primary ML signal: the chosen recommendation category and its drivers.
+  if (input.mlCategory) {
+    const probs = input.mlCategory.probs;
+    parts.push(
+      `ML-chosen category: ${input.mlCategory.category} ` +
+        `(probs: RECOVER ${probs.RECOVER.toFixed(2)}, ` +
+        `MAINTAIN ${probs.MAINTAIN.toFixed(2)}, ` +
+        `PUSH ${probs.PUSH.toFixed(2)}; ` +
+        `provenance: ${input.mlCategory.provenance})`,
+    );
+    if (input.mlCategory.topDrivers.length > 0) {
+      const drivers = input.mlCategory.topDrivers
+        .map((d) => `${d.name} (${d.direction})`)
+        .join(", ");
+      parts.push(`Top drivers of the category choice: ${drivers}`);
+    }
+  }
+
+  // Secondary ML signal: tomorrow risk overlay
   if (input.mlRisk?.lbiRiskProb != null || input.mlRisk?.recoveryRiskProb != null) {
     const riskParts: string[] = [];
     if (input.mlRisk.lbiRiskProb != null) {
@@ -123,10 +171,6 @@ function buildPrompt(input: SmartRecInput): string {
       riskParts.push(`recovery dip ${Math.round(input.mlRisk.recoveryRiskProb * 100)}%`);
     }
     parts.push(`ML-predicted tomorrow risk: ${riskParts.join(", ")}`);
-    if (input.mlRisk.topDrivers.length > 0) {
-      const drivers = input.mlRisk.topDrivers.map((d) => `${d.name} (${d.direction})`).join(", ");
-      parts.push(`Top risk drivers: ${drivers}`);
-    }
   }
 
   return parts.join("\n");
@@ -146,90 +190,148 @@ Format your response as:
 HEADLINE: [headline]
 ADVICE: [advice]`;
 
-function localRecommendation(input: SmartRecInput): SmartRecommendation {
+// -----------------------------------------------------------------
+// Category → headline/action templates.
+// -----------------------------------------------------------------
+// The ML model picks the category. The template fills in concrete
+// observations from today's data so the recommendation is grounded in
+// what actually happened, while the *choice* of category is ML-driven.
+// Templates are deliberately short and parameterised — no hidden
+// branching that would shift the burden of the decision back into rules.
+function renderCategoryTemplate(
+  category: RecCategory,
+  input: SmartRecInput,
+): { headline: string; text: string } {
   const w = input.wearable;
+  const rec = w ? finite(w.recovery) : null;
+  const sleep = w ? finite(w.sleepHours) : null;
+  const strain = w ? finite(w.strain) : null;
+  const recStr = rec != null ? `${Math.round(rec)}%` : "unknown";
+  const sleepStr = sleep != null ? `${sleep.toFixed(1)}h` : null;
+  const strainStr = strain != null ? strain.toFixed(1) : null;
+
+  const baseDate = Date.parse(input.date);
+  const tomorrowEvent = input.upcomingEvents.find((e) => {
+    const parsed = Date.parse(e.dateISO);
+    if (Number.isNaN(parsed) || Number.isNaN(baseDate)) return false;
+    return Math.ceil((parsed - baseDate) / 86400000) === 1;
+  });
+  const todayEvents = input.upcomingEvents.filter((e) => e.dateISO === input.date);
+  const hasDemandSchedule = input.schedule.some((s) => s.kind === "demand");
+
+  switch (category) {
+    case "RECOVER": {
+      if (tomorrowEvent && tomorrowEvent.impactLevel === "high") {
+        return {
+          headline: "Protect tonight for tomorrow",
+          text: `Your patterns suggest you should ease off — ${tomorrowEvent.title} is tomorrow${rec != null ? ` and recovery is ${recStr}` : ""}. Wind down early, skip screens after 9pm, and push anything non-essential.`,
+        };
+      }
+      if (hasDemandSchedule) {
+        return {
+          headline: "Easy does it today",
+          text: `The model flags this as a recovery day${rec != null ? ` (recovery ${recStr})` : ""}. With a demanding schedule ahead, pace yourself — take breaks, eat well, aim for an early night.`,
+        };
+      }
+      return {
+        headline: "Recovery day",
+        text: `Your signals point to recovery${rec != null ? ` — recovery ${recStr}${sleepStr ? `, sleep ${sleepStr}` : ""}` : ""}. Light movement, good food, and an early wind-down will set you up for tomorrow.`,
+      };
+    }
+    case "PUSH": {
+      if (tomorrowEvent) {
+        return {
+          headline: "Strong day, prepare for tomorrow",
+          text: `Your patterns support a high-output day${rec != null ? ` (recovery ${recStr}${sleepStr ? `, sleep ${sleepStr}` : ""})` : ""}. Use the energy on what matters most, then carry it into ${tomorrowEvent.title} tomorrow.`,
+        };
+      }
+      if (todayEvents.length > 0) {
+        return {
+          headline: "Make it count today",
+          text: `Your signals say you can push${rec != null ? ` — recovery ${recStr}` : ""}. With ${todayEvents.map((e) => e.title).join(" and ")} on the day, focus your energy where it matters and protect tonight's wind-down.`,
+        };
+      }
+      return {
+        headline: "Good energy, open day",
+        text: `The model picks this as a push day${rec != null ? ` (recovery ${recStr}${sleepStr ? `, sleep ${sleepStr}` : ""})` : ""}. Tackle something meaningful or build a habit while the conditions are with you.`,
+      };
+    }
+    case "MAINTAIN":
+    default: {
+      if (hasDemandSchedule) {
+        return {
+          headline: "Steady through a busy day",
+          text: `Your patterns are around your personal baseline${rec != null ? ` (recovery ${recStr})` : ""}. Keep the day moving in chunks, take real breaks between demands, and don't stack more onto the evening.`,
+        };
+      }
+      if (strainStr && strain != null && strain >= 15) {
+        return {
+          headline: "Match yesterday's effort with recovery",
+          text: `You held a balanced state${rec != null ? ` (recovery ${recStr})` : ""} but strain hit ${strainStr}. Stay steady today — refuel, hydrate, and protect your sleep.`,
+        };
+      }
+      return {
+        headline: "Hold steady",
+        text: `Your signals are close to your usual${rec != null ? ` (recovery ${recStr}${sleepStr ? `, sleep ${sleepStr}` : ""})` : ""}. Keep the routine — what you do most days is what shapes the trend.`,
+      };
+    }
+  }
+}
+
+function applyRiskOverlay(
+  base: { headline: string; text: string },
+  mlRisk: SmartRecInput["mlRisk"],
+): { headline: string; text: string } {
+  if (mlRisk?.lbiRiskProb != null && mlRisk.lbiRiskProb > 0.65) {
+    const driver = mlRisk.topDrivers[0];
+    const driverHint = driver
+      ? ` Your ${driver.name.replace("_z", "")} pattern is the biggest factor.`
+      : "";
+    return {
+      headline: base.headline,
+      text: `${base.text} Heads-up: the model also flags a ${Math.round(mlRisk.lbiRiskProb * 100)}% chance of a balance dip tomorrow.${driverHint}`,
+    };
+  }
+  return base;
+}
+
+/**
+ * Pure-function fallback used only when ML cannot produce a category
+ * (no feature row exists yet — i.e. a brand-new user with no wearable
+ * and no check-in). Kept tiny on purpose: this is *not* the supported
+ * recommendation path. Any real prediction goes through ML.
+ */
+function rulesOnlyRecommendation(input: SmartRecInput): SmartRecommendation {
   const baseDate = Date.parse(input.date);
   const tomorrow = input.upcomingEvents.find((e) => {
     const parsed = Date.parse(e.dateISO);
     if (Number.isNaN(parsed) || Number.isNaN(baseDate)) return false;
-    const daysAway = Math.ceil((parsed - baseDate) / 86400000);
-    return daysAway === 1;
+    return Math.ceil((parsed - baseDate) / 86400000) === 1;
   });
-  const todayEvents = input.upcomingEvents.filter((e) => e.dateISO === input.date);
-  const hasDemandSchedule = input.schedule.some((s) => s.kind === "demand");
-  const isAthlete = input.lifeContexts.some((c) => c.toLowerCase().includes("athlete"));
-  const isParent = input.lifeContexts.some((c) => c.toLowerCase().includes("parent") || c.toLowerCase().includes("carer"));
-
   let headline = "Your day at a glance";
-  let text = "Check in when you can — even a quick one helps track your patterns.";
-
-  if (w) {
-    const rec = finite(w.recovery);
-    const sleep = finite(w.sleepHours);
-    const strain = finite(w.strain);
-    const lowRecovery = rec != null && rec < 40;
-    const highStrain = strain != null && strain >= 15;
-    const goodRecovery = rec != null && rec >= 70;
-    const goodSleep = sleep != null && sleep >= 7;
-    const recStr = rec != null ? `${Math.round(rec)}%` : "unknown";
-    const sleepStr = sleep != null ? `${sleep.toFixed(1)}h` : "unknown";
-    const strainStr = strain != null ? strain.toFixed(1) : "unknown";
-
-    if (lowRecovery && tomorrow && tomorrow.impactLevel === "high") {
-      headline = "Protect tonight for tomorrow";
-      text = `Recovery is ${recStr} and ${tomorrow.title} is tomorrow. Prioritise sleep tonight — wind down early, skip screens after 9pm, and push anything non-essential.`;
-    } else if (lowRecovery && hasDemandSchedule) {
-      headline = "Easy does it today";
-      text = `Recovery is only ${recStr} with a demanding schedule ahead. Pace yourself — take breaks between tasks, eat well, and aim for an early night.`;
-    } else if (lowRecovery) {
-      headline = "Recovery day";
-      text = `Your body's at ${recStr} — take it easy. Light movement, good food, and an early wind-down will set you up better for tomorrow.`;
-    } else if (highStrain && isAthlete) {
-      headline = "High training load";
-      text = `Strain hit ${strainStr} — solid effort. Focus on refuelling and sleep tonight. ${goodRecovery ? "Your recovery supports this, but don't stack another heavy session tomorrow." : "Recovery is moderate, so consider active rest tomorrow."}`;
-    } else if (highStrain) {
-      headline = "Big effort today";
-      text = `Your body worked hard (strain ${strainStr}). Match it with proper recovery — hydrate, eat well, and protect your sleep tonight.`;
-    } else if (goodRecovery && goodSleep && todayEvents.length === 0) {
-      headline = "Good energy, open day";
-      text = `Recovery ${recStr} and ${sleepStr} sleep — you're in a strong spot. Great day to tackle something meaningful or push a little harder.`;
-    } else if (goodRecovery && goodSleep && tomorrow) {
-      headline = "Well-rested and prepared";
-      text = `Strong recovery ahead of ${tomorrow.title}. You're in a good position — use today to prepare, stay steady, and carry this momentum.`;
-    } else if (isParent && lowRecovery) {
-      headline = "Recharge around the kids";
-      text = `Recovery is low at ${recStr}. Grab micro-rest when you can — even 10 minutes of quiet between activities makes a difference.`;
-    } else if (goodRecovery) {
-      headline = "Solid foundation today";
-      text = `Recovery is at ${recStr} with ${sleepStr} sleep. Your body is ready — make the most of the energy.`;
-    } else if (rec != null || sleep != null) {
-      headline = "Steady as you go";
-      text = `Recovery ${recStr}, sleep ${sleepStr} — middle of the road. Listen to how you feel and adjust your intensity accordingly.`;
-    }
-  } else if (todayEvents.length > 0) {
-    headline = `${todayEvents.length} event${todayEvents.length > 1 ? "s" : ""} today`;
-    text = `You have ${todayEvents.map((e) => e.title).join(" and ")} today. Pace your energy and build in buffer time between commitments.`;
-  } else if (tomorrow && tomorrow.impactLevel === "high") {
-    headline = `Prep for tomorrow`;
-    text = `${tomorrow.title} is tomorrow. Use today to prepare and wind down early — you'll feel the difference.`;
+  let text = "Complete a check-in and (if you have one) sync your wearable so the model can personalise tomorrow's recommendation.";
+  if (tomorrow && tomorrow.impactLevel === "high") {
+    headline = "Prep for tomorrow";
+    text = `${tomorrow.title} is tomorrow. Use today to prepare and wind down early — once a check-in is in, the model will tailor this further.`;
   }
-
-  // ML risk overlay: if the model predicts high risk, add a warning layer
-  const mlRisk = input.mlRisk;
-  if (mlRisk?.lbiRiskProb != null && mlRisk.lbiRiskProb > 0.65) {
-    const driver = mlRisk.topDrivers[0];
-    const driverHint = driver ? ` Your ${driver.name.replace("_z", "")} pattern is the biggest factor.` : "";
-    headline = "Tomorrow looks tough";
-    text = `Your personal model flags a ${Math.round(mlRisk.lbiRiskProb * 100)}% chance of a balance dip tomorrow.${driverHint} Prioritise recovery tonight.`;
-  } else if (mlRisk?.recoveryRiskProb != null && mlRisk.recoveryRiskProb > 0.7 && w) {
-    headline = "Recovery risk ahead";
-    text = `The model predicts ${Math.round(mlRisk.recoveryRiskProb * 100)}% chance your recovery drops tomorrow. Protect your sleep and ease off intensity.`;
-  }
-
   return {
     headline,
     text,
-    source: "local",
+    source: "rules",
+    category: null,
+    generatedAt: new Date().toISOString(),
+  };
+}
+
+function buildFromCategory(input: SmartRecInput, mlCategory: RecPrediction): SmartRecommendation {
+  const tpl = renderCategoryTemplate(mlCategory.category, input);
+  const overlaid = applyRiskOverlay(tpl, input.mlRisk ?? null);
+  return {
+    ...overlaid,
+    source: mlCategory.provenance === "ml" ? "ml" : "ml-cold-start",
+    category: mlCategory.category,
+    probs: mlCategory.probs,
+    topDrivers: mlCategory.topDrivers,
     generatedAt: new Date().toISOString(),
   };
 }
@@ -259,26 +361,41 @@ export async function generateSmartRecommendation(input: SmartRecInput): Promise
   const cached = await getCachedRecommendation(input.date);
   if (cached) return cached;
 
-  // Try the LLM first — gives more personalised advice
+  // Spine of the pipeline: the ML classifier picks the category. Without
+  // a category we cannot honestly say "ML generated the recommendation",
+  // so we only use the LLM/templates *after* the category has been set.
+  const mlCategory = input.mlCategory ?? null;
+  if (!mlCategory) {
+    const fallback = rulesOnlyRecommendation(input);
+    await cacheRecommendation(input.date, fallback);
+    return fallback;
+  }
+
+  const base = buildFromCategory(input, mlCategory);
+
+  // Optional richer phrasing: ask the LLM to rewrite, but constrain it
+  // to the ML-selected category so the recommendation choice stays
+  // ML-led. If the LLM is unavailable or off-format we keep the
+  // template output untouched — both paths show the same category.
   const context = buildPrompt(input);
-  const remote = await generateExplanation(SYSTEM_PROMPT, context);
+  const constrainedSystem = `${SYSTEM_PROMPT}\n\nIMPORTANT: The recommendation category has already been chosen by the user's personal model and is "${mlCategory.category}" (RECOVER = ease off, MAINTAIN = hold steady, PUSH = make the most of energy). Phrase your headline and advice so they clearly fit this category. Do not flip the recommendation to a different category.`;
+  const remote = await generateExplanation(constrainedSystem, context);
   if (remote) {
     const parsed = parseResponse(remote);
     if (parsed) {
-      const rec: SmartRecommendation = {
-        ...parsed,
-        source: "remote",
-        generatedAt: new Date().toISOString(),
+      const enriched: SmartRecommendation = {
+        ...base,
+        headline: parsed.headline,
+        text: parsed.text,
+        source: mlCategory.provenance === "ml" ? "ml+llm" : "ml-cold-start+llm",
       };
-      await cacheRecommendation(input.date, rec);
-      return rec;
+      await cacheRecommendation(input.date, enriched);
+      return enriched;
     }
   }
 
-  // LLM unavailable/failed — fall back to the rule-based version
-  const local = localRecommendation(input);
-  await cacheRecommendation(input.date, local);
-  return local;
+  await cacheRecommendation(input.date, base);
+  return base;
 }
 
 // Clear the cached rec — call this after new data comes in so we regenerate.

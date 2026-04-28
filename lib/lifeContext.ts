@@ -205,12 +205,30 @@ const TAG_INDEX: Record<string, TagDefinition> = Object.fromEntries(
   LIFE_CONTEXT_TAGS.map((t) => [t.id, t]),
 );
 
+// Runtime registry for user-defined tags. Populated by the check-in
+// screen from AsyncStorage on mount, so lookups (and downstream balance
+// math) treat custom tags as first-class citizens alongside the built-in
+// taxonomy.
+const CUSTOM_INDEX: Record<string, TagDefinition> = {};
+
+export function registerCustomTags(defs: TagDefinition[]) {
+  for (const d of defs) {
+    CUSTOM_INDEX[d.id] = d;
+  }
+}
+
+export function listCustomTags(): TagDefinition[] {
+  return Object.values(CUSTOM_INDEX);
+}
+
 export function getTagDef(id: string): TagDefinition | undefined {
-  return TAG_INDEX[id];
+  return TAG_INDEX[id] ?? CUSTOM_INDEX[id];
 }
 
 export function tagsByKind(kind: TagKind): TagDefinition[] {
-  return LIFE_CONTEXT_TAGS.filter((t) => t.kind === kind);
+  const builtin = LIFE_CONTEXT_TAGS.filter((t) => t.kind === kind);
+  const custom = Object.values(CUSTOM_INDEX).filter((t) => t.kind === kind);
+  return [...builtin, ...custom];
 }
 
 /**
@@ -224,7 +242,7 @@ export function tagBalance(
   let demands = 0;
   let resources = 0;
   for (const t of tags) {
-    const def = TAG_INDEX[t.id];
+    const def = getTagDef(t.id);
     if (!def) continue;
     if (def.kind === "demand") demands += 1;
     else resources += 1;

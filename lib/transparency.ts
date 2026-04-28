@@ -26,6 +26,8 @@ export function buildMissingnessSummary(record: DailyRecord | null): Missingness
   const sourceLabel = record?.wearableSource
     ? record.wearableSource === "whoop_export"
       ? "WHOOP"
+      : record.wearableSource === "whoop_demo"
+      ? "WHOOP (demo)"
       : record.wearableSource === "simulated_stub"
       ? "Manual entry"
       : record.wearableSource

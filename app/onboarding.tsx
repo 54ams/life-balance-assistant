@@ -160,7 +160,7 @@ export default function OnboardingScreen() {
             style={[
               styles.progressDot,
               {
-                backgroundColor: i <= step ? c.accent.primary : c.border.medium,
+                backgroundColor: i <= step ? c.accent.primary : "rgba(0,0,0,0.08)",
                 flex: 1,
               },
             ]}
@@ -297,8 +297,8 @@ function ValuesStep({ c, selected, toggle }: { c: typeof Colors.light; selected:
               style={[
                 styles.valueChip,
                 {
-                  backgroundColor: active ? c.accent.primary : "transparent",
-                  borderColor: active ? c.accent.primary : c.border.medium,
+                  backgroundColor: active ? c.accent.primary : "rgba(255,255,255,0.55)",
+                  borderColor: active ? c.accent.primary : c.border.heavy,
                 },
               ]}
             >
@@ -335,8 +335,8 @@ function ContextStep({ c, selected, toggle }: { c: typeof Colors.light; selected
               style={[
                 styles.valueChip,
                 {
-                  backgroundColor: active ? c.accent.primary : "transparent",
-                  borderColor: active ? c.accent.primary : c.border.medium,
+                  backgroundColor: active ? c.accent.primary : "rgba(255,255,255,0.55)",
+                  borderColor: active ? c.accent.primary : c.border.heavy,
                 },
               ]}
             >

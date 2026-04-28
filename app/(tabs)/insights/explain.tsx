@@ -9,7 +9,7 @@ import { IconSymbol } from "@/components/ui/icon-symbol";
 import { Colors } from "@/constants/Colors";
 import { Spacing, BorderRadius } from "@/constants/Spacing";
 import { useColorScheme } from "react-native";
-import { computeBaseline } from "@/lib/baseline";
+import { computeBaseline, computeBaselineMeta, type BaselineMeta } from "@/lib/baseline";
 import { calculateLBI } from "@/lib/lbi";
 import { buildDayExplain } from "@/lib/explain";
 import { buildCounterfactuals } from "@/lib/counterfactual";
@@ -55,6 +55,7 @@ export default function ExplainScoreScreen() {
   const [plan, setPlan] = useState<StoredPlan | null>(null);
   const [subscores, setSubscores] = useState<{ recovery: number; sleep: number; mood: number; stress: number } | null>(null);
   const [baseline, setBaseline] = useState<number | null>(null);
+  const [baselineMeta, setBaselineMeta] = useState<BaselineMeta | null>(null);
   const [lbi, setLbi] = useState<number | null>(null);
   const [dayExplain, setDayExplain] = useState<ReturnType<typeof buildDayExplain> | null>(null);
   const [counterfactuals, setCounterfactuals] = useState<any[]>([]);
@@ -67,6 +68,7 @@ export default function ExplainScoreScreen() {
         const day = await getDay(date);
         setCounterfactuals(buildCounterfactuals({ date, wearable: day?.wearable ?? null, checkIn: day?.checkIn ?? null }));
         const b = await computeBaseline(7);
+        const meta = await computeBaselineMeta(7);
         const p = await loadPlan(date);
         let computedLbi = p?.lbi;
         let computedSub = null as any;
@@ -78,6 +80,7 @@ export default function ExplainScoreScreen() {
         if (!alive) return;
         setPlan(p);
         setBaseline(b);
+        setBaselineMeta(meta);
         setLbi(computedLbi ?? null);
         setSubscores(computedSub);
 
@@ -124,6 +127,23 @@ export default function ExplainScoreScreen() {
           <Text style={{ color: c.text.secondary, fontSize: 14, marginTop: 4 }}>Right on your baseline</Text>
         ) : (
           <Text style={{ color: c.text.secondary, fontSize: 14, marginTop: 4 }}>Baseline not yet available</Text>
+        )}
+        {baselineMeta && baselineMeta.status === "calibrating" && (
+          <Text
+            style={{
+              color: c.text.tertiary,
+              fontSize: 12,
+              fontStyle: "italic",
+              textAlign: "center",
+              marginTop: 8,
+              lineHeight: 17,
+              paddingHorizontal: 8,
+            }}
+          >
+            Calibrating · day {Math.min(baselineMeta.daysUsed, baselineMeta.targetDays)} of {baselineMeta.targetDays}.
+            The score reads against your own pattern, so it sharpens as a few
+            more days roll in.
+          </Text>
         )}
       </GlassCard>
 

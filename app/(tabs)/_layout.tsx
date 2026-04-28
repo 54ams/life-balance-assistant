@@ -6,6 +6,7 @@ import * as Haptics from "expo-haptics";
 
 import { FloatingTabBar } from "@/components/ui/FloatingTabBar";
 import { IconSymbol } from "@/components/ui/icon-symbol";
+import { TourTargetProvider } from "@/components/ui/TourOverlay";
 
 const SWIPE_ORDER = ["index", "checkin", "insights", "profile"] as const;
 const SCREEN_WIDTH = Dimensions.get("window").width;
@@ -98,6 +99,7 @@ export default function TabLayout() {
   );
 
   return (
+    <TourTargetProvider>
     <GestureDetector gesture={pan}>
       <Animated.View
         style={[
@@ -160,5 +162,6 @@ export default function TabLayout() {
         </Tabs>
       </Animated.View>
     </GestureDetector>
+    </TourTargetProvider>
   );
 }

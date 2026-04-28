@@ -8,6 +8,13 @@ import * as Haptics from "expo-haptics";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { Colors } from "@/constants/Colors";
 import { Spacing } from "@/constants/Spacing";
+import { TourTarget } from "@/components/ui/TourOverlay";
+
+const TOUR_TAB_TARGET: Record<string, "checkin_tab" | "insights_tab" | "profile_tab"> = {
+  checkin: "checkin_tab",
+  insights: "insights_tab",
+  profile: "profile_tab",
+};
 
 // Only show the four main tabs — sub-screens like calendar and history
 // are navigated to from within these, not from the bar itself.
@@ -60,21 +67,31 @@ export function FloatingTabBar({ state, descriptors, navigation }: BottomTabBarP
               // Re-tapping the active tab pops its nested stack back to the
               // root screen (iOS convention). Prevents dead-ends where a user
               // on a sub-page can't find their way back to the tab root.
-              navigation.dispatch({
-                ...CommonActions.navigate({ name: route.name }),
-                target: state.key,
-              });
-              // Fire popToTop on the nested stack (if any).
-              const nested = state.routes[index].state;
-              if (nested && nested.key) {
-                navigation.dispatch({ type: "POP_TO_TOP", target: nested.key } as any);
+              //
+              // Read fresh navigation state at press time — the props-level
+              // `state.routes[index].state` can be stale if the nested stack
+              // mounted after the bar last rendered, leaving the previous
+              // POP_TO_TOP a no-op. `getState()` gives us the current tree.
+              const liveRoot: any = (navigation as any).getState?.() ?? state;
+              const liveRoute = liveRoot?.routes?.[index];
+              const nestedKey = liveRoute?.state?.key;
+              if (nestedKey) {
+                navigation.dispatch({ type: "POP_TO_TOP", target: nestedKey } as any);
+              } else {
+                // No nested key yet — fall back to a navigate so at least the
+                // root screen of the tab regains focus.
+                navigation.dispatch({
+                  ...CommonActions.navigate({ name: route.name }),
+                  target: state.key,
+                });
               }
             } else {
               navigation.navigate(route.name);
             }
           };
 
-          return (
+          const tourTargetId = TOUR_TAB_TARGET[route.name];
+          const tabContent = (
             <Pressable
               key={route.key}
               accessibilityRole="button"
@@ -118,6 +135,14 @@ export function FloatingTabBar({ state, descriptors, navigation }: BottomTabBarP
               </Text>
             </Pressable>
           );
+          if (tourTargetId) {
+            return (
+              <TourTarget key={route.key} id={tourTargetId} style={styles.tab}>
+                {tabContent}
+              </TourTarget>
+            );
+          }
+          return tabContent;
         })}
       </View>
     </View>

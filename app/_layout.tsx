@@ -4,7 +4,6 @@ import "react-native-gesture-handler";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { View } from "react-native";
 import * as SplashScreen from "expo-splash-screen";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   useFonts,
   CormorantGaramond_500Medium,
@@ -25,36 +24,12 @@ import { hasSeenWelcome } from "@/app/welcome";
 import { getFirstRunDone } from "@/lib/demo";
 import { useWhoopAutoSync } from "@/hooks/useWhoopAutoSync";
 
-// Ethics compliance: every cold launch (including each new QR-scan session
-// in Expo Go) wipes all local state so each participant starts from a clean
-// welcome screen with no prior participant's data. The promise is cached at
-// module scope so Fast Refresh during a live dev session doesn't re-wipe on
-// every file save — only a fresh process (which is what a new QR scan
-// creates) resets this.
-let ethicsResetPromise: Promise<void> | null = null;
-function ensureEthicsReset(): Promise<void> {
-  if (ethicsResetPromise) return ethicsResetPromise;
-  ethicsResetPromise = (async () => {
-    try {
-      await AsyncStorage.clear();
-    } catch {
-      // If the storage clear fails we still want the app to render — the
-      // gate logic below will fall back to "welcome" on any read error.
-    }
-  })();
-  return ethicsResetPromise;
-}
-
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
 type GateState = "loading" | "welcome" | "onboarding" | "first-run" | "ready";
 
 export default function RootLayout() {
   const [gate, setGate] = useState<GateState>("loading");
-  // Only arm the WHOOP auto-sync once the user has actually completed the
-  // gates. Before that, the ethics wipe has just cleared WHOOP session
-  // tokens, so there's nothing meaningful to sync and we avoid a racy read
-  // of AsyncStorage while the wipe is in flight.
   const autoSyncEnabled = gate === "ready";
   useWhoopAutoSync(autoSyncEnabled);
 
@@ -73,10 +48,6 @@ export default function RootLayout() {
     setupNotificationDeepLink();
     (async () => {
       try {
-        // Wait for the ethics wipe before running retention — otherwise the
-        // purge spins up briefly on stale data, which would waste cycles and
-        // could race with the wipe.
-        await ensureEthicsReset();
         const days = await getRetentionDays();
         if (days > 0) await runRetentionPurgeNow();
       } catch (err) {
@@ -88,7 +59,6 @@ export default function RootLayout() {
   useEffect(() => {
     (async () => {
       try {
-        await ensureEthicsReset();
         const [welcomed, consent, firstRun] = await Promise.all([
           hasSeenWelcome(),
           getAppConsent(),
