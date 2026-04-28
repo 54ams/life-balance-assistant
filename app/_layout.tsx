@@ -17,6 +17,7 @@ import {
   Inter_600SemiBold,
   Inter_700Bold,
 } from "@expo-google-fonts/inter";
+import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { AppErrorBoundary } from "@/components/AppErrorBoundary";
 import { getRetentionDays, runRetentionPurgeNow, getAppConsent } from "@/lib/privacy";
 import { setupNotificationDeepLink } from "@/lib/notifications";
@@ -27,6 +28,16 @@ import { useWhoopAutoSync } from "@/hooks/useWhoopAutoSync";
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
 type GateState = "loading" | "welcome" | "onboarding" | "first-run" | "ready";
+
+// Routes that must bypass the onboarding/welcome gate. The WHOOP OAuth
+// callback has to be reachable directly via URL so the WHOOP redirect can
+// complete the token exchange — otherwise the user gets bounced to /welcome
+// the moment they land on /whoop-auth?code=… and the code is lost.
+function isUngatedWebRoute(): boolean {
+  if (typeof window === "undefined") return false;
+  const path = window.location?.pathname || "";
+  return path === "/whoop-auth" || path.startsWith("/whoop-auth/");
+}
 
 export default function RootLayout() {
   const [gate, setGate] = useState<GateState>("loading");
@@ -42,6 +53,9 @@ export default function RootLayout() {
     Inter_500Medium,
     Inter_600SemiBold,
     Inter_700Bold,
+    // Pre-load icon font so MaterialIcons renders glyphs (not "?" boxes) on
+    // first paint on web. Native auto-loads via the Expo asset registry.
+    ...MaterialIcons.font,
   });
 
   useEffect(() => {
@@ -59,6 +73,13 @@ export default function RootLayout() {
   useEffect(() => {
     (async () => {
       try {
+        // The WHOOP OAuth callback must run regardless of onboarding state,
+        // otherwise the redirect from WHOOP loses the ?code= and the user
+        // gets bounced to /welcome on web.
+        if (isUngatedWebRoute()) {
+          setGate("ready");
+          return;
+        }
         const [welcomed, consent, firstRun] = await Promise.all([
           hasSeenWelcome(),
           getAppConsent(),
@@ -83,7 +104,8 @@ export default function RootLayout() {
     return <View style={{ flex: 1, backgroundColor: "#EFE8D9" }} />;
   }
 
-  const initialRoute = gate === "ready" ? "(tabs)" : gate;
+  const onWhoopCallback = isUngatedWebRoute();
+  const initialRoute = onWhoopCallback ? "whoop-auth" : gate === "ready" ? "(tabs)" : gate;
 
   return (
     <AppErrorBoundary>
@@ -103,9 +125,10 @@ export default function RootLayout() {
           <Stack.Screen name="welcome" />
           <Stack.Screen name="onboarding" />
           <Stack.Screen name="first-run" />
+          <Stack.Screen name="whoop-auth" />
           <Stack.Screen name="(tabs)" />
         </Stack>
-        {gate !== "ready" && <Redirect href={`/${gate}` as any} />}
+        {gate !== "ready" && !onWhoopCallback && <Redirect href={`/${gate}` as any} />}
       </GestureHandlerRootView>
     </AppErrorBoundary>
   );

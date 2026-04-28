@@ -1,7 +1,7 @@
 import * as WebBrowser from "expo-web-browser";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { useEffect, useMemo, useState } from "react";
-import { Alert, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { Alert, Platform, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { router } from "expo-router";
 import { hasCompletedTour, resetTour } from "@/lib/tour";
 
@@ -101,7 +101,20 @@ export default function WhoopScreen() {
     })();
   }, []);
 
-  const redirectUri = useMemo(() => "lifebalanceapp://whoop-auth", []);
+  // Platform-aware OAuth redirect URI:
+  //  - native: app deep link handled by expo-web-browser
+  //  - web: a top-level page in the deployed origin that handles ?code=...
+  // The web URI must be registered with WHOOP exactly as it appears here
+  // (e.g. https://life-balance-assistant.vercel.app/whoop-auth).
+  const redirectUri = useMemo(() => {
+    if (Platform.OS === "web") {
+      if (typeof window !== "undefined" && window.location?.origin) {
+        return `${window.location.origin}/whoop-auth`;
+      }
+      return "https://life-balance-assistant.vercel.app/whoop-auth";
+    }
+    return "lifebalanceapp://whoop-auth";
+  }, []);
   const ready = !!participantId;
 
   const grantConsentAndConnect = async () => {
@@ -135,6 +148,24 @@ export default function WhoopScreen() {
       process.env.EXPO_PUBLIC_WHOOP_CLIENT_ID
     )}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${encodeURIComponent(WHOOP_SCOPES)}&state=${encodeURIComponent(state)}`;
 
+    // On web we cannot use openAuthSessionAsync (cross-origin popup is blocked
+    // and WHOOP enforces strict redirect_uri matching). Do a full-page nav
+    // and let /whoop-auth resume via the persisted state below.
+    if (Platform.OS === "web") {
+      try {
+        if (typeof window !== "undefined") {
+          sessionStorage.setItem("whoop_oauth_state", state);
+          sessionStorage.setItem("whoop_oauth_participant", participantId ?? "");
+          console.log("[WHOOP] starting OAuth (web)", { redirectUri });
+          window.location.assign(authUrl);
+        }
+      } catch (err: any) {
+        Alert.alert("WHOOP", `Failed to start auth: ${err?.message ?? "unknown"}`);
+      }
+      return;
+    }
+
+    console.log("[WHOOP] starting OAuth (native)", { redirectUri });
     const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUri);
     if (result.type !== "success" || !result.url) {
       Alert.alert("WHOOP", "Authentication was cancelled or failed.");

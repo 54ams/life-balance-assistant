@@ -7,7 +7,7 @@ import { deleteTokens, exchangeCode, getWhoopDay, refreshWhoopSession } from "./
 const MAX_BODY_BYTES = 64 * 1024; // 64KB
 const ALLOWED_ORIGINS = (
   process.env.CORS_ORIGINS ||
-  "http://localhost:8081,http://localhost:19006,http://127.0.0.1:8081,http://127.0.0.1:19006,exp://127.0.0.1:8081"
+  "http://localhost:8081,http://localhost:19006,http://127.0.0.1:8081,http://127.0.0.1:19006,exp://127.0.0.1:8081,https://life-balance-assistant.vercel.app"
 )
   .split(",")
   .map((x) => x.trim())
