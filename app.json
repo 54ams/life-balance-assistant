@@ -30,8 +30,16 @@
       "predictiveBackGestureEnabled": false
     },
     "web": {
+      "bundler": "metro",
       "output": "static",
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./assets/images/favicon.png",
+      "name": "Life Balance Assistant",
+      "shortName": "LBA",
+      "lang": "en",
+      "themeColor": "#EFE8D9",
+      "backgroundColor": "#EFE8D9",
+      "display": "standalone",
+      "orientation": "portrait"
     },
     "plugins": [
       "expo-router",

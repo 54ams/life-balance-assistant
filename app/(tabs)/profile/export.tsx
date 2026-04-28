@@ -7,7 +7,7 @@ import * as Clipboard from "expo-clipboard";
 import * as FileSystem from "expo-file-system";
 import { useFocusEffect } from "expo-router";
 import React, { useCallback, useState } from "react";
-import { Alert, Pressable, Share, StyleSheet, Text, View } from "react-native";
+import { Alert, Platform, Pressable, Share, StyleSheet, Text, View } from "react-native";
 
 import { Screen } from "@/components/Screen";
 import { GlassCard } from "@/components/ui/GlassCard";
@@ -241,6 +241,29 @@ export default function ExportScreen() {
 
   const onSaveReport = useCallback(async () => {
     try {
+      if (Platform.OS === "web") {
+        // Browser path: trigger two file downloads via Blob URLs since
+        // expo-file-system has no real filesystem on web.
+        const jsonData = await exportPlans(days);
+        const downloads: Array<[string, string, string]> = [
+          [report, `life-balance-report-${days}d.txt`, "text/plain"],
+          [jsonData, `research-data-${days}d.json`, "application/json"],
+        ];
+        for (const [content, filename, mime] of downloads) {
+          const blob = new Blob([content], { type: mime });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = filename;
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          URL.revokeObjectURL(url);
+        }
+        Alert.alert("Saved", "Report and raw data downloaded to your browser's Downloads folder.");
+        return;
+      }
+
       const exportDir = `${FileSystem.documentDirectory ?? FileSystem.cacheDirectory}life-balance-exports`;
       await FileSystem.makeDirectoryAsync(exportDir, { intermediates: true });
       const reportPath = `${exportDir}/life-balance-report-${days}d.txt`;

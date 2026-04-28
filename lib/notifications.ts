@@ -5,18 +5,23 @@ import { router } from "expo-router";
 const DAILY_REMINDER_ID = "daily-checkin-reminder";
 const EMOTION_REMINDER_ID = "emotion-quicklog";
 
-Notifications.setNotificationHandler({
-  handleNotification: async () =>
-    ({
-      shouldShowAlert: true,
-      shouldPlaySound: false,
-      shouldSetBadge: false,
-    } as Notifications.NotificationBehavior),
-});
+// Web has no native notifications API surface here — skip handler registration
+// to avoid runtime warnings when the PWA boots in a browser.
+if (Platform.OS !== "web") {
+  Notifications.setNotificationHandler({
+    handleNotification: async () =>
+      ({
+        shouldShowAlert: true,
+        shouldPlaySound: false,
+        shouldSetBadge: false,
+      } as Notifications.NotificationBehavior),
+  });
+}
 
 // Deep-link: tapping a notification opens the check-in screen.
 let _listenerSetUp = false;
 export function setupNotificationDeepLink() {
+  if (Platform.OS === "web") return;
   if (_listenerSetUp) return;
   _listenerSetUp = true;
   Notifications.addNotificationResponseReceivedListener((response) => {
@@ -31,6 +36,7 @@ export function setupNotificationDeepLink() {
 }
 
 export async function ensureNotificationPermissions(): Promise<boolean> {
+  if (Platform.OS === "web") return false;
   const current = await Notifications.getPermissionsAsync();
 
   const granted =
@@ -49,6 +55,7 @@ export async function ensureNotificationPermissions(): Promise<boolean> {
 }
 
 export async function scheduleDailyCheckInReminder(hour: number, minute: number) {
+  if (Platform.OS === "web") return;
   await Notifications.cancelScheduledNotificationAsync(DAILY_REMINDER_ID).catch(() => {});
 
   await Notifications.scheduleNotificationAsync({
@@ -68,6 +75,7 @@ export async function scheduleDailyCheckInReminder(hour: number, minute: number)
 }
 
 export async function scheduleEveningEmotionNudge(hour = 20, minute = 0) {
+  if (Platform.OS === "web") return;
   await Notifications.cancelScheduledNotificationAsync(EMOTION_REMINDER_ID).catch(() => {});
   await Notifications.scheduleNotificationAsync({
     identifier: EMOTION_REMINDER_ID,
@@ -81,10 +89,12 @@ export async function scheduleEveningEmotionNudge(hour = 20, minute = 0) {
 }
 
 export async function cancelEveningEmotionNudge() {
+  if (Platform.OS === "web") return;
   await Notifications.cancelScheduledNotificationAsync(EMOTION_REMINDER_ID).catch(() => {});
 }
 
 export async function sendBalanceDropNow(message: string) {
+  if (Platform.OS === "web") return;
   await Notifications.scheduleNotificationAsync({
     content: {
       title: "Balance drop detected",
@@ -96,6 +106,7 @@ export async function sendBalanceDropNow(message: string) {
 }
 
 export async function sendTestNotificationNow() {
+  if (Platform.OS === "web") return;
   await Notifications.scheduleNotificationAsync({
     content: { title: "Test notification", body: "If you see this, notifications work." },
     trigger: null,

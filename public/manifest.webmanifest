@@ -1,0 +1,25 @@
+{
+  "name": "Life Balance Assistant",
+  "short_name": "LBA",
+  "description": "Track daily check-ins, sleep, and balance trends.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#EFE8D9",
+  "background_color": "#EFE8D9",
+  "lang": "en",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "48x48 32x32 16x16",
+      "type": "image/x-icon"
+    },
+    {
+      "src": "/icon.png",
+      "sizes": "1024x1024",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

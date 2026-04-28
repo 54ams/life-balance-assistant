@@ -243,6 +243,59 @@ Scan the QR code with **Expo Go** (Android) or the Camera app (iPhone, when usin
 | Privacy notice + consent | Profile → Settings → Consent |
 | Ethics + safety resources | Profile → Settings → Help |
 
+## Web / PWA deployment (browser access for markers)
+
+The Expo app can also be exported as a static web/PWA build so assessors can open it via a normal URL — Expo Go and EAS native builds remain the primary route and are unaffected.
+
+### Local web testing
+
+```bash
+# 1. Set the deployed backend URL so the web build talks to Render
+echo "EXPO_PUBLIC_BACKEND_URL=https://life-balance-assistant.onrender.com" >> .env
+
+# 2. Run the dev server in browser mode
+npx expo start --web
+```
+
+### Production export
+
+```bash
+npx expo export --platform web
+# Output: ./dist (static HTML/JS/CSS — ready to host)
+```
+
+You can preview the export locally with any static server, e.g. `npx serve dist`.
+
+### Vercel deployment
+
+A [vercel.json](/Users/ami/Projects/life-balance-app/vercel.json) is included with SPA rewrites so deep links (e.g. `/checkin`) resolve to `index.html`.
+
+Vercel project settings:
+- Framework preset: **Other**
+- Build command: `npx expo export --platform web`
+- Output directory: `dist`
+- Install command: `npm install`
+- Environment variables (Production + Preview):
+  - `EXPO_PUBLIC_BACKEND_URL=https://life-balance-assistant.onrender.com`
+  - `EXPO_PUBLIC_WHOOP_CLIENT_ID=` *(optional — only if testing WHOOP via web)*
+
+After the first deploy, add the Vercel domain to the backend's `CORS_ORIGINS` env on Render (e.g. `CORS_ORIGINS=https://life-balance-app.vercel.app`).
+
+### Testing the PWA on your phone
+
+1. Open the deployed Vercel URL in mobile Safari (iOS) or Chrome (Android).
+2. iOS: Share → **Add to Home Screen**. Android: menu → **Install app**.
+3. Launch from the home-screen icon — it runs full-screen using the manifest from `app.json` (`web.name`, `web.themeColor`, `display: standalone`).
+
+### Web-build limitations (note for dissertation)
+
+- **Local notifications** are disabled on web (`expo-notifications` has no browser parity here). Daily reminders work on the native build only.
+- **File export** uses a browser blob download instead of `expo-file-system`. Same data, different delivery.
+- **WHOOP OAuth** on web requires the deployed origin to be added as an allowed redirect URI in the WHOOP developer portal. The native build is the validated path; web WHOOP is best-effort.
+- **Haptics, blur effects, native gestures** degrade gracefully or no-op in browsers.
+
+Mobile/Expo Go remains the primary delivery channel and is unchanged by these additions.
+
 ## Dissertation docs
 
 - `docs/DataFlow.md` — end-to-end data flow diagram
