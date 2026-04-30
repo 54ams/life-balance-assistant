@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { Screen } from "@/components/Screen";
 import { GlassCard } from "@/components/ui/GlassCard";
@@ -7,6 +7,7 @@ import { Colors } from "@/constants/Colors";
 import { useColorScheme } from "react-native";
 import { clearAll, clearAllPlans } from "@/lib/storage";
 import { clearSusSubmissions } from "@/lib/evaluation/storage";
+import { confirmDestructive, notify } from "@/lib/util/confirm";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   APP_CONSENT_KEY,
@@ -47,88 +48,84 @@ export default function DataSettings() {
     })();
   }, []);
 
-  const onReset = () => {
-    Alert.alert(
+  const onReset = async () => {
+    const ok = await confirmDestructive(
       "Clear saved plans?",
       "Removes every generated plan from this device. Check-ins and wearable data stay intact. This cannot be undone.",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Clear plans",
-          style: "destructive",
-          onPress: async () => {
-            setBusy(true);
-            try {
-              await clearAllPlans();
-              Alert.alert("Reset", "All stored plans were cleared.");
-            } finally {
-              setBusy(false);
-            }
-          },
-        },
-      ],
+      "Clear plans",
     );
+    if (!ok) return;
+    setBusy(true);
+    try {
+      await clearAllPlans();
+      notify("Plans cleared", "All stored plans were removed from this device.");
+    } finally {
+      setBusy(false);
+    }
   };
 
-  const onDeleteAll = () => {
-    Alert.alert(
-      "Delete everything?",
-      "Wipes all check-ins, wearable data, plans, SUS submissions, WHOOP session, and settings from this device. This cannot be undone.",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete all",
-          style: "destructive",
-          onPress: async () => {
-            setBusy(true);
-            try {
-              await clearAll();
-              await clearSusSubmissions();
-              // Also disconnect WHOOP session on server if present
-              const session = await AsyncStorage.getItem("whoop_session_token");
-              const backendUrl = getBackendBaseUrl();
-              if (session && backendUrl) {
-                try {
-                  await fetch(`${backendUrl}/whoop/session`, {
-                    method: "DELETE",
-                    headers: { Authorization: `Bearer ${session}` },
-                  });
-                } catch {}
-              }
-              await AsyncStorage.multiRemove([
-                "whoop_session_token",
-                "whoop_participant_id",
-                "whoop_last_sync",
-                "life_balance_insights_selected_date_v1",
-                "demo_enabled_v1",
-                "demo_override_checkin_v1",
-                "demo_override_wearable_v1",
-                APP_CONSENT_KEY,
-                WHOOP_CONSENT_KEY,
-                RETENTION_DAYS_KEY,
-                EXPORT_ANONYMIZE_ID_KEY,
-                EXPORT_REDACT_TEXT_KEY,
-                LLM_ENABLED_KEY,
-                NUDGE_ENABLED_KEY,
-                STREAKS_ENABLED_KEY,
-              ]);
-              Alert.alert("Deleted", "All local data (check-ins, wearables, plans, SUS) was removed from this device.");
-            } finally {
-              setBusy(false);
-            }
-          },
-        },
-      ],
+  const onDeleteAll = async () => {
+    const ok = await confirmDestructive(
+      "Are you sure you want to delete all local data?",
+      "This cannot be undone. Wipes all check-ins, wearable data, plans, SUS submissions, WHOOP session, and settings from this device.",
+      "Delete all",
     );
+    if (!ok) return;
+    setBusy(true);
+    try {
+      await clearAll();
+      await clearSusSubmissions();
+      // Also disconnect WHOOP session on server if present
+      const session = await AsyncStorage.getItem("whoop_session_token");
+      const backendUrl = getBackendBaseUrl();
+      if (session && backendUrl) {
+        try {
+          await fetch(`${backendUrl}/whoop/session`, {
+            method: "DELETE",
+            headers: { Authorization: `Bearer ${session}` },
+          });
+        } catch {}
+      }
+      await AsyncStorage.multiRemove([
+        "whoop_session_token",
+        "whoop_participant_id",
+        "whoop_last_sync",
+        "life_balance_insights_selected_date_v1",
+        "demo_enabled_v1",
+        "demo_override_checkin_v1",
+        "demo_override_wearable_v1",
+        APP_CONSENT_KEY,
+        WHOOP_CONSENT_KEY,
+        RETENTION_DAYS_KEY,
+        EXPORT_ANONYMIZE_ID_KEY,
+        EXPORT_REDACT_TEXT_KEY,
+        LLM_ENABLED_KEY,
+        NUDGE_ENABLED_KEY,
+        STREAKS_ENABLED_KEY,
+      ]);
+      // Reset local UI state so the screen reflects the wipe immediately.
+      setRetentionDaysState(90);
+      setRedactText(true);
+      setAnonymizeId(true);
+      setNudgeEnabled(true);
+      setStreakEnabled(true);
+      setLlmEnabled(true);
+      notify(
+        "All local data deleted",
+        "Check-ins, wearables, plans, and SUS submissions were removed from this device.",
+      );
+    } finally {
+      setBusy(false);
+    }
   };
 
   const onPurgeNow = async () => {
     setBusy(true);
     try {
       const result = await runRetentionPurgeNow();
-      Alert.alert(
+      notify(
         "Purge complete",
-        `Removed ${result.recordsRemoved} records, ${result.plansRemoved} plans, ${result.futureEventsRemoved} future events, ${result.susRemoved} SUS entries.`
+        `Removed ${result.recordsRemoved} records, ${result.plansRemoved} plans, ${result.futureEventsRemoved} future events, ${result.susRemoved} SUS entries.`,
       );
     } finally {
       setBusy(false);

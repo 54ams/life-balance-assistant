@@ -61,6 +61,67 @@ const QUADRANT_LABEL = (valence: number, arousal: number) => {
   return "Unpleasant · low";
 };
 
+// Build a short, plain-English read of the note + check-in signals so the
+// user always gets visible feedback after pressing "Ask for a deeper read",
+// regardless of whether the model returned tag matches.
+function composeDeeperReadSummary(args: {
+  source: "llm" | "local" | "safety";
+  sentiment: number;
+  suggestionCount: number;
+  valence: number;
+  arousal: number;
+  regulation: EmotionalDiaryEntry["regulation"];
+  wearable: WearableMetrics | null;
+}): string {
+  const { source, sentiment, suggestionCount, valence, arousal, regulation, wearable } = args;
+  if (source === "safety") {
+    return "Your note touched on something heavy. Deeper read paused — the support resources card has people you can talk to.";
+  }
+  const parts: string[] = [];
+  // Emotional tone
+  const tone =
+    sentiment > 0.25
+      ? "leaning positive"
+      : sentiment < -0.25
+        ? "leaning heavy"
+        : "fairly mixed";
+  const quadrant = QUADRANT_LABEL(valence, arousal).toLowerCase();
+  parts.push(`Your note reads ${tone}, and you placed yourself in the ${quadrant} quadrant.`);
+  // Body context, if available.
+  if (wearable?.recovery != null) {
+    if (wearable.recovery >= 67) {
+      parts.push(`Body's in a strong recovery zone today (${wearable.recovery}%) — there's headroom for more demand.`);
+    } else if (wearable.recovery <= 33) {
+      parts.push(`Body's running on low recovery (${wearable.recovery}%) — softer pacing is likely the move.`);
+    } else {
+      parts.push(`Body recovery sits at ${wearable.recovery}% — middle ground, neither push nor pause.`);
+    }
+  }
+  // Regulation
+  if (regulation === "overwhelmed") {
+    parts.push("You marked this as overwhelmed, so the priority is dialling demands down before adding anything new.");
+  } else if (regulation === "manageable") {
+    parts.push("It's manageable — small adjustments now keep it that way.");
+  } else if (regulation === "handled") {
+    parts.push("You're handling it well — worth noticing what's working.");
+  }
+  // Suggestion outcome
+  if (suggestionCount > 0) {
+    parts.push(
+      source === "llm"
+        ? "The model surfaced a few context tags below — accept any that fit."
+        : "The on-device matcher surfaced a few context tags below — accept any that fit.",
+    );
+  } else {
+    parts.push(
+      source === "llm"
+        ? "Nothing specific jumped out as a tag this time. The note still counts — it's saved with the check-in."
+        : "No matches from the on-device matcher. The note still counts — it's saved with the check-in.",
+    );
+  }
+  return parts.join(" ");
+}
+
 export default function DailyCheckInScreen() {
   const scheme = useColorScheme();
   const isDark = scheme === "dark";
@@ -99,6 +160,11 @@ export default function DailyCheckInScreen() {
   const [llmSuggestions, setLlmSuggestions] = useState<NoteSuggestion[]>([]);
   const [llmLoading, setLlmLoading] = useState(false);
   const [llmSource, setLlmSource] = useState<"llm" | "local" | "safety" | null>(null);
+  // A short human-readable summary of the deeper read so the user always
+  // sees a visible response after pressing the button — even when no tag
+  // suggestions came back.
+  const [llmSummary, setLlmSummary] = useState<string | null>(null);
+  const [llmError, setLlmError] = useState<string | null>(null);
 
   // Load any existing check-in for today (editing case).
   useEffect(() => {
@@ -153,9 +219,14 @@ export default function DailyCheckInScreen() {
     })();
   }, [date]);
 
-  // Keep local suggestions fresh as the note changes.
+  // Keep local suggestions fresh as the note changes. Also clear any stale
+  // deeper-read summary so the user doesn't see a read that doesn't match
+  // their current note.
   useEffect(() => {
     setLocalSuggestions(localMatch(note));
+    setLlmSummary(null);
+    setLlmError(null);
+    setLlmSource(null);
   }, [note]);
 
   const animateStep = (next: number) => {
@@ -202,12 +273,27 @@ export default function DailyCheckInScreen() {
   const runDeeperRead = async () => {
     if (!note.trim()) return;
     setLlmLoading(true);
+    setLlmError(null);
     try {
       const result = await llmDeeperRead(note);
       // Keep only suggestions the user hasn't already accepted.
       const accepted = new Set(tags.map((t) => t.id));
-      setLlmSuggestions(result.suggestions.filter((s) => !accepted.has(s.tagId)));
+      const fresh = result.suggestions.filter((s) => !accepted.has(s.tagId));
+      setLlmSuggestions(fresh);
       setLlmSource(result.source);
+      setLlmSummary(
+        composeDeeperReadSummary({
+          source: result.source,
+          sentiment: result.sentiment,
+          suggestionCount: fresh.length,
+          valence,
+          arousal,
+          regulation,
+          wearable,
+        }),
+      );
+    } catch (e: any) {
+      setLlmError("Couldn't generate a deeper read just now. Try again in a moment.");
     } finally {
       setLlmLoading(false);
     }
@@ -829,6 +915,38 @@ export default function DailyCheckInScreen() {
                   Read locally on your device. Suggestions below are from the
                   on-device matcher — no network needed.
                 </Text>
+              ) : null}
+              {llmError ? (
+                <Text style={{ color: c.danger, fontSize: 12, marginTop: 8 }}>
+                  {llmError}
+                </Text>
+              ) : null}
+              {llmSummary ? (
+                <View
+                  style={{
+                    marginTop: Spacing.sm,
+                    padding: 12,
+                    borderRadius: BorderRadius.lg,
+                    backgroundColor: "rgba(107,93,211,0.06)",
+                    borderWidth: 1,
+                    borderColor: "rgba(107,93,211,0.18)",
+                  }}
+                >
+                  <Text
+                    style={{
+                      color: c.text.tertiary,
+                      fontSize: 10,
+                      fontWeight: "800",
+                      letterSpacing: 1.2,
+                      marginBottom: 6,
+                    }}
+                  >
+                    DEEPER READ
+                  </Text>
+                  <Text style={{ color: c.text.primary, fontSize: 13, lineHeight: 19 }}>
+                    {llmSummary}
+                  </Text>
+                </View>
               ) : null}
             </GlassCard>
 

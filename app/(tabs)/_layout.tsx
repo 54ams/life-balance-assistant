@@ -159,6 +159,7 @@ export default function TabLayout() {
           <Tabs.Screen name="checkins" options={{ href: null }} />
           <Tabs.Screen name="calendar" options={{ href: null }} />
           <Tabs.Screen name="history" options={{ href: null }} />
+          <Tabs.Screen name="day" options={{ href: null }} />
         </Tabs>
       </Animated.View>
     </GestureDetector>
