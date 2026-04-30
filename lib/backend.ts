@@ -51,33 +51,38 @@ export function hasBackendBaseUrl(): boolean {
 }
 
 /**
- * Canonical web redirect URI for WHOOP OAuth.
+ * Canonical web redirect URI for WHOOP OAuth — single source of truth.
  *
  * WHOOP requires an EXACT match against the redirect URIs pre-registered
  * in the WHOOP developer dashboard — any other origin (Vercel preview
- * deploys at *.vercel.app, custom domains, localhost ports, alternative
+ * deploys at *.vercel.app, localhost:8081, custom domains, alternative
  * canonical hosts) will be rejected with `redirect_uri mismatch`.
  *
- * We therefore hard-code the production canonical origin and use it for
- * BOTH the initial authorize URL and the subsequent token exchange.
- * Both call sites MUST agree, since WHOOP also enforces equality between
- * the two values during /oauth/token.
+ * This value is used for BOTH the initial /oauth/oauth2/auth call and
+ * the subsequent /oauth/oauth2/token exchange — WHOOP enforces equality
+ * between the two, and the backend forwards whichever value the client
+ * sends. Both call sites import this helper to prevent drift.
  *
- * In development we fall back to the current `window.location.origin`
- * so `npx expo start --web` (localhost:8081) still works after the
- * dev origin is added to the WHOOP dashboard.
+ * IMPORTANT: do NOT derive this from `window.location.origin` or any
+ * runtime hostname (localhost, *.vercel.app preview deploys, custom
+ * tunnels, Expo dev URLs). All such origins would need to be added to
+ * the WHOOP dashboard, and any not registered would silently break the
+ * flow with the same `invalid_request: redirect_uri does not match`
+ * error this helper exists to prevent. To test against localhost, run
+ * the production web build locally (e.g. `npx expo export --platform web`
+ * + a static server) and reach it through the canonical hostname, or
+ * register a separate dev redirect URI in WHOOP and override
+ * `EXPO_PUBLIC_WHOOP_WEB_REDIRECT_URI` explicitly.
  *
  * Native deep link redirects use a separate scheme and are handled
  * inline at each call site — they do not flow through this helper.
  */
 export function getWhoopWebRedirectUri(): string {
-  const CANONICAL = "https://life-balance-assistant.vercel.app/whoop-auth";
-  if (__DEV__) {
-    if (typeof window !== "undefined" && window.location?.origin) {
-      return `${window.location.origin}/whoop-auth`;
-    }
-  }
-  return CANONICAL;
+  // Optional explicit override — only use this if the value you set has
+  // ALSO been added to the WHOOP developer dashboard.
+  const override = process.env.EXPO_PUBLIC_WHOOP_WEB_REDIRECT_URI?.trim();
+  if (override) return override.replace(/\/+$/, "");
+  return "https://life-balance-assistant.vercel.app/whoop-auth";
 }
 
 export function getBackendFeatureMessage(): string | null {

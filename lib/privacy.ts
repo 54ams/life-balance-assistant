@@ -59,6 +59,7 @@ export async function withdrawAllConsent(): Promise<void> {
     WHOOP_CONSENT_KEY,
     "whoop_session_token",
     "whoop_last_sync",
+    "whoop_last_sync_at",
   ]);
 }
 

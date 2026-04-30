@@ -9,14 +9,82 @@
 
 import type { DailyRecord } from "./types";
 
-export function physioScore(d: Pick<DailyRecord, "wearable">): number | null {
-  const rec = d.wearable?.recovery;
-  if (typeof rec === "number" && Number.isFinite(rec)) return Math.max(0, Math.min(100, Math.round(rec)));
-  const sleep = d.wearable?.sleepHours;
-  if (typeof sleep === "number" && Number.isFinite(sleep)) {
-    return Math.max(0, Math.min(100, Math.round((sleep / 9) * 100)));
+/**
+ * Body score — full when recovery + sleep are present, partial when only one
+ * dimension is available, null when nothing usable. Strain by itself is
+ * intentionally treated as a partial signal: it tells us the body did
+ * something today, but not how recovered it is, so the score is biased
+ * toward "still calibrating" rather than producing a misleadingly precise
+ * number from a single channel.
+ *
+ * Returns the **kind** of score so the UI can label "partial body score —
+ * recovery not in yet" instead of silently showing "—" while data exists.
+ */
+export type PhysioScore = {
+  value: number;
+  kind: "full" | "partial_recovery" | "partial_sleep" | "partial_strain";
+  /** Which fields actually went into the number. */
+  used: Array<"recovery" | "sleep" | "strain">;
+};
+
+export function physioScoreDetailed(
+  d: Pick<DailyRecord, "wearable">,
+): PhysioScore | null {
+  const w = d.wearable;
+  if (!w) return null;
+
+  const rec = typeof w.recovery === "number" && Number.isFinite(w.recovery) ? w.recovery : null;
+  const sleep = typeof w.sleepHours === "number" && Number.isFinite(w.sleepHours) ? w.sleepHours : null;
+  const strain = typeof w.strain === "number" && Number.isFinite(w.strain) ? w.strain : null;
+
+  // Full score — recovery present, optionally with sleep + strain. Recovery
+  // is WHOOP's headline number (it already folds in HRV and RHR); we trust
+  // it directly so the "Body" pill matches what users see in the WHOOP app.
+  if (rec != null && sleep != null) {
+    return {
+      value: clamp01to100(rec),
+      kind: "full",
+      used: strain != null ? ["recovery", "sleep", "strain"] : ["recovery", "sleep"],
+    };
   }
+
+  // Partial — recovery alone. Already a 0..100 score, just label it partial.
+  if (rec != null) {
+    return { value: clamp01to100(rec), kind: "partial_recovery", used: ["recovery"] };
+  }
+
+  // Partial — sleep alone. Map 0..9h to 0..100.
+  if (sleep != null) {
+    return {
+      value: clamp01to100((sleep / 9) * 100),
+      kind: "partial_sleep",
+      used: ["sleep"],
+    };
+  }
+
+  // Partial — strain alone. WHOOP strain is 0..21; we invert so a hard day
+  // reads as "body taxed" (low score) and a rest day reads "body fresh"
+  // (higher score). Clearly labelled so the UI can warn it's strain-only.
+  if (strain != null) {
+    const stressBased = 100 - Math.min(100, (strain / 21) * 100);
+    return {
+      value: clamp01to100(stressBased),
+      kind: "partial_strain",
+      used: ["strain"],
+    };
+  }
+
   return null;
+}
+
+/** Backwards-compatible numeric API used by existing call sites. */
+export function physioScore(d: Pick<DailyRecord, "wearable">): number | null {
+  const detailed = physioScoreDetailed(d);
+  return detailed ? detailed.value : null;
+}
+
+function clamp01to100(n: number): number {
+  return Math.max(0, Math.min(100, Math.round(n)));
 }
 
 export function mentalScore(d: Pick<DailyRecord, "checkIn">): number | null {
@@ -128,4 +196,3 @@ export function narrativeFor(
   if (tone === "Direct") return "Small mind-body gap. Stay aware.";
   return "Your mind is a little ahead today.";
 }
-

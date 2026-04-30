@@ -323,12 +323,31 @@ function rulesOnlyRecommendation(input: SmartRecInput): SmartRecommendation {
   };
 }
 
+function sourceForProvenance(
+  provenance: RecPrediction["provenance"],
+): SmartRecommendation["source"] {
+  if (provenance === "ml") return "ml";
+  if (provenance === "ml-cold-start") return "ml-cold-start";
+  return "rules";
+}
+
+function llmSourceForProvenance(
+  provenance: RecPrediction["provenance"],
+): SmartRecommendation["source"] {
+  if (provenance === "ml") return "ml+llm";
+  if (provenance === "ml-cold-start") return "ml-cold-start+llm";
+  // The category was chosen by deterministic rules, but the LLM can still
+  // rephrase the user-facing text. We keep the source label honest:
+  // "rules" — the LLM never altered the category choice.
+  return "rules";
+}
+
 function buildFromCategory(input: SmartRecInput, mlCategory: RecPrediction): SmartRecommendation {
   const tpl = renderCategoryTemplate(mlCategory.category, input);
   const overlaid = applyRiskOverlay(tpl, input.mlRisk ?? null);
   return {
     ...overlaid,
-    source: mlCategory.provenance === "ml" ? "ml" : "ml-cold-start",
+    source: sourceForProvenance(mlCategory.provenance),
     category: mlCategory.category,
     probs: mlCategory.probs,
     topDrivers: mlCategory.topDrivers,
@@ -387,7 +406,7 @@ export async function generateSmartRecommendation(input: SmartRecInput): Promise
         ...base,
         headline: parsed.headline,
         text: parsed.text,
-        source: mlCategory.provenance === "ml" ? "ml+llm" : "ml-cold-start+llm",
+        source: llmSourceForProvenance(mlCategory.provenance),
       };
       await cacheRecommendation(input.date, enriched);
       return enriched;

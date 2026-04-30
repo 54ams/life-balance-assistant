@@ -90,6 +90,12 @@ export default function WhoopAuthCallback() {
         // as `app/(tabs)/profile/integrations/whoop.tsx` to prevent drift.
         const redirectUri = getWhoopWebRedirectUri();
 
+        if (__DEV__) {
+          // Diagnostic only — never log secrets, tokens, codes, or PII.
+          console.log("[WHOOP] exchange redirect_uri:", redirectUri);
+          console.log("[WHOOP] backend URL:", backendUrl);
+        }
+
         const res = await fetch(`${backendUrl}/whoop/exchange`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },

@@ -17,6 +17,39 @@ const PLAN_KEY_PREFIX = "life_balance_plan_v1:";
 const VALUES_KEY = "life_balance_values_v1";
 const CONTEXT_KEY = "life_balance_context_v1";
 const USER_NAME_KEY = "life_balance_user_name_v1";
+const INSTALL_DATE_KEY = "life_balance_install_date_v1";
+
+/**
+ * Stamp today as the install date if it hasn't already been recorded. Idempotent:
+ * subsequent calls are no-ops, so re-running onboarding won't overwrite the
+ * original first-use date. Returns the resolved install date (ISO yyyy-mm-dd).
+ */
+export async function ensureInstallDate(): Promise<string> {
+  const existing = await AsyncStorage.getItem(INSTALL_DATE_KEY);
+  if (existing) return existing;
+  const today = new Date();
+  const y = today.getFullYear();
+  const m = String(today.getMonth() + 1).padStart(2, "0");
+  const d = String(today.getDate()).padStart(2, "0");
+  const iso = `${y}-${m}-${d}`;
+  await AsyncStorage.setItem(INSTALL_DATE_KEY, iso);
+  return iso;
+}
+
+export async function getInstallDate(): Promise<string | null> {
+  return AsyncStorage.getItem(INSTALL_DATE_KEY);
+}
+
+export async function getDaysSinceInstall(): Promise<number | null> {
+  const iso = await getInstallDate();
+  if (!iso) return null;
+  const installMs = new Date(`${iso}T00:00:00`).getTime();
+  if (!Number.isFinite(installMs)) return null;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const diffDays = Math.floor((today.getTime() - installMs) / 86_400_000);
+  return Math.max(1, diffDays + 1);
+}
 
 type Store = Record<string, DailyRecord>;
 const FUTURE_KEY = "life_balance_future_events_v1";
@@ -111,8 +144,33 @@ export async function getEmotion(date: ISODate): Promise<EmotionalDiaryEntry | n
 export async function upsertWearable(date: ISODate, wearable: WearableMetrics, source?: WearableSource) {
   await withStoreWrite((store) => {
     const existing: DailyRecord = store[date] ?? { date, checkIn: null };
-    store[date] = { ...existing, wearable, wearableSource: source ?? existing.wearableSource };
+    store[date] = {
+      ...existing,
+      wearable,
+      wearableSource: source ?? existing.wearableSource,
+      wearableSyncedAt: new Date().toISOString(),
+    };
   });
+}
+
+/**
+ * Finds the most recent stored day with wearable data, looking back up to
+ * `maxLookbackDays`. Used by the bridge logic so we never silently fall back
+ * to a stale day — the caller can label freshness ("Using yesterday's data").
+ */
+export async function getLatestWearableDay(
+  before: ISODate,
+  maxLookbackDays: number = 3,
+): Promise<DailyRecord | null> {
+  const store = await loadStore();
+  for (let i = 0; i <= maxLookbackDays; i++) {
+    const d = new Date(`${before}T12:00:00`);
+    d.setDate(d.getDate() - i);
+    const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}` as ISODate;
+    const rec = store[iso];
+    if (rec?.wearable) return rec;
+  }
+  return null;
 }
 
 // ---------- Wearables (legacy bulk import) helpers ----------

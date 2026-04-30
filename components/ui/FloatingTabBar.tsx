@@ -63,30 +63,42 @@ export function FloatingTabBar({ state, descriptors, navigation }: BottomTabBarP
             });
             if (event.defaultPrevented) return;
             Haptics.selectionAsync().catch(() => {});
+
+            // Tapping the bottom-tab icon should ALWAYS land the user on the
+            // tab's root screen — whether they're already on this tab (re-tap
+            // pops to top) or coming from a different tab and that tab still
+            // has a nested-stack history (e.g. they jumped into
+            // /insights/explain from the check-in saved page, then later
+            // tapped the Insights tab — without this, Expo Router would just
+            // re-focus the explain subpage rather than the Insights index).
+            //
+            // Read fresh navigation state at press time — the props-level
+            // `state.routes[index].state` can be stale if the nested stack
+            // mounted after the bar last rendered, leaving POP_TO_TOP a no-op.
+            const liveRoot: any = (navigation as any).getState?.() ?? state;
+            const liveRoute = liveRoot?.routes?.[index];
+            const nestedKey = liveRoute?.state?.key;
+            const nestedRoutes: unknown[] = liveRoute?.state?.routes ?? [];
+            const hasNestedHistory = nestedRoutes.length > 1;
+
             if (isFocused) {
-              // Re-tapping the active tab pops its nested stack back to the
-              // root screen (iOS convention). Prevents dead-ends where a user
-              // on a sub-page can't find their way back to the tab root.
-              //
-              // Read fresh navigation state at press time — the props-level
-              // `state.routes[index].state` can be stale if the nested stack
-              // mounted after the bar last rendered, leaving the previous
-              // POP_TO_TOP a no-op. `getState()` gives us the current tree.
-              const liveRoot: any = (navigation as any).getState?.() ?? state;
-              const liveRoute = liveRoot?.routes?.[index];
-              const nestedKey = liveRoute?.state?.key;
-              if (nestedKey) {
+              if (nestedKey && hasNestedHistory) {
                 navigation.dispatch({ type: "POP_TO_TOP", target: nestedKey } as any);
               } else {
-                // No nested key yet — fall back to a navigate so at least the
-                // root screen of the tab regains focus.
                 navigation.dispatch({
                   ...CommonActions.navigate({ name: route.name }),
                   target: state.key,
                 });
               }
             } else {
+              // Switch to the tab first, then pop its nested stack to root
+              // if it has any history left over. The explicit POP_TO_TOP is
+              // what aligns Insights' behaviour with Me's: stale subpages
+              // never become the landing screen for a tab tap.
               navigation.navigate(route.name);
+              if (nestedKey && hasNestedHistory) {
+                navigation.dispatch({ type: "POP_TO_TOP", target: nestedKey } as any);
+              }
             }
           };
 

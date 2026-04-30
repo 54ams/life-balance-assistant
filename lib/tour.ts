@@ -6,66 +6,51 @@
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-const TOUR_KEY = "life_balance_tour_completed_v1";
-const TOUR_STEP_KEY = "life_balance_tour_step_v1";
+// Bumped to v2 alongside the simplified bottom-sheet tour: the older v1 tour
+// targeted specific layout rectangles that don't measure reliably on web, so
+// any in-progress v1 step state would still try to render an overlay on top
+// of the new design. New key starts everyone fresh.
+const TOUR_KEY = "life_balance_tour_completed_v2";
+const TOUR_STEP_KEY = "life_balance_tour_step_v2";
 
 export type TourStep = {
   id: string;
   title: string;
   description: string;
+  // Kept for compatibility with existing <TourTarget id={...}> call sites;
+  // the simplified overlay no longer measures these.
   target: "orb" | "ribbon" | "quick_actions" | "checkin_tab" | "insights_tab" | "profile_tab" | "habits" | "tools" | "final";
   position: "top" | "center" | "bottom";
 };
 
 export const TOUR_STEPS: TourStep[] = [
   {
-    id: "welcome_back",
-    title: "Welcome to your space",
-    description: "This is your home — the orb reflects how your mind and body are tracking together. Everything in this app is connected.",
+    id: "home",
+    title: "Home — your balance at a glance",
+    description: "The orb shows how your mind and body are tracking together. The week ribbon below it lets you tap any day to see what happened.",
     target: "orb",
-    position: "center",
-  },
-  {
-    id: "ribbon",
-    title: "Your week at a glance",
-    description: "The ribbon shows your last 7 days. Tap any day to see what happened — look for patterns over time.",
-    target: "ribbon",
-    position: "center",
-  },
-  {
-    id: "quick_actions",
-    title: "Your daily toolkit",
-    description: "Quick access to tools that work together: breathe to calm, check in to track, build habits, or reframe thoughts.",
-    target: "quick_actions",
-    position: "center",
+    position: "bottom",
   },
   {
     id: "checkin",
-    title: "Check in daily",
-    description: "A 60-second check-in captures how you feel. This feeds into your patterns, habits, and personalised insights.",
+    title: "Check-in — log how you feel",
+    description: "A quick 60-second daily check-in. This feeds into your patterns, habits, and personalised insights.",
     target: "checkin_tab",
     position: "bottom",
   },
   {
     id: "insights",
-    title: "See what's connected",
-    description: "Insights show how your habits, sleep, mood, and body data relate to each other. The more you log, the smarter it gets.",
+    title: "Insights — see what connects",
+    description: "Trends, correlations, and weekly reflections. The more you log, the clearer the picture gets.",
     target: "insights_tab",
     position: "bottom",
   },
   {
     id: "profile",
-    title: "Your settings & tools",
-    description: "Connect wearables, manage habits, track sleep hygiene, export data for your GP, and customise your experience.",
+    title: "Me — settings and tools",
+    description: "Connect WHOOP, manage habits, export data for your GP, and adjust how the app behaves.",
     target: "profile_tab",
     position: "bottom",
-  },
-  {
-    id: "interconnection",
-    title: "Everything connects",
-    description: "Habits affect mood. Sleep affects energy. Thoughts affect behaviour. This app makes those connections visible so you can act on them.",
-    target: "final",
-    position: "center",
   },
 ];
 

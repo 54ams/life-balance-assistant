@@ -30,8 +30,15 @@ yarn-error.*
 .DS_Store
 *.pem
 
-# local env files
-.env*.local
+# local env files — explicit at every level so root and nested packages
+# (e.g. backend/) cannot accidentally ship a real secret.
+.env
+.env.local
+.env.*.local
+**/.env
+**/.env.local
+**/.env.*.local
+backend/.env
 
 # typescript
 *.tsbuildinfo
@@ -42,7 +49,9 @@ app-example
 /ios
 /android
 
-.env
+# encrypted WHOOP token store + day cache written by the backend at runtime
+backend/.data/
+**/.data/
 
 # local review artefacts
 review_bundle/

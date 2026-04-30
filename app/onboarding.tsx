@@ -19,7 +19,8 @@ import {
   type PrimaryGoal,
   type SleepWindow,
 } from "@/lib/privacy";
-import { saveActiveValues, saveLifeContexts, saveUserName } from "@/lib/storage";
+import { saveActiveValues, saveLifeContexts, saveUserName, ensureInstallDate } from "@/lib/storage";
+import { resetTour } from "@/lib/tour";
 import { defaultValuesSet } from "@/lib/emotion";
 import { TextInput } from "react-native";
 
@@ -147,6 +148,14 @@ export default function OnboardingScreen() {
       privacyVersion: VERSION,
       items: flags,
     });
+    // Stamp the install date once. Subsequent onboarding runs (e.g. consent
+    // withdrawal + re-grant) leave the original date intact, so any
+    // "Day X of using" copy stays anchored to the very first launch.
+    await ensureInstallDate();
+    // Re-running onboarding should always re-show the guided tour: clearing
+    // the completed flag here keeps the post-onboarding flow consistent
+    // whether this is a brand-new install or a re-consent after a wipe.
+    await resetTour();
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
     router.replace("/first-run");
   };

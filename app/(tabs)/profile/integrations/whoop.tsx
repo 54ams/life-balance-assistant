@@ -149,6 +149,13 @@ export default function WhoopScreen() {
       process.env.EXPO_PUBLIC_WHOOP_CLIENT_ID
     )}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${encodeURIComponent(WHOOP_SCOPES)}&state=${encodeURIComponent(state)}`;
 
+    if (__DEV__) {
+      // Diagnostic only — never log secrets, tokens, codes, or PII.
+      console.log("[WHOOP] authorize redirect_uri:", redirectUri);
+      console.log("[WHOOP] backend URL:", backendUrl);
+      console.log("[WHOOP] platform:", Platform.OS);
+    }
+
     // On web we cannot use openAuthSessionAsync (cross-origin popup is blocked
     // and WHOOP enforces strict redirect_uri matching). Do a full-page nav
     // and let /whoop-auth resume via the persisted state below.

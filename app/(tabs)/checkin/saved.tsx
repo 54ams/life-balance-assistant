@@ -9,9 +9,10 @@ import { GlassCard } from "@/components/ui/GlassCard";
 import { Colors } from "@/constants/Colors";
 import { Spacing, BorderRadius } from "@/constants/Spacing";
 import { Typography } from "@/constants/Typography";
-import { getCheckIn, getDay, upsertCheckIn } from "@/lib/storage";
+import { getCheckIn, getDay, listDailyRecords, upsertCheckIn } from "@/lib/storage";
 import { todayISO } from "@/lib/util/todayISO";
-import { mentalScore, physioScore } from "@/lib/bridge";
+import { mentalScore } from "@/lib/bridge";
+import { resolveBody, recordsToMap, type BodyResolution } from "@/lib/bodyResolver";
 
 /**
  * Post-check-in micro-moment: a physiological dot and a mental dot start
@@ -40,6 +41,7 @@ export default function CheckInSavedScreen() {
     physio: null,
     mental: null,
   });
+  const [bodyRes, setBodyRes] = useState<BodyResolution | null>(null);
   const [feedback, setFeedback] = useState<null | "yes" | "no">(null);
 
   const physioX = useRef(new Animated.Value(-120)).current;
@@ -49,8 +51,26 @@ export default function CheckInSavedScreen() {
 
   useEffect(() => {
     (async () => {
-      const day = await getDay(todayISO());
-      setValues({ physio: day ? physioScore(day) : null, mental: day ? mentalScore(day) : null });
+      const today = todayISO();
+      const day = await getDay(today);
+      const records = await listDailyRecords(7);
+      const resolved = resolveBody(today, recordsToMap(records), 2);
+      setBodyRes(resolved);
+      setValues({
+        physio: resolved.value,
+        mental: day ? mentalScore(day) : null,
+      });
+      if (__DEV__) {
+        // eslint-disable-next-line no-console
+        console.log("[checkin/saved] bridge values", {
+          today,
+          bodySource: resolved.sourceDate,
+          bodyValue: resolved.value,
+          bodyKind: resolved.detail?.kind ?? null,
+          isStale: resolved.isStale,
+          mental: day ? mentalScore(day) : null,
+        });
+      }
     })();
   }, []);
 
@@ -116,7 +136,28 @@ export default function CheckInSavedScreen() {
   };
 
   const gapLabel = (() => {
-    if (values.physio == null || values.mental == null) return "Thanks — your check-in is saved.";
+    if (values.physio == null && values.mental == null) {
+      return "Thanks — your check-in is saved.";
+    }
+    if (values.physio == null) {
+      return "We can't fully align your body and mind yet — wearable data is still syncing.";
+    }
+    if (values.mental == null) {
+      return "Thanks — your check-in is saved.";
+    }
+    // Be honest when the body number is from yesterday or older — the
+    // alignment between mind (logged just now) and body (older WHOOP data)
+    // is a softer signal, not a clean same-day reading.
+    if (bodyRes?.isStale) {
+      const gap = Math.abs(values.physio - values.mental);
+      const direction =
+        gap <= 10
+          ? "are loosely aligned"
+          : values.physio > values.mental
+            ? "look like body's ahead"
+            : "look like mind's ahead";
+      return `Mind is from now, body is from ${bodyRes.ageBucket === "yesterday" ? "yesterday" : "earlier"} — they ${direction}.`;
+    }
     const gap = Math.abs(values.physio - values.mental);
     if (gap <= 10) return "Your body and mind are in step today.";
     if (values.physio > values.mental) return "Your body feels ahead of your mind. Gentle pace.";
@@ -244,6 +285,27 @@ export default function CheckInSavedScreen() {
           >
             {gapLabel}
           </Text>
+
+          {bodyRes && bodyRes.value != null && (
+            <Text
+              style={{
+                color: bodyRes.isStale ? "#B8770A" : c.text.tertiary,
+                fontSize: 11,
+                fontWeight: "800",
+                letterSpacing: 0.6,
+                marginTop: 6,
+              }}
+            >
+              {bodyRes.detail?.kind === "partial_strain"
+                ? "PARTIAL · STRAIN ONLY · "
+                : bodyRes.detail?.kind === "partial_recovery"
+                  ? "PARTIAL · RECOVERY ONLY · "
+                  : bodyRes.detail?.kind === "partial_sleep"
+                    ? "PARTIAL · SLEEP ONLY · "
+                    : ""}
+              {bodyRes.freshnessLabel.toUpperCase()}
+            </Text>
+          )}
 
           {/* Reliability micro-signal */}
           <View style={{ marginTop: Spacing.xl, alignItems: "center", width: "100%" }}>

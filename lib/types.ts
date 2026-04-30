@@ -148,6 +148,10 @@ export type DailyRecord = {
   emotion?: EmotionalDiaryEntry | null;
   wearable?: WearableMetrics;
   wearableSource?: WearableSource;
+  /** ISO datetime the wearable record was last fetched from source. Lets the
+   *  UI label freshness ("Synced 5 min ago" / "Stale — last sync yesterday")
+   *  instead of silently showing yesterday's numbers under today's date. */
+  wearableSyncedAt?: string;
 
   // Derived
   lbi?: number;

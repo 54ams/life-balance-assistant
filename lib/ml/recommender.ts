@@ -69,7 +69,9 @@ import { buildDataset } from "./dataset";
 import {
   COLD_START,
   REC_CATEGORIES,
+  pickPrediction,
   predictWithModel,
+  rulesCategory,
   trainHeads,
   type RecCategory,
   type RecClassifier,
@@ -80,6 +82,7 @@ import type { DailyRecord } from "../types";
 export {
   REC_CATEGORIES,
   predictWithModel,
+  rulesCategory,
   type RecCategory,
   type RecClassifier,
   type RecPrediction,
@@ -218,29 +221,70 @@ export async function ensureRecommenderReady(): Promise<RecClassifier> {
 
 /**
  * Run the classifier on the most recent feature row from the user's
- * dataset. Returns null only when no feature row can be built (e.g. a
- * brand-new user with no wearable + check-in yet).
+ * dataset.
+ *
+ * Three-tier fallback (in order):
+ *   1. Full dataset row available → predict with the trained model.
+ *      Provenance: "ml" (personal data) or "ml-cold-start" (synthetic
+ *      prior).
+ *   2. Dataset row unavailable (no wearable, baseline window not yet
+ *      filled, etc.) but *some* signal exists (LBI, mood, stress,
+ *      partial wearable) → score a degraded feature vector with the
+ *      trained model. Provenance still reflects the model source.
+ *   3. Model load/train both failed but a signal exists → deterministic
+ *      rules fallback. Provenance: "rules".
+ *
+ * Returns null only when there is genuinely nothing to score: no
+ * wearable, no check-in, no LBI — the brand-new user case.
  */
 export async function predictRecommendationCategory(
   records?: DailyRecord[],
 ): Promise<RecPrediction | null> {
   const days = records ?? (await getAllDays());
+
+  // Tier 1: try the proper feature pipeline first.
   const dataset = buildDataset(days);
   const last = dataset.at(-1);
-  if (!last) return null;
-
   const personal = personalRows(days).length;
-  const model = await ensureRecommenderReady();
+
+  // Load (or attempt to train) the classifier. If both fail we will
+  // still try to surface a category via the rules fallback below.
+  let model: RecClassifier | null = null;
+  try {
+    model = await ensureRecommenderReady();
+  } catch {
+    model = null;
+  }
 
   // If we now have enough personal rows but the cached model is still
   // cold-start, refresh it before predicting. This keeps the boundary
   // crisp without requiring an explicit retrain hook elsewhere.
-  const live =
-    model.source === "cold-start" && personal >= PERSONAL_THRESHOLD
-      ? await trainRecommender(days)
-      : model;
+  if (model && model.source === "cold-start" && personal >= PERSONAL_THRESHOLD) {
+    try {
+      model = await trainRecommender(days);
+    } catch {
+      /* keep cold-start model */
+    }
+  }
 
-  return predictWithModel(live, last.x, personal);
+  // Today's raw signals — handed to the orchestrator to drive Tier 2 or
+  // Tier 3 if we cannot build a proper supervised row.
+  const sortedDays = [...days].sort((a, b) => a.date.localeCompare(b.date));
+  const today = sortedDays.at(-1);
+  const todaySignals = today
+    ? {
+        wearable: today.wearable ?? null,
+        checkIn: today.checkIn ?? null,
+        lbi: typeof today.lbi === "number" ? today.lbi : null,
+      }
+    : null;
+
+  return pickPrediction({
+    datasetLastX: last ? last.x : null,
+    model,
+    personalRowsAvailable: personal,
+    todaySignals,
+  });
 }
 
 // predictWithModel is implemented in ./recommenderCore and re-exported above.

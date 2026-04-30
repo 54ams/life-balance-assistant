@@ -36,6 +36,8 @@ import { todayISO } from "@/lib/util/todayISO";
 import type { DailyRecord, ISODate } from "@/lib/types";
 import { refreshDerivedForDate } from "@/lib/pipeline";
 import { mentalScore, physioScore, narrativeFor, type NarrativeTone } from "@/lib/bridge";
+import { resolveBody, recordsToMap, type BodyResolution } from "@/lib/bodyResolver";
+import { autoSyncWhoop } from "@/lib/whoopSync";
 import { getDemoModeChoice, kioskReset } from "@/lib/demo";
 import { getPreferredTone } from "@/lib/privacy";
 import { realignFor } from "@/lib/realign";
@@ -73,6 +75,7 @@ export default function HomeScreen() {
 
   // Bridge state — the single source of truth that drives hue, orb, aurora.
   const [physio, setPhysio] = useState<number | null>(null);
+  const [bodyRes, setBodyRes] = useState<BodyResolution | null>(null);
   const [mentalRaw, setMentalRaw] = useState<number | null>(null);
   const [activeLift, setActiveLift] = useState<number>(0);
   const [lbi, setLbi] = useState<LbiOutput | null>(null);
@@ -184,13 +187,36 @@ export default function HomeScreen() {
     let alive = true;
     (async () => {
       try {
+        // Kick off a WHOOP sync as soon as Home loads. The sync is throttled
+        // (5-min window) and never blocks rendering — we proceed with whatever
+        // is already on disk, and the next focus tick will pick up the result.
+        autoSyncWhoop("home_focus").catch(() => {});
+
         const day = await getDay(date);
         setCheckedInToday(!!day?.checkIn);
 
-        const pScore = day ? physioScore(day) : null;
         const mScore = day ? mentalScore(day) : null;
-        setPhysio(pScore);
         setMentalRaw(mScore);
+
+        // Resolve body using a lookback window, so today's bridge can show
+        // yesterday's data (clearly labelled) when today's WHOOP cycle hasn't
+        // closed yet — instead of silently rendering "—".
+        const recentRecords = await listDailyRecords(7);
+        const resolved = resolveBody(date, recordsToMap(recentRecords), 2);
+        if (alive) {
+          setBodyRes(resolved);
+          setPhysio(resolved.value);
+        }
+        if (__DEV__) {
+          // eslint-disable-next-line no-console
+          console.log("[home] body resolved", {
+            today: date,
+            sourceDate: resolved.sourceDate,
+            value: resolved.value,
+            kind: resolved.detail?.kind ?? null,
+            ageBucket: resolved.ageBucket,
+          });
+        }
 
         if (!day?.wearable && !day?.checkIn) {
           setHasAnyData(false);
@@ -769,6 +795,56 @@ export default function HomeScreen() {
               <Text style={{ color: c.text.tertiary, fontSize: 11, marginTop: 4 }}>
                 Tap to see your bridge
               </Text>
+
+              {/* Body freshness chip — surfaces stale/partial data honestly,
+                  rather than letting the orb silently render yesterday's
+                  numbers as if they were today's. */}
+              {bodyRes && bodyRes.value != null && (
+                <View
+                  style={{
+                    marginTop: 8,
+                    paddingHorizontal: 10,
+                    paddingVertical: 4,
+                    borderRadius: BorderRadius.full,
+                    borderWidth: 1,
+                    borderColor: bodyRes.isStale ? "#FF950055" : c.border.light,
+                    backgroundColor: bodyRes.isStale ? "rgba(255,149,0,0.08)" : "transparent",
+                  }}
+                  accessibilityLabel={`Body data freshness: ${bodyRes.freshnessLabel}`}
+                >
+                  <Text
+                    style={{
+                      color: bodyRes.isStale ? "#B8770A" : c.text.tertiary,
+                      fontSize: 10,
+                      fontWeight: "800",
+                      letterSpacing: 0.6,
+                    }}
+                  >
+                    {bodyRes.detail?.kind === "partial_strain"
+                      ? "PARTIAL · STRAIN ONLY · "
+                      : bodyRes.detail?.kind === "partial_recovery"
+                        ? "PARTIAL · RECOVERY ONLY · "
+                        : bodyRes.detail?.kind === "partial_sleep"
+                          ? "PARTIAL · SLEEP ONLY · "
+                          : ""}
+                    {bodyRes.freshnessLabel.toUpperCase()}
+                  </Text>
+                </View>
+              )}
+              {bodyRes && bodyRes.value == null && physio == null && (
+                <Text
+                  style={{
+                    color: c.text.tertiary,
+                    fontSize: 11,
+                    marginTop: 6,
+                    fontStyle: "italic",
+                    textAlign: "center",
+                    maxWidth: 260,
+                  }}
+                >
+                  Body syncing — wearable data not available yet.
+                </Text>
+              )}
             </View>
 
             {/* 7-day ribbon */}

@@ -1,62 +1,48 @@
-// useWhoopAutoSync — fires once on app open to pull today's WHOOP data.
-// Runs silently so the user doesn't have to manually sync every morning.
+// useWhoopAutoSync — fires on app open AND every time the app returns to the
+// foreground. Pulls today + yesterday so the bridge always reflects the most
+// meaningful WHOOP data, not whatever happened to be cached overnight.
 import { useEffect, useRef, useState } from "react";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { getBackendBaseUrl } from "@/lib/backend";
-import { syncWhoopForDate, getWhoopSession } from "@/lib/whoopSync";
-import { todayISO } from "@/lib/util/todayISO";
-import type { ISODate } from "@/lib/types";
-
-const LAST_SYNC_KEY = "whoop_last_sync";
-const CONSENT_KEY = "whoop_consent_v1";
+import { AppState, type AppStateStatus } from "react-native";
+import { autoSyncWhoop } from "@/lib/whoopSync";
 
 export function useWhoopAutoSync(enabled: boolean = true) {
   const [syncing, setSyncing] = useState(false);
-  const [lastSynced, setLastSynced] = useState<string | null>(null);
+  const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const didRun = useRef(false);
+  const inFlight = useRef(false);
 
   useEffect(() => {
     if (!enabled) return;
-    if (didRun.current) return;
-    didRun.current = true;
 
-    (async () => {
+    const run = async (trigger: "app_open" | "home_focus") => {
+      if (inFlight.current) return;
+      inFlight.current = true;
+      setSyncing(true);
       try {
-        const [session, consent, lastSync] = await Promise.all([
-          getWhoopSession(),
-          AsyncStorage.getItem(CONSENT_KEY),
-          AsyncStorage.getItem(LAST_SYNC_KEY),
-        ]);
-
-        if (lastSync) setLastSynced(lastSync);
-
-        // Don't sync unless they've connected WHOOP and given consent
-        if (!session || !consent) return;
-
-        const backendUrl = getBackendBaseUrl();
-        if (!backendUrl) return;
-
-        // No point hitting the API again if we already synced today
-        const today = todayISO();
-        if (lastSync === today) return;
-
-        setSyncing(true);
-        const result = await syncWhoopForDate(today as ISODate, session, backendUrl);
-
-        if (result.success) {
-          setLastSynced(today);
+        const res = await autoSyncWhoop(trigger);
+        if (res.ran && res.reason === "ok") {
+          setLastSyncedAt(new Date().toISOString());
           setError(null);
-        } else {
-          setError(result.error ?? "Sync failed");
+        } else if (res.ran && res.error) {
+          setError(res.error);
         }
       } catch (err: any) {
         setError(err?.message ?? "Auto-sync failed");
       } finally {
         setSyncing(false);
+        inFlight.current = false;
       }
-    })();
+    };
+
+    // Initial open
+    run("app_open");
+
+    // Foreground re-entry
+    const sub = AppState.addEventListener("change", (state: AppStateStatus) => {
+      if (state === "active") run("home_focus");
+    });
+    return () => sub.remove();
   }, [enabled]);
 
-  return { syncing, lastSynced, error };
+  return { syncing, lastSyncedAt, error };
 }

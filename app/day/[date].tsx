@@ -178,8 +178,22 @@ export default function DayDetailsScreen() {
                 Wearable data
               </Text>
               <View style={{ flexDirection: "row", gap: 8 }}>
-                <MetricPill label="Recovery" value={`${record.wearable.recovery}%`} c={c} isDark={isDark} />
-                <MetricPill label="Sleep" value={`${record.wearable.sleepHours}h`} c={c} isDark={isDark} />
+                <MetricPill
+                  label="Recovery"
+                  value={record.wearable.recovery != null ? `${record.wearable.recovery}%` : "—"}
+                  c={c}
+                  isDark={isDark}
+                />
+                <MetricPill
+                  label="Sleep"
+                  value={
+                    record.wearable.sleepHours != null
+                      ? `${Math.round(record.wearable.sleepHours * 10) / 10}h`
+                      : "—"
+                  }
+                  c={c}
+                  isDark={isDark}
+                />
                 {record.wearable.strain != null && (
                   <MetricPill label="Strain" value={`${record.wearable.strain.toFixed(1)}`} c={c} isDark={isDark} />
                 )}

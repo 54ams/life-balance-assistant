@@ -36,6 +36,7 @@ import type {
   WearableMetrics,
 } from "@/lib/types";
 import { suggestContextFromWearable, wearableSummaryLine, recoveryColor } from "@/lib/whoopContext";
+import { autoSyncWhoop } from "@/lib/whoopSync";
 import { deriveIntensity } from "@/lib/emotion";
 import { containsSelfHarmSignals } from "@/lib/privacy";
 import { refreshDerivedForDate } from "@/lib/pipeline";
@@ -83,6 +84,10 @@ export default function DailyCheckInScreen() {
   // WHOOP wearable data for today (Layer 2)
   const [wearable, setWearable] = useState<WearableMetrics | null>(null);
 
+  // True once we've loaded today's existing check-in (if any). Drives the
+  // "already saved today" banner so users who tab back in don't feel stuck.
+  const [hasTodayCheckIn, setHasTodayCheckIn] = useState(false);
+
   // Custom tag entry state for pressures + replenishers.
   const [customDemandText, setCustomDemandText] = useState("");
   const [customResourceText, setCustomResourceText] = useState("");
@@ -98,6 +103,15 @@ export default function DailyCheckInScreen() {
   // Load any existing check-in for today (editing case).
   useEffect(() => {
     (async () => {
+      // Try a sync the moment the screen opens — non-blocking, throttled.
+      // The await is intentional: if WHOOP returns within ~1s the user sees
+      // fresh data, and if it doesn't we proceed with whatever is on disk.
+      try {
+        await autoSyncWhoop("checkin_open");
+      } catch {
+        /* non-fatal — fall back to local data */
+      }
+
       // Hydrate user-defined tags into the runtime registry first so
       // tagsByKind() picks them up alongside the built-ins.
       await loadCustomTags();
@@ -115,6 +129,7 @@ export default function DailyCheckInScreen() {
 
       const existing = await getCheckIn(date as any);
       if (existing) {
+        setHasTodayCheckIn(true);
         if (typeof existing.valence === "number") setValence(existing.valence);
         if (typeof existing.arousal === "number") setArousal(existing.arousal);
         if (existing.lifeContext) setTags(existing.lifeContext);
@@ -214,6 +229,16 @@ export default function DailyCheckInScreen() {
   // --- Save -----------------------------------------------------
   const save = async () => {
     try {
+      // Force a fresh WHOOP sync immediately before saving so the bridge
+      // animation that shows on the saved screen reflects today's data —
+      // not whatever happened to be cached when the user opened check-in.
+      // `force: true` bypasses the 5-min throttle for this critical moment.
+      try {
+        await autoSyncWhoop("checkin_save", { force: true });
+      } catch {
+        /* non-fatal — proceed with local data */
+      }
+
       const legacy = deriveLegacyScales({
         valence,
         arousal,
@@ -256,7 +281,11 @@ export default function DailyCheckInScreen() {
           ],
         );
       }
-      router.replace("/checkin/saved" as any);
+      // Push (not replace) so /checkin remains in the nested stack history.
+      // This means tapping the Check-in tab from any other tab — or back-
+      // swiping from /checkin/saved — lands on the check-in root, not on
+      // the saved screen. Pairs with the FloatingTabBar pop-to-top fix.
+      router.push("/checkin/saved" as any);
     } catch (e: any) {
       Alert.alert("Could not save", e?.message ?? "Please try again.");
     }
@@ -327,6 +356,67 @@ export default function DailyCheckInScreen() {
           </Text>
         </View>
       </View>
+
+      {/* Already-saved-today banner ------------------------- */}
+      {hasTodayCheckIn && (
+        <GlassCard padding="base" style={{ borderLeftWidth: 3, borderLeftColor: c.accent.primary }}>
+          <Text style={{ color: c.text.primary, fontWeight: "800", fontSize: 14 }}>
+            Today's check-in is saved
+          </Text>
+          <Text style={{ color: c.text.secondary, fontSize: 13, lineHeight: 19, marginTop: 4 }}>
+            You can edit it below — changes will overwrite today's entry. Or jump straight to your insights.
+          </Text>
+          <View style={{ flexDirection: "row", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => router.push("/insights/explain" as any)}
+              style={({ pressed }) => [
+                {
+                  paddingVertical: 9,
+                  paddingHorizontal: 14,
+                  borderRadius: BorderRadius.full,
+                  backgroundColor: c.accent.primary,
+                },
+                pressed && { opacity: 0.85 },
+              ]}
+            >
+              <Text style={{ color: c.onPrimary, fontWeight: "800", fontSize: 13 }}>See what drives your score</Text>
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => router.push("/insights" as any)}
+              style={({ pressed }) => [
+                {
+                  paddingVertical: 9,
+                  paddingHorizontal: 14,
+                  borderRadius: BorderRadius.full,
+                  borderWidth: 1,
+                  borderColor: c.border.medium,
+                },
+                pressed && { opacity: 0.7 },
+              ]}
+            >
+              <Text style={{ color: c.text.primary, fontWeight: "800", fontSize: 13 }}>Open Insights</Text>
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => router.push("/checkins" as any)}
+              style={({ pressed }) => [
+                {
+                  paddingVertical: 9,
+                  paddingHorizontal: 14,
+                  borderRadius: BorderRadius.full,
+                  borderWidth: 1,
+                  borderColor: c.border.medium,
+                },
+                pressed && { opacity: 0.7 },
+              ]}
+            >
+              <Text style={{ color: c.text.primary, fontWeight: "800", fontSize: 13 }}>Past check-ins</Text>
+            </Pressable>
+          </View>
+        </GlassCard>
+      )}
 
       {/* Progress -------------------------------------------- */}
       <View style={{ gap: 6 }}>

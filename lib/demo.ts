@@ -87,6 +87,7 @@ export async function kioskReset(): Promise<void> {
       "whoop_session_token",
       "whoop_participant_id",
       "whoop_last_sync",
+      "whoop_last_sync_at",
       "whoop_consent_v1",
       DEMO_MODE_KEY,
       FIRST_RUN_DONE_KEY,
