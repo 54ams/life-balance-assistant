@@ -11,13 +11,24 @@ import type {
   EmotionalDiaryEntry,
 } from "./types";
 import { defaultValuesSet } from "./emotion";
+import {
+  KEY_DAILY_RECORDS,
+  KEY_DAILY_RECORDS_CORRUPT_BACKUP,
+  KEY_FUTURE_EVENTS,
+  KEY_VALUES,
+  KEY_CONTEXT,
+  KEY_USER_NAME,
+  KEY_INSTALL_DATE,
+  PREFIX_PLAN,
+  resolveAllAppKeys,
+} from "./storageKeys";
 
-const KEY = "life_balance_daily_records_v1";
-const PLAN_KEY_PREFIX = "life_balance_plan_v1:";
-const VALUES_KEY = "life_balance_values_v1";
-const CONTEXT_KEY = "life_balance_context_v1";
-const USER_NAME_KEY = "life_balance_user_name_v1";
-const INSTALL_DATE_KEY = "life_balance_install_date_v1";
+const KEY = KEY_DAILY_RECORDS;
+const PLAN_KEY_PREFIX = PREFIX_PLAN;
+const VALUES_KEY = KEY_VALUES;
+const CONTEXT_KEY = KEY_CONTEXT;
+const USER_NAME_KEY = KEY_USER_NAME;
+const INSTALL_DATE_KEY = KEY_INSTALL_DATE;
 
 /**
  * Stamp today as the install date if it hasn't already been recorded. Idempotent:
@@ -52,7 +63,7 @@ export async function getDaysSinceInstall(): Promise<number | null> {
 }
 
 type Store = Record<string, DailyRecord>;
-const FUTURE_KEY = "life_balance_future_events_v1";
+const FUTURE_KEY = KEY_FUTURE_EVENTS;
 let writeChain: Promise<void> = Promise.resolve();
 
 /** Backwards-compatible plan type (used by history/trends/export screens) */
@@ -80,14 +91,14 @@ async function loadStore(): Promise<Store> {
     // Minimal shape check: must be a plain object (Store is Record<string, DailyRecord>)
     if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
       // quarantine the bad data so it's not silently lost
-      await AsyncStorage.setItem(`${KEY}:corrupt_backup`, raw);
+      await AsyncStorage.setItem(KEY_DAILY_RECORDS_CORRUPT_BACKUP, raw);
       return {};
     }
 
     return parsed as Store;
   } catch (err) {
     // quarantine the corrupt JSON then recover safely
-    await AsyncStorage.setItem(`${KEY}:corrupt_backup`, raw);
+    await AsyncStorage.setItem(KEY_DAILY_RECORDS_CORRUPT_BACKUP, raw);
     return {};
   }
 }
@@ -236,10 +247,33 @@ export async function upsertLBI(
   });
 }
 
+/**
+ * Wipe every persistent key the app owns. Routes through the central
+ * `storageKeys.ts` catalog so a key added in a new feature can never silently
+ * survive a "Delete everything" tap. Non-fatal: if a single removal fails the
+ * function still attempts the rest, so the user always sees a fresh slate.
+ */
 export async function clearAll() {
-  const keys = await AsyncStorage.getAllKeys();
-  const planKeys = keys.filter((k) => k.startsWith(PLAN_KEY_PREFIX));
-  await AsyncStorage.multiRemove([KEY, FUTURE_KEY, VALUES_KEY, ...planKeys]);
+  const all = await resolveAllAppKeys();
+  if (all.length === 0) return;
+  try {
+    await AsyncStorage.multiRemove(all);
+  } catch {
+    // Fall back to per-key removal so one bad key can't poison the wipe.
+    await Promise.all(all.map((k) => AsyncStorage.removeItem(k).catch(() => {})));
+  }
+  // Force-reset the in-flight write chain so any queued upserts don't
+  // silently re-resurrect the data we just wiped.
+  writeChain = Promise.resolve();
+}
+
+/** Remove a single day's record (check-in, wearable, emotion, lbi for that date). */
+export async function deleteCheckIn(date: ISODate): Promise<void> {
+  await withStoreWrite((store) => {
+    delete store[date];
+  });
+  // Plan for that date is stored under a separate key family.
+  await AsyncStorage.removeItem(PLAN_KEY_PREFIX + date).catch(() => {});
 }
 
 // ---------- Backwards compatibility for old screens ----------

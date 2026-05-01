@@ -3,10 +3,11 @@ import { GlassCard } from "@/components/ui/GlassCard";
 import { Colors } from "@/constants/Colors";
 import { useColorScheme } from "react-native";
 import { useEffect, useState } from "react";
-import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { AppConsent, getAppConsent, saveAppConsent, withdrawAllConsent } from "@/lib/privacy";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getBackendBaseUrl } from "@/lib/backend";
+import { confirmDestructive, notify } from "@/lib/util/confirm";
 
 const VERSION = "2026-04-16";
 
@@ -40,7 +41,7 @@ export default function ConsentSafetyScreen() {
 
   const save = async () => {
     if (!Object.values(flags).every(Boolean)) {
-      Alert.alert("Consent incomplete", "All items must be accepted to enable insights and WHOOP.");
+      notify("Consent incomplete", "All items must be accepted to enable insights and WHOOP.");
       return;
     }
     const payload: AppConsent = {
@@ -50,23 +51,33 @@ export default function ConsentSafetyScreen() {
     };
     await saveAppConsent(payload);
     setConsentedAt(payload.consentedAt);
-    Alert.alert("Saved", "Consent recorded. Insights and integrations remain enabled.");
+    notify("Saved", "Consent recorded. Insights and integrations remain enabled.");
   };
 
   const withdraw = async () => {
-    const session = await AsyncStorage.getItem("whoop_session_token");
-    const backendUrl = getBackendBaseUrl();
-    if (session && backendUrl) {
-      try {
-        await fetch(`${backendUrl}/whoop/session`, {
-          method: "DELETE",
-          headers: { Authorization: `Bearer ${session}` },
-        });
-      } catch {}
+    const ok = await confirmDestructive(
+      "Withdraw consent?",
+      "This clears local study data, disconnects WHOOP, and the app will require consent again before insights or sync resume.",
+      "Withdraw",
+    );
+    if (!ok) return;
+    try {
+      const session = await AsyncStorage.getItem("whoop_session_token");
+      const backendUrl = getBackendBaseUrl();
+      if (session && backendUrl) {
+        try {
+          await fetch(`${backendUrl}/whoop/session`, {
+            method: "DELETE",
+            headers: { Authorization: `Bearer ${session}` },
+          });
+        } catch {}
+      }
+      await withdrawAllConsent();
+      setConsentedAt(null);
+      notify("Withdrawn", "Consent withdrawn. Local study data was cleared and WHOOP was disconnected.");
+    } catch (err: any) {
+      notify("Withdraw failed", err?.message ?? "Could not withdraw consent. Please try again.");
     }
-    await withdrawAllConsent();
-    setConsentedAt(null);
-    Alert.alert("Withdrawn", "Consent withdrawn. Local study data was cleared, WHOOP disconnected, and the app will require consent again.");
   };
 
   return (

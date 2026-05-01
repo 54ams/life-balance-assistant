@@ -169,7 +169,10 @@ export default function CheckInSavedScreen() {
       <AuroraBackground />
       <SafeAreaView style={{ flex: 1 }}>
       <ScrollView
-        contentContainerStyle={{ paddingBottom: 40, flexGrow: 1 }}
+        // 120 clears the floating tab bar (height 68 + bottom inset 12 +
+        // breathing room). Without this, the "Back to home" button sits
+        // under the bar and looks like the nav has disappeared.
+        contentContainerStyle={{ paddingBottom: 120, flexGrow: 1 }}
         showsVerticalScrollIndicator={false}
       >
         <Animated.View

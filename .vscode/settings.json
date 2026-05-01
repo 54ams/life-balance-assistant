@@ -3,5 +3,21 @@
     "source.fixAll": "explicit",
     "source.organizeImports": "explicit",
     "source.sortMembers": "explicit"
-  }
+  },
+  "files.exclude": {
+    "**/node_modules": true
+  },
+  "search.exclude": {
+    "**/node_modules": true
+  },
+  "files.watcherExclude": {
+    "**/node_modules/**": true
+  },
+  "json.schemas": [
+    {
+      "fileMatch": ["/node_modules/**/tsconfig*.json"],
+      "schema": {}
+    }
+  ],
+  "typescript.tsc.autoDetect": "off"
 }

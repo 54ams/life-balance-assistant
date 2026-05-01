@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from "react";
-import { Alert, Pressable, StyleSheet, Text, TextInput, View, useColorScheme } from "react-native";
+import { Pressable, StyleSheet, Text, TextInput, View, useColorScheme } from "react-native";
 import { Screen } from "@/components/Screen";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { Button } from "@/components/ui/button";
 import { Colors } from "@/constants/Colors";
 import { BorderRadius, Spacing } from "@/constants/Spacing";
 import { getSchedule, saveSchedule, type RecurringItem } from "@/lib/schedule";
+import { confirmDestructive, notify } from "@/lib/util/confirm";
 
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -33,11 +34,11 @@ export default function ScheduleScreen() {
 
   const addItem = async () => {
     if (!newLabel.trim()) {
-      Alert.alert("Schedule", "Enter a label for this recurring item.");
+      notify("Schedule", "Enter a label for this recurring item.");
       return;
     }
     if (newDays.length === 0) {
-      Alert.alert("Schedule", "Select at least one day.");
+      notify("Schedule", "Select at least one day.");
       return;
     }
     const item: RecurringItem = {
@@ -54,6 +55,13 @@ export default function ScheduleScreen() {
   };
 
   const removeItem = async (id: string) => {
+    const target = items.find((i) => i.id === id);
+    const ok = await confirmDestructive(
+      "Remove this item?",
+      target ? `"${target.label}" will be removed from your recurring schedule.` : "Remove this recurring item from your schedule?",
+      "Remove",
+    );
+    if (!ok) return;
     const updated = items.filter((i) => i.id !== id);
     setItems(updated);
     await saveSchedule(updated);

@@ -93,7 +93,10 @@ export function Screen({
       <View
         style={[
           s.fill,
-          { paddingTop: topPad, paddingBottom: Spacing.xl },
+          // Bottom inset clears the floating tab bar (68px height + safe-area
+          // inset, positioned 12px above the bottom). Without this, fixed
+          // bottom content on non-scroll screens sits under the bar.
+          { paddingTop: topPad, paddingBottom: 100 },
           basePadding,
           style,
         ]}

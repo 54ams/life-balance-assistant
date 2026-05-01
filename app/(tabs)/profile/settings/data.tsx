@@ -10,20 +10,18 @@ import { clearSusSubmissions } from "@/lib/evaluation/storage";
 import { confirmDestructive, notify } from "@/lib/util/confirm";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
-  APP_CONSENT_KEY,
   EXPORT_ANONYMIZE_ID_KEY,
   EXPORT_REDACT_TEXT_KEY,
   LLM_ENABLED_KEY,
   NUDGE_ENABLED_KEY,
-  RETENTION_DAYS_KEY,
   STREAKS_ENABLED_KEY,
-  WHOOP_CONSENT_KEY,
   getBooleanSetting,
   getRetentionDays,
   runRetentionPurgeNow,
   setBooleanSetting,
   setRetentionDays,
 } from "@/lib/privacy";
+import { KEY_WHOOP_SESSION } from "@/lib/storageKeys";
 import { getBackendBaseUrl } from "@/lib/backend";
 
 export default function DataSettings() {
@@ -59,6 +57,8 @@ export default function DataSettings() {
     try {
       await clearAllPlans();
       notify("Plans cleared", "All stored plans were removed from this device.");
+    } catch (err: any) {
+      notify("Clear failed", err?.message ?? "Could not clear plans. Please try again.");
     } finally {
       setBusy(false);
     }
@@ -67,16 +67,15 @@ export default function DataSettings() {
   const onDeleteAll = async () => {
     const ok = await confirmDestructive(
       "Are you sure you want to delete all local data?",
-      "This cannot be undone. Wipes all check-ins, wearable data, plans, SUS submissions, WHOOP session, and settings from this device.",
+      "This cannot be undone. Wipes all check-ins, wearable data, plans, habits, reframes, SUS submissions, WHOOP session, and every preference from this device.",
       "Delete all",
     );
     if (!ok) return;
     setBusy(true);
     try {
-      await clearAll();
-      await clearSusSubmissions();
-      // Also disconnect WHOOP session on server if present
-      const session = await AsyncStorage.getItem("whoop_session_token");
+      // Disconnect WHOOP session on server BEFORE wiping local tokens, so the
+      // backend can revoke. If it fails (network/offline) we still proceed.
+      const session = await AsyncStorage.getItem(KEY_WHOOP_SESSION);
       const backendUrl = getBackendBaseUrl();
       if (session && backendUrl) {
         try {
@@ -86,23 +85,13 @@ export default function DataSettings() {
           });
         } catch {}
       }
-      await AsyncStorage.multiRemove([
-        "whoop_session_token",
-        "whoop_participant_id",
-        "whoop_last_sync",
-        "life_balance_insights_selected_date_v1",
-        "demo_enabled_v1",
-        "demo_override_checkin_v1",
-        "demo_override_wearable_v1",
-        APP_CONSENT_KEY,
-        WHOOP_CONSENT_KEY,
-        RETENTION_DAYS_KEY,
-        EXPORT_ANONYMIZE_ID_KEY,
-        EXPORT_REDACT_TEXT_KEY,
-        LLM_ENABLED_KEY,
-        NUDGE_ENABLED_KEY,
-        STREAKS_ENABLED_KEY,
-      ]);
+      // clearAll() now resolves every registered key from storageKeys.ts —
+      // plans, records, habits, reframes, anchors, schedules, ML caches,
+      // smart-rec prefix family, feature-guide flags, WHOOP tokens, demo
+      // flags, etc. clearSusSubmissions() is also covered by clearAll() but
+      // calling it explicitly keeps intent legible.
+      await clearAll();
+      await clearSusSubmissions();
       // Reset local UI state so the screen reflects the wipe immediately.
       setRetentionDaysState(90);
       setRedactText(true);
@@ -112,14 +101,22 @@ export default function DataSettings() {
       setLlmEnabled(true);
       notify(
         "All local data deleted",
-        "Check-ins, wearables, plans, and SUS submissions were removed from this device.",
+        "Every check-in, wearable record, plan, habit, reflection, and preference was removed from this device.",
       );
+    } catch (err: any) {
+      notify("Delete failed", err?.message ?? "Could not delete data. Please try again.");
     } finally {
       setBusy(false);
     }
   };
 
   const onPurgeNow = async () => {
+    const ok = await confirmDestructive(
+      `Purge data older than ${retentionDays} days?`,
+      "Records, plans, and future events outside the retention window will be removed from this device. This cannot be undone.",
+      "Purge",
+    );
+    if (!ok) return;
     setBusy(true);
     try {
       const result = await runRetentionPurgeNow();
@@ -127,6 +124,8 @@ export default function DataSettings() {
         "Purge complete",
         `Removed ${result.recordsRemoved} records, ${result.plansRemoved} plans, ${result.futureEventsRemoved} future events, ${result.susRemoved} SUS entries.`,
       );
+    } catch (err: any) {
+      notify("Purge failed", err?.message ?? "Could not purge data. Please try again.");
     } finally {
       setBusy(false);
     }

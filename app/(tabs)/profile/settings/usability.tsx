@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 
 import { Screen } from "@/components/Screen";
 import { GlassCard } from "@/components/ui/GlassCard";
@@ -7,6 +7,7 @@ import { Colors } from "@/constants/Colors";
 import { useColorScheme } from "react-native";
 import { SUS_QUESTIONS, computeSusScore, type SusResponse } from "@/lib/evaluation/sus";
 import { addSusSubmission, clearSusSubmissions, getOrCreateParticipantId, listSusSubmissions } from "@/lib/evaluation/storage";
+import { confirmDestructive, notify } from "@/lib/util/confirm";
 
 const LABELS = ["Strongly disagree", "Disagree", "Neutral", "Agree", "Strongly agree"] as const;
 
@@ -74,7 +75,7 @@ export default function UsabilitySusScreen() {
 
   const onSubmit = async () => {
     if (!responses.every((r) => r !== null)) {
-      Alert.alert("Incomplete", "Please answer all 10 questions.");
+      notify("Incomplete", "Please answer all 10 questions.");
       return;
     }
 
@@ -89,25 +90,26 @@ export default function UsabilitySusScreen() {
     const subs = await listSusSubmissions();
     setSubmissionsCount(subs.length);
 
-    Alert.alert("Saved", `SUS score: ${sub.score}`);
+    notify("Saved", `SUS score: ${sub.score}`);
     setResponses(Array(10).fill(null));
     setFeedback("");
   };
 
   const onClear = async () => {
-    Alert.alert("Clear data?", "This removes all stored SUS submissions on this device.", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Clear",
-        style: "destructive",
-        onPress: async () => {
-          await clearSusSubmissions();
-          setSubmissionsCount(0);
-          setLastScore(null);
-          Alert.alert("Cleared", "All SUS submissions removed.");
-        },
-      },
-    ]);
+    const ok = await confirmDestructive(
+      "Clear SUS submissions?",
+      "Removes every stored SUS submission and the participant id from this device. This cannot be undone.",
+      "Clear",
+    );
+    if (!ok) return;
+    try {
+      await clearSusSubmissions();
+      setSubmissionsCount(0);
+      setLastScore(null);
+      notify("Cleared", "All SUS submissions removed.");
+    } catch (err: any) {
+      notify("Clear failed", err?.message ?? "Could not clear submissions. Please try again.");
+    }
   };
 
   return (

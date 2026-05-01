@@ -133,27 +133,21 @@ export default function HomeScreen() {
     Haptics.selectionAsync().catch(() => {});
   }, []);
 
-  const runKioskReset = useCallback(() => {
-    Alert.alert(
+  const runKioskReset = useCallback(async () => {
+    const { confirmDestructive, notify } = await import("@/lib/util/confirm");
+    const ok = await confirmDestructive(
       "Reset app?",
       "This clears everything on this device and takes you back to the welcome screen. Handy if you want to start completely fresh.",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Reset",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              await kioskReset();
-              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-              router.replace("/welcome" as any);
-            } catch (err) {
-              Alert.alert("Reset failed", (err as any)?.message ?? "Unknown error");
-            }
-          },
-        },
-      ],
+      "Reset",
     );
+    if (!ok) return;
+    try {
+      await kioskReset();
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+      router.replace("/welcome" as any);
+    } catch (err) {
+      notify("Reset failed", (err as any)?.message ?? "Unknown error");
+    }
   }, []);
 
   const onGreetingTap = useCallback(() => {

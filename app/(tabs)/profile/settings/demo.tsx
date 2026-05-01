@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { Screen } from "@/components/Screen";
 import { GlassCard } from "@/components/ui/GlassCard";
@@ -14,6 +14,7 @@ import {
   setDemoWearable,
 } from "@/lib/demo";
 import { SCENARIOS, seedScenario, type ScenarioKey } from "@/lib/demoScenarios";
+import { confirmDestructive, notify } from "@/lib/util/confirm";
 
 export default function DemoToolsScreen() {
   const scheme = useColorScheme();
@@ -40,32 +41,54 @@ export default function DemoToolsScreen() {
   };
 
   const onSeed = async () => {
+    const ok = await confirmDestructive(
+      "Seed demo data?",
+      "This wipes the current local data and replaces it with 30 days of example data. This cannot be undone.",
+      "Seed",
+    );
+    if (!ok) return;
     setSaving(true);
     try {
       await seedDemoData(30);
-      Alert.alert("Done", "Seeded 30 days of demo data.");
+      notify("Done", "Seeded 30 days of demo data.");
+    } catch (err: any) {
+      notify("Seed failed", err?.message ?? "Could not seed demo data.");
     } finally {
       setSaving(false);
     }
   };
 
   const onClearOverrides = async () => {
+    const ok = await confirmDestructive(
+      "Clear demo overrides?",
+      "Removes the temporary check-in and wearable values used for demos. Your real data is unaffected.",
+      "Clear",
+    );
+    if (!ok) return;
     setSaving(true);
     try {
       await clearDemoOverrides();
-      Alert.alert("Done", "Cleared demo overrides.");
+      notify("Done", "Cleared demo overrides.");
+    } catch (err: any) {
+      notify("Clear failed", err?.message ?? "Could not clear overrides.");
     } finally {
       setSaving(false);
     }
   };
 
   const onSeedScenario = async (key: ScenarioKey, title: string) => {
+    const ok = await confirmDestructive(
+      `Load "${title}"?`,
+      "This wipes the current local data and replaces it with 14 days of scenario example data. This cannot be undone.",
+      "Load scenario",
+    );
+    if (!ok) return;
     setSaving(true);
     try {
       await seedScenario(key);
-      Alert.alert("Scenario loaded", `Seeded 14 days for "${title}". Open Home to see the arc.`);
+      notify("Scenario loaded", `Seeded 14 days for "${title}". Open Home to see the arc.`);
     } catch (err) {
-      Alert.alert("Couldn't seed scenario", (err as any)?.message ?? "Unknown error");
+      notify("Couldn't seed scenario", (err as any)?.message ?? "Unknown error");
     } finally {
       setSaving(false);
     }
@@ -113,7 +136,7 @@ export default function DemoToolsScreen() {
             setSaving(true);
             try {
               await setDemoWearable({ sleepHours: 7.4, recovery: 78, hrv: 58, restingHR: 54 });
-              Alert.alert("Done", "Set demo wearable values.");
+              notify("Done", "Set demo wearable values.");
             } finally {
               setSaving(false);
             }
@@ -147,7 +170,7 @@ export default function DemoToolsScreen() {
                 hydrationLitres: 2,
                 notes: "Demo check-in",
               });
-              Alert.alert("Done", "Set demo check-in values.");
+              notify("Done", "Set demo check-in values.");
             } finally {
               setSaving(false);
             }

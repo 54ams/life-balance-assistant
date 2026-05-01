@@ -578,23 +578,21 @@ export default function WhoopScreen() {
       {consentGranted && (
         <Pressable
           onPress={async () => {
-            Alert.alert(
+            const { confirmDestructive, notify } = await import("@/lib/util/confirm");
+            const ok = await confirmDestructive(
               "Withdraw WHOOP consent?",
               "This will disconnect your WHOOP and clear all stored tokens.",
-              [
-                { text: "Cancel", style: "cancel" },
-                {
-                  text: "Withdraw",
-                  style: "destructive",
-                  onPress: async () => {
-                    await disconnect();
-                    await AsyncStorage.removeItem(CONSENT_KEY);
-                    setConsentGranted(false);
-                    Alert.alert("Done", "WHOOP consent withdrawn and data cleared.");
-                  },
-                },
-              ],
+              "Withdraw",
             );
+            if (!ok) return;
+            try {
+              await disconnect();
+              await AsyncStorage.removeItem(CONSENT_KEY);
+              setConsentGranted(false);
+              notify("Done", "WHOOP consent withdrawn and data cleared.");
+            } catch (err: any) {
+              notify("Withdraw failed", err?.message ?? "Could not withdraw consent. Please try again.");
+            }
           }}
           style={{ paddingVertical: 12 }}
         >

@@ -1,7 +1,8 @@
 import React from "react";
-import { Alert, Modal, Pressable, StyleSheet, Text, View, useColorScheme } from "react-native";
+import { Modal, Pressable, StyleSheet, Text, View, useColorScheme } from "react-native";
 import { Colors } from "@/constants/Colors";
 import { clearAll } from "@/lib/storage";
+import { confirmDestructive, notify } from "@/lib/util/confirm";
 
 type Props = {
   visible: boolean;
@@ -30,26 +31,20 @@ export function TransparencyDrawer({ visible, onClose }: Props) {
           on device; tokens stay on backend. No raw data sent to LLM—only small summaries.
         </Text>
         <Pressable
-          onPress={() => {
-            Alert.alert(
+          onPress={async () => {
+            const ok = await confirmDestructive(
               "Delete all data",
               "This will permanently remove all check-ins, plans, wearable data, and settings. This cannot be undone.",
-              [
-                { text: "Cancel", style: "cancel" },
-                {
-                  text: "Delete everything",
-                  style: "destructive",
-                  onPress: async () => {
-                    try {
-                      await clearAll();
-                      onClose();
-                    } catch {
-                      Alert.alert("Error", "Could not delete data. Please try again.");
-                    }
-                  },
-                },
-              ]
+              "Delete everything",
             );
+            if (!ok) return;
+            try {
+              await clearAll();
+              onClose();
+              notify("Deleted", "All local data was removed from this device.");
+            } catch (err: any) {
+              notify("Error", err?.message ?? "Could not delete data. Please try again.");
+            }
           }}
           style={[styles.delete, { borderColor: c.glass.border, backgroundColor: glassOverlay }]}
           accessibilityLabel="Delete all local data"

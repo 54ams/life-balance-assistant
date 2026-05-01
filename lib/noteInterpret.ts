@@ -236,6 +236,109 @@ function mergeSuggestions(
   return out;
 }
 
+// -----------------------------------------------------------------
+// Deterministic deeper-read summary.
+//
+// The deeper-read button has to *visibly* respond even when:
+//   - the LLM endpoint isn't configured / is unreachable
+//   - the LLM returns zero structured tags
+//   - the user is on web/PWA without a backend
+//
+// So we always compose a short paragraph from the inputs we already
+// have on-device (sentiment, valence/arousal, suggestion count, plus
+// any Body/Mind/LBI numbers the caller passes in). Pure function so
+// it's easy to unit-test and never throws.
+// -----------------------------------------------------------------
+
+export type DeeperReadContext = {
+  /** Russell circumplex valence, -1..1 (optional). */
+  valence?: number | null;
+  /** Russell circumplex arousal, -1..1 (optional). */
+  arousal?: number | null;
+  /** Sentiment estimate from the note, -1..1. */
+  sentiment?: number;
+  /** Today's Body Score (0..100) or null. */
+  bodyScore?: number | null;
+  /** Today's Mind Score (0..100) or null. */
+  mindScore?: number | null;
+  /** Today's Life Balance Index (0..100) or null. */
+  lbi?: number | null;
+  /** How many suggestions the matcher / LLM produced. */
+  suggestionCount?: number;
+  /** Where the read came from. */
+  source: "llm" | "local" | "safety";
+};
+
+function quadrantPhrase(valence: number | null | undefined, arousal: number | null | undefined): string | null {
+  if (typeof valence !== "number" || typeof arousal !== "number") return null;
+  if (Math.abs(valence) < 0.15 && Math.abs(arousal) < 0.15) return "a middle-ground feeling";
+  if (valence >= 0 && arousal >= 0) return "a pleasant, activated feeling";
+  if (valence >= 0 && arousal < 0) return "a pleasant, calm feeling";
+  if (valence < 0 && arousal >= 0) return "an unpleasant, activated feeling";
+  return "an unpleasant, low feeling";
+}
+
+function tonePhrase(sentiment: number | undefined): string {
+  if (typeof sentiment !== "number" || !Number.isFinite(sentiment)) return "an even tone";
+  if (sentiment >= 0.4) return "a positive tone";
+  if (sentiment >= 0.1) return "a slightly positive tone";
+  if (sentiment <= -0.4) return "a heavy tone";
+  if (sentiment <= -0.1) return "a slightly heavy tone";
+  return "an even tone";
+}
+
+function bridgePhrase(bodyScore: number | null | undefined, mindScore: number | null | undefined): string | null {
+  if (typeof bodyScore !== "number" || typeof mindScore !== "number") return null;
+  const gap = Math.abs(bodyScore - mindScore);
+  if (gap <= 10) return `Body (${bodyScore}) and Mind (${mindScore}) are in step today.`;
+  if (bodyScore > mindScore) return `Body (${bodyScore}) is reading ahead of Mind (${mindScore}) — your nervous system is steadier than your mood.`;
+  return `Mind (${mindScore}) is reading ahead of Body (${bodyScore}) — recovery hasn't quite caught up.`;
+}
+
+/**
+ * Compose a short, human-readable explanation that always renders,
+ * regardless of whether the LLM was reachable. References the day's
+ * Body / Mind / LBI numbers when available.
+ */
+export function composeDeeperReadSummary(ctx: DeeperReadContext): string {
+  if (ctx.source === "safety") {
+    return "Your note touched on something heavy. The deeper read is paused — please use the support resources in Profile → Settings → If you need support.";
+  }
+
+  const parts: string[] = [];
+  const tone = tonePhrase(ctx.sentiment);
+  const quadrant = quadrantPhrase(ctx.valence, ctx.arousal);
+
+  if (quadrant) {
+    parts.push(`Your note reads with ${tone}, against ${quadrant}.`);
+  } else {
+    parts.push(`Your note reads with ${tone}.`);
+  }
+
+  const bridge = bridgePhrase(ctx.bodyScore, ctx.mindScore);
+  if (bridge) parts.push(bridge);
+
+  if (typeof ctx.lbi === "number" && Number.isFinite(ctx.lbi)) {
+    parts.push(`Today's Life Balance Index sits at ${Math.round(ctx.lbi)}/100.`);
+  }
+
+  if (typeof ctx.suggestionCount === "number" && ctx.suggestionCount > 0) {
+    parts.push(
+      ctx.suggestionCount === 1
+        ? "One context tag was picked out below — accept or dismiss it."
+        : `${ctx.suggestionCount} context tags were picked out below — accept or dismiss them.`,
+    );
+  } else {
+    parts.push("Nothing specific was picked out as context — that's fine, your note is still saved with the check-in.");
+  }
+
+  if (ctx.source === "local") {
+    parts.push("Read on-device (no network needed).");
+  }
+
+  return parts.join(" ");
+}
+
 /**
  * Ask the backend to parse a note into tag suggestions + sentiment.
  * - Safety-gates self-harm language first.

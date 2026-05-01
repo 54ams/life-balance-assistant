@@ -12,9 +12,7 @@ import { Pressable, Text, View } from "react-native";
 import { TabSwipe } from "@/components/TabSwipe";
 import { getUserName, getActiveValues, getLifeContexts, listDailyRecords } from "@/lib/storage";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { APP_CONSENT_KEY } from "@/lib/privacy";
-import { FIRST_RUN_DONE_KEY } from "@/lib/demo";
-import { clearWelcomeSeen } from "@/app/welcome";
+import { ONBOARDING_GATE_KEYS } from "@/lib/storageKeys";
 import { confirmDestructive } from "@/lib/util/confirm";
 import * as Haptics from "expo-haptics";
 
@@ -74,17 +72,11 @@ export default function ProfileScreen() {
       "Replay",
     );
     if (!ok) return;
-    // Clear all onboarding gates so the full first-time flow replays:
-    // Welcome → Onboarding → First-run → App Tour → Home.
-    // Keys must match the constants defined in lib/privacy, lib/demo,
-    // and app/welcome — hardcoded strings here silently fail.
-    await clearWelcomeSeen();
-    await AsyncStorage.multiRemove([
-      APP_CONSENT_KEY,
-      FIRST_RUN_DONE_KEY,
-      "life_balance_tour_completed_v1",
-      "life_balance_tour_step_v1",
-    ]);
+    // Clear every onboarding gate (welcome, consent, first-run, tour v1+v2)
+    // so the full first-time flow replays: Welcome → Onboarding → First-run
+    // → App Tour → Home. Keys come from the central storageKeys catalog so
+    // a renamed key never silently leaves a gate set.
+    await AsyncStorage.multiRemove([...ONBOARDING_GATE_KEYS]);
     router.replace("/welcome" as any);
   };
 

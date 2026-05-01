@@ -2,12 +2,13 @@
 // Added "Return to Home" so users aren't stuck on the error page during demos.
 
 import React from "react";
-import { Alert, Pressable, Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 import { router } from "expo-router";
 import { Colors } from "@/constants/Colors";
 import { useColorScheme } from "react-native";
 import { clearAll } from "@/lib/storage";
 import { seedDemo } from "@/lib/demo";
+import { confirmDestructive, notify } from "@/lib/util/confirm";
 
 type Props = { children: React.ReactNode };
 type State = { hasError: boolean; message: string; resetting: boolean };
@@ -42,7 +43,7 @@ export class AppErrorBoundary extends React.Component<Props, State> {
       await seedDemo(30);
       this.setState({ hasError: false, message: "", resetting: false });
     } catch (e: any) {
-      Alert.alert("Reset failed", e?.message ?? "Could not reset demo data.");
+      notify("Reset failed", e?.message ?? "Could not reset demo data.");
       this.setState({ resetting: false });
     }
   };
@@ -106,15 +107,13 @@ function BoundaryFallback({
         <Text style={{ color: c.text.primary, fontWeight: "700" }}>Try again</Text>
       </Pressable>
       <Pressable
-        onPress={() => {
-          Alert.alert(
+        onPress={async () => {
+          const ok = await confirmDestructive(
             "Reset demo data?",
             "This will clear all local data and reseed a 30-day demo set. Use this if you need to recover quickly during a demo.",
-            [
-              { text: "Cancel", style: "cancel" },
-              { text: "Reset demo", style: "destructive", onPress: onResetDemo },
-            ]
+            "Reset demo",
           );
+          if (ok) onResetDemo();
         }}
         disabled={resetting}
         style={{

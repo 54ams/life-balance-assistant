@@ -1,3 +1,5 @@
+import * as Haptics from "expo-haptics";
+import { router } from "expo-router";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
@@ -9,18 +11,29 @@ import {
   View,
   useColorScheme,
 } from "react-native";
-import { router } from "expo-router";
-import * as Haptics from "expo-haptics";
 
 import { Screen } from "@/components/Screen";
+import { AffectCanvas } from "@/components/ui/AffectCanvas";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { IconSymbol } from "@/components/ui/icon-symbol";
-import { AffectCanvas } from "@/components/ui/AffectCanvas";
 import { Colors } from "@/constants/Colors";
-import { Spacing, BorderRadius } from "@/constants/Spacing";
-import { formatDateLong } from "@/lib/util/formatDate";
+import { BorderRadius, Spacing } from "@/constants/Spacing";
 import { Typography } from "@/constants/Typography";
-import { todayISO } from "@/lib/util/todayISO";
+import { addCustomTag, loadCustomTags } from "@/lib/customTags";
+import { deriveLegacyScales } from "@/lib/derive";
+import { deriveIntensity } from "@/lib/emotion";
+import { getTagDef, tagsByKind } from "@/lib/lifeContext";
+import {
+  composeDeeperReadSummary,
+  llmDeeperRead,
+  localMatch,
+  localSentiment,
+  type NoteSuggestion,
+} from "@/lib/noteInterpret";
+import { mentalScore, physioScore } from "@/lib/bridge";
+import { calculateLBI } from "@/lib/lbi";
+import { refreshDerivedForDate } from "@/lib/pipeline";
+import { containsSelfHarmSignals } from "@/lib/privacy";
 import {
   getActiveValues,
   getCheckIn,
@@ -35,15 +48,10 @@ import type {
   LifeContextTag,
   WearableMetrics,
 } from "@/lib/types";
-import { suggestContextFromWearable, wearableSummaryLine, recoveryColor } from "@/lib/whoopContext";
+import { formatDateLong } from "@/lib/util/formatDate";
+import { todayISO } from "@/lib/util/todayISO";
+import { recoveryColor, suggestContextFromWearable, wearableSummaryLine } from "@/lib/whoopContext";
 import { autoSyncWhoop } from "@/lib/whoopSync";
-import { deriveIntensity } from "@/lib/emotion";
-import { containsSelfHarmSignals } from "@/lib/privacy";
-import { refreshDerivedForDate } from "@/lib/pipeline";
-import { getTagDef, tagsByKind } from "@/lib/lifeContext";
-import { addCustomTag, loadCustomTags } from "@/lib/customTags";
-import { deriveLegacyScales } from "@/lib/derive";
-import { llmDeeperRead, localMatch, type NoteSuggestion } from "@/lib/noteInterpret";
 
 // -----------------------------------------------------------------
 // Step 1 · Affect (Russell 1980 circumplex)
@@ -60,67 +68,6 @@ const QUADRANT_LABEL = (valence: number, arousal: number) => {
   if (valence < 0 && arousal >= 0) return "Unpleasant · activated";
   return "Unpleasant · low";
 };
-
-// Build a short, plain-English read of the note + check-in signals so the
-// user always gets visible feedback after pressing "Ask for a deeper read",
-// regardless of whether the model returned tag matches.
-function composeDeeperReadSummary(args: {
-  source: "llm" | "local" | "safety";
-  sentiment: number;
-  suggestionCount: number;
-  valence: number;
-  arousal: number;
-  regulation: EmotionalDiaryEntry["regulation"];
-  wearable: WearableMetrics | null;
-}): string {
-  const { source, sentiment, suggestionCount, valence, arousal, regulation, wearable } = args;
-  if (source === "safety") {
-    return "Your note touched on something heavy. Deeper read paused — the support resources card has people you can talk to.";
-  }
-  const parts: string[] = [];
-  // Emotional tone
-  const tone =
-    sentiment > 0.25
-      ? "leaning positive"
-      : sentiment < -0.25
-        ? "leaning heavy"
-        : "fairly mixed";
-  const quadrant = QUADRANT_LABEL(valence, arousal).toLowerCase();
-  parts.push(`Your note reads ${tone}, and you placed yourself in the ${quadrant} quadrant.`);
-  // Body context, if available.
-  if (wearable?.recovery != null) {
-    if (wearable.recovery >= 67) {
-      parts.push(`Body's in a strong recovery zone today (${wearable.recovery}%) — there's headroom for more demand.`);
-    } else if (wearable.recovery <= 33) {
-      parts.push(`Body's running on low recovery (${wearable.recovery}%) — softer pacing is likely the move.`);
-    } else {
-      parts.push(`Body recovery sits at ${wearable.recovery}% — middle ground, neither push nor pause.`);
-    }
-  }
-  // Regulation
-  if (regulation === "overwhelmed") {
-    parts.push("You marked this as overwhelmed, so the priority is dialling demands down before adding anything new.");
-  } else if (regulation === "manageable") {
-    parts.push("It's manageable — small adjustments now keep it that way.");
-  } else if (regulation === "handled") {
-    parts.push("You're handling it well — worth noticing what's working.");
-  }
-  // Suggestion outcome
-  if (suggestionCount > 0) {
-    parts.push(
-      source === "llm"
-        ? "The model surfaced a few context tags below — accept any that fit."
-        : "The on-device matcher surfaced a few context tags below — accept any that fit.",
-    );
-  } else {
-    parts.push(
-      source === "llm"
-        ? "Nothing specific jumped out as a tag this time. The note still counts — it's saved with the check-in."
-        : "No matches from the on-device matcher. The note still counts — it's saved with the check-in.",
-    );
-  }
-  return parts.join(" ");
-}
 
 export default function DailyCheckInScreen() {
   const scheme = useColorScheme();
@@ -145,7 +92,7 @@ export default function DailyCheckInScreen() {
   // WHOOP wearable data for today (Layer 2)
   const [wearable, setWearable] = useState<WearableMetrics | null>(null);
 
-  // True once we've loaded today's existing check-in (if any). Drives the
+  // True once loaded today's existing check-in (if any). Drives the
   // "already saved today" banner so users who tab back in don't feel stuck.
   const [hasTodayCheckIn, setHasTodayCheckIn] = useState(false);
 
@@ -160,9 +107,9 @@ export default function DailyCheckInScreen() {
   const [llmSuggestions, setLlmSuggestions] = useState<NoteSuggestion[]>([]);
   const [llmLoading, setLlmLoading] = useState(false);
   const [llmSource, setLlmSource] = useState<"llm" | "local" | "safety" | null>(null);
-  // A short human-readable summary of the deeper read so the user always
-  // sees a visible response after pressing the button — even when no tag
-  // suggestions came back.
+  // Human-readable summary the user actually sees after pressing the
+  // "deeper read" button — this is what makes the action visible even
+  // when the LLM returns no structured tags or the backend is offline.
   const [llmSummary, setLlmSummary] = useState<string | null>(null);
   const [llmError, setLlmError] = useState<string | null>(null);
 
@@ -219,14 +166,15 @@ export default function DailyCheckInScreen() {
     })();
   }, [date]);
 
-  // Keep local suggestions fresh as the note changes. Also clear any stale
-  // deeper-read summary so the user doesn't see a read that doesn't match
-  // their current note.
+  // Keep local suggestions fresh as the note changes. Also clear any
+  // stale deeper-read summary/error so the visible read reflects the
+  // current note, not an earlier one the user has already edited away.
   useEffect(() => {
     setLocalSuggestions(localMatch(note));
     setLlmSummary(null);
     setLlmError(null);
     setLlmSource(null);
+    setLlmSuggestions([]);
   }, [note]);
 
   const animateStep = (next: number) => {
@@ -274,6 +222,36 @@ export default function DailyCheckInScreen() {
     if (!note.trim()) return;
     setLlmLoading(true);
     setLlmError(null);
+    // Compute today's body / mind / LBI snapshot up-front so the summary
+    // can reference them. All three tolerate missing WHOOP data — we
+    // derive a synthetic check-in from the in-progress form so the user
+    // gets a reading even before they've pressed Save.
+    const today = await getDay(date as any).catch(() => null);
+    const body = today ? physioScore(today) : null;
+    const inProgressLegacy = deriveLegacyScales({ valence, arousal, lifeContext: tags });
+    const inProgressCheckIn: DailyCheckIn = {
+      valence,
+      arousal,
+      lifeContext: tags,
+      notes: note.trim() || undefined,
+      ...inProgressLegacy,
+    };
+    const mind = mentalScore({ checkIn: today?.checkIn ?? inProgressCheckIn });
+    let lbi: number | null = null;
+    if (today?.wearable) {
+      try {
+        const out = calculateLBI({
+          recovery: today.wearable.recovery,
+          sleepHours: today.wearable.sleepHours,
+          strain: today.wearable.strain,
+          checkIn: today.checkIn ?? inProgressCheckIn,
+        });
+        lbi = out.lbi;
+      } catch {
+        lbi = null;
+      }
+    }
+
     try {
       const result = await llmDeeperRead(note);
       // Keep only suggestions the user hasn't already accepted.
@@ -285,15 +263,43 @@ export default function DailyCheckInScreen() {
         composeDeeperReadSummary({
           source: result.source,
           sentiment: result.sentiment,
-          suggestionCount: fresh.length,
           valence,
           arousal,
-          regulation,
-          wearable,
+          bodyScore: body,
+          mindScore: mind,
+          lbi,
+          suggestionCount: fresh.length,
         }),
       );
-    } catch (e: any) {
-      setLlmError("Couldn't generate a deeper read just now. Try again in a moment.");
+    } catch (err: any) {
+      // Last-resort fallback: never leave the user with a silent button.
+      // Emit a deterministic on-device summary so the action visibly
+      // resolves even if the network call rejected before the helper's
+      // own catch swallowed it.
+      const fallbackSuggestions = localMatch(note);
+      const accepted = new Set(tags.map((t) => t.id));
+      const fresh = fallbackSuggestions.filter((s) => !accepted.has(s.tagId));
+      setLlmSuggestions(fresh);
+      setLlmSource("local");
+      setLlmSummary(
+        composeDeeperReadSummary({
+          source: "local",
+          sentiment: localSentiment(note),
+          valence,
+          arousal,
+          bodyScore: body,
+          mindScore: mind,
+          lbi,
+          suggestionCount: fresh.length,
+        }),
+      );
+      setLlmError(
+        "We couldn't reach the model — showing an on-device read instead.",
+      );
+      if (__DEV__) {
+        // eslint-disable-next-line no-console
+        console.warn("[checkin] runDeeperRead failed", err);
+      }
     } finally {
       setLlmLoading(false);
     }
@@ -916,38 +922,49 @@ export default function DailyCheckInScreen() {
                   on-device matcher — no network needed.
                 </Text>
               ) : null}
-              {llmError ? (
-                <Text style={{ color: c.danger, fontSize: 12, marginTop: 8 }}>
+              {llmError && (
+                <Text
+                  accessibilityLiveRegion="polite"
+                  style={{ color: c.danger, fontSize: 12, fontWeight: "700", marginTop: 8 }}
+                >
                   {llmError}
                 </Text>
-              ) : null}
-              {llmSummary ? (
+              )}
+              {llmSummary && (
                 <View
+                  accessibilityLiveRegion="polite"
                   style={{
                     marginTop: Spacing.sm,
                     padding: 12,
-                    borderRadius: BorderRadius.lg,
-                    backgroundColor: "rgba(107,93,211,0.06)",
-                    borderWidth: 1,
-                    borderColor: "rgba(107,93,211,0.18)",
+                    borderRadius: BorderRadius.md,
+                    borderLeftWidth: 3,
+                    borderLeftColor: c.accent.primary,
+                    backgroundColor: c.glass.secondary ?? "rgba(44,54,42,0.04)",
                   }}
                 >
                   <Text
                     style={{
                       color: c.text.tertiary,
-                      fontSize: 10,
+                      fontSize: Typography.fontSize.xs,
+                      fontFamily: Typography.fontFamily.bold,
+                      letterSpacing: Typography.letterSpacing.allcaps,
                       fontWeight: "800",
-                      letterSpacing: 1.2,
-                      marginBottom: 6,
                     }}
                   >
                     DEEPER READ
                   </Text>
-                  <Text style={{ color: c.text.primary, fontSize: 13, lineHeight: 19 }}>
+                  <Text
+                    style={{
+                      color: c.text.primary,
+                      fontSize: 14,
+                      lineHeight: 20,
+                      marginTop: 4,
+                    }}
+                  >
                     {llmSummary}
                   </Text>
                 </View>
-              ) : null}
+              )}
             </GlassCard>
 
             {/* Confirmable chips */}

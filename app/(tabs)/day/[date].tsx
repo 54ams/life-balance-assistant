@@ -8,9 +8,10 @@ import { RadarChart } from "@/components/ui/RadarChart";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Colors } from "@/constants/Colors";
 import { Spacing, BorderRadius } from "@/constants/Spacing";
-import { getDay, loadPlan, type StoredPlan } from "@/lib/storage";
+import { deleteCheckIn, getDay, loadPlan, type StoredPlan } from "@/lib/storage";
 import type { DailyRecord } from "@/lib/types";
 import { formatDateFull } from "@/lib/util/formatDate";
+import { confirmDestructive, notify } from "@/lib/util/confirm";
 
 function moodLabel(v: number): string {
   return ["", "Very low", "Low", "Neutral", "Good", "Great"][v] ?? "";
@@ -405,6 +406,55 @@ export default function DayDetailsScreen() {
               </Pressable>
             </GlassCard>
           )}
+
+          {/* Per-day delete — keeps the floating tab bar visible (this screen
+              lives inside the (tabs) navigator) so the user can still hop to
+              another tab after the entry is gone. */}
+          <GlassCard>
+            <Text style={{ color: c.text.primary, fontWeight: "800", fontSize: 16 }}>
+              Manage this entry
+            </Text>
+            <Text style={{ color: c.text.secondary, fontSize: 13, marginTop: 4 }}>
+              Removes this day's check-in, wearable record, emotion entry, and saved plan from this device.
+            </Text>
+            <Pressable
+              onPress={async () => {
+                if (!date) return;
+                const ok = await confirmDestructive(
+                  "Delete this entry?",
+                  "Removes the check-in, wearable record, emotion entry, and saved plan for this day. This cannot be undone.",
+                  "Delete",
+                );
+                if (!ok) return;
+                try {
+                  await deleteCheckIn(date as any);
+                  notify("Entry deleted", "This day's data has been removed.");
+                  router.back();
+                } catch (err: any) {
+                  notify("Delete failed", err?.message ?? "Could not delete this entry. Please try again.");
+                }
+              }}
+              style={({ pressed }) => [
+                {
+                  marginTop: Spacing.sm,
+                  paddingVertical: 12,
+                  paddingHorizontal: 16,
+                  borderRadius: BorderRadius.full,
+                  borderWidth: 1,
+                  borderColor: c.danger,
+                  alignItems: "center",
+                  backgroundColor: "transparent",
+                },
+                pressed && { opacity: 0.6 },
+              ]}
+              accessibilityRole="button"
+              accessibilityLabel="Delete this entry"
+            >
+              <Text style={{ color: c.danger, fontWeight: "800", fontSize: 13 }}>
+                Delete this entry
+              </Text>
+            </Pressable>
+          </GlassCard>
         </View>
       )}
     </Screen>

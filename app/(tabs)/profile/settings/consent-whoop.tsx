@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { Screen } from "@/components/Screen";
@@ -7,6 +7,7 @@ import { GlassCard } from "@/components/ui/GlassCard";
 import { Colors } from "@/constants/Colors";
 import { useColorScheme } from "react-native";
 import { getBackendBaseUrl } from "@/lib/backend";
+import { confirmDestructive, notify } from "@/lib/util/confirm";
 
 const CONSENT_KEY = "whoop_consent_v1";
 
@@ -23,23 +24,33 @@ export default function WhoopConsentScreen() {
     const ts = new Date().toISOString();
     await AsyncStorage.setItem(CONSENT_KEY, ts);
     setConsentAt(ts);
-    Alert.alert("Saved", "WHOOP consent recorded.");
+    notify("Saved", "WHOOP consent recorded.");
   };
 
   const withdraw = async () => {
-    const session = await AsyncStorage.getItem("whoop_session_token");
-    const backendUrl = getBackendBaseUrl();
-    if (session && backendUrl) {
-      try {
-        await fetch(`${backendUrl}/whoop/session`, {
-          method: "DELETE",
-          headers: { Authorization: `Bearer ${session}` },
-        });
-      } catch {}
+    const ok = await confirmDestructive(
+      "Withdraw WHOOP consent?",
+      "Disconnects WHOOP and clears the session token, last-sync timestamp, and participant id from this device.",
+      "Withdraw",
+    );
+    if (!ok) return;
+    try {
+      const session = await AsyncStorage.getItem("whoop_session_token");
+      const backendUrl = getBackendBaseUrl();
+      if (session && backendUrl) {
+        try {
+          await fetch(`${backendUrl}/whoop/session`, {
+            method: "DELETE",
+            headers: { Authorization: `Bearer ${session}` },
+          });
+        } catch {}
+      }
+      await AsyncStorage.multiRemove([CONSENT_KEY, "whoop_session_token", "whoop_participant_id", "whoop_last_sync"]);
+      setConsentAt(null);
+      notify("Withdrawn", "Consent withdrawn and tokens cleared.");
+    } catch (err: any) {
+      notify("Withdraw failed", err?.message ?? "Could not withdraw consent. Please try again.");
     }
-    await AsyncStorage.multiRemove([CONSENT_KEY, "whoop_session_token", "whoop_participant_id", "whoop_last_sync"]);
-    setConsentAt(null);
-    Alert.alert("Withdrawn", "Consent withdrawn and tokens cleared.");
   };
 
   return (
