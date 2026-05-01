@@ -1,5 +1,6 @@
 import { Screen } from "@/components/Screen";
 import { GlassCard } from "@/components/ui/GlassCard";
+import { ScreenHeader } from "@/components/ui/ScreenHeader";
 import { Colors } from "@/constants/Colors";
 import { useColorScheme } from "react-native";
 import { StyleSheet, Text } from "react-native";
@@ -10,10 +11,10 @@ export default function PrivacyNoticeScreen() {
 
   return (
     <Screen scroll contentStyle={{ paddingTop: 18 }}>
-      <Text style={[styles.h1, { color: c.text.primary }]}>Privacy notice</Text>
-      <Text style={[styles.sub, { color: c.text.secondary }]}>
-        A plain-English summary of what we store, why, and how you stay in control.
-      </Text>
+      <ScreenHeader
+        title="Privacy notice"
+        subtitle="A plain-English summary of what we store, why, and how you stay in control."
+      />
 
       <GlassCard style={styles.card}>
         <Text style={[styles.title, { color: c.text.primary }]}>What we store</Text>

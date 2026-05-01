@@ -2,10 +2,10 @@ import React, { useEffect, useState } from "react";
 import { Pressable, Text, View, useColorScheme } from "react-native";
 import { router } from "expo-router";
 import { Screen } from "@/components/Screen";
+import { ScreenHeader } from "@/components/ui/ScreenHeader";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { Colors } from "@/constants/Colors";
 import { Spacing } from "@/constants/Spacing";
-import { Typography } from "@/constants/Typography";
 import { runModelEvaluation, type ModelEvalSummary } from "@/lib/ml/eval";
 import { ErrorState } from "@/components/ui/error-state";
 
@@ -42,7 +42,12 @@ export default function PerformanceScreen() {
   const needsMoreData = !!error && error.toLowerCase().includes("30");
 
   return (
-    <Screen scroll title="Model performance" subtitle="How well the scoring model holds up against your data">
+    <Screen scroll>
+      <ScreenHeader
+        title="Model performance"
+        subtitle="How well the scoring model holds up against your data"
+        fallback="/insights"
+      />
       {error ? (
         <GlassCard padding="base">
           <ErrorState

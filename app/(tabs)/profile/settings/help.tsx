@@ -1,9 +1,9 @@
 import { Screen } from "@/components/Screen";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { IconSymbol } from "@/components/ui/icon-symbol";
+import { ScreenHeader } from "@/components/ui/ScreenHeader";
 import { Colors } from "@/constants/Colors";
 import { Spacing } from "@/constants/Spacing";
-import { Typography } from "@/constants/Typography";
 import { useColorScheme } from "react-native";
 import { Linking, Pressable, Text, View } from "react-native";
 import { useState } from "react";
@@ -72,28 +72,7 @@ export default function HelpResourcesScreen() {
 
   return (
     <Screen scroll contentStyle={{ paddingTop: 18 }}>
-      <Text
-        style={{
-          color: c.text.tertiary,
-          fontSize: Typography.fontSize.xs,
-          fontFamily: Typography.fontFamily.bold,
-          letterSpacing: Typography.letterSpacing.allcaps,
-          fontWeight: "800",
-        }}
-      >
-        SUPPORT
-      </Text>
-      <Text
-        style={{
-          color: c.text.primary,
-          fontSize: 32,
-          fontFamily: Typography.fontFamily.serifItalic,
-          marginTop: 4,
-          lineHeight: 38,
-        }}
-      >
-        Help & safety
-      </Text>
+      <ScreenHeader title="Help & safety" eyebrow="SUPPORT" />
 
       {/* Crisis resources — always visible at top */}
       <GlassCard style={{ marginTop: Spacing.lg, borderLeftWidth: 3, borderLeftColor: c.warning }} padding="base">

@@ -4,9 +4,9 @@ import { useState } from "react";
 import { Screen } from "@/components/Screen";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { IconSymbol } from "@/components/ui/icon-symbol";
+import { ScreenHeader } from "@/components/ui/ScreenHeader";
 import { Colors } from "@/constants/Colors";
 import { Spacing } from "@/constants/Spacing";
-import { Typography } from "@/constants/Typography";
 import { useColorScheme } from "react-native";
 
 function Section({
@@ -72,32 +72,11 @@ export default function AboutScreen() {
 
   return (
     <Screen scroll contentStyle={{ paddingTop: 18 }}>
-      <Text
-        style={{
-          color: c.text.tertiary,
-          fontSize: Typography.fontSize.xs,
-          fontFamily: Typography.fontFamily.bold,
-          letterSpacing: Typography.letterSpacing.allcaps,
-          fontWeight: "800",
-        }}
-      >
-        ABOUT
-      </Text>
-      <Text
-        style={{
-          color: c.text.primary,
-          fontSize: 32,
-          fontFamily: Typography.fontFamily.serifItalic,
-          marginTop: 4,
-          lineHeight: 38,
-        }}
-      >
-        Life Balance Assistant
-      </Text>
-      <Text style={{ color: c.text.secondary, fontSize: 14, marginTop: 6, lineHeight: 20 }}>
-        A prototype wellbeing app built as a BCS synoptic dissertation project. It bridges wearable
-        physiology and self-reported psychology into a single daily picture.
-      </Text>
+      <ScreenHeader
+        title="Life Balance Assistant"
+        eyebrow="ABOUT"
+        subtitle="A prototype wellbeing app built as a BCS synoptic dissertation project. It bridges wearable physiology and self-reported psychology into a single daily picture."
+      />
 
       <View style={{ gap: Spacing.sm, marginTop: Spacing.lg }}>
         <Section title="What it does" defaultOpen c={c}>

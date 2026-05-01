@@ -7,6 +7,7 @@ import * as Haptics from "expo-haptics";
 import { Screen } from "@/components/Screen";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { GlassButton } from "@/components/ui/GlassButton";
+import { ScreenHeader } from "@/components/ui/ScreenHeader";
 import { Colors } from "@/constants/Colors";
 import { Spacing, BorderRadius } from "@/constants/Spacing";
 import {
@@ -131,7 +132,7 @@ export default function EditProfileScreen() {
 
   return (
     <Screen scroll>
-      <Text style={[styles.heading, { color: c.text.primary }]}>Edit profile</Text>
+      <ScreenHeader title="Edit profile" />
 
       {/* Name */}
       <GlassCard style={styles.section} padding="lg">

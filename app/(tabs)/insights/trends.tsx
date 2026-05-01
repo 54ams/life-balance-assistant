@@ -3,6 +3,7 @@ import { useCallback, useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text, View, useColorScheme } from "react-native";
 
 import { Screen } from "@/components/Screen";
+import { ScreenHeader } from "@/components/ui/ScreenHeader";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { MiniLineChart } from "@/components/ui/MiniLineChart";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -90,12 +91,15 @@ export default function TrendsScreen() {
 
   return (
     <Screen scroll contentStyle={{ paddingBottom: 28 }}>
-      <Text style={[styles.title, { color: c.text.primary }]}>Trends</Text>
-      <Text style={[styles.subtitle, { color: c.text.secondary }]}>
-        {days.length > 0
-          ? `${days.length} days of balance data`
-          : "Your balance trajectory over time"}
-      </Text>
+      <ScreenHeader
+        title="Trends"
+        subtitle={
+          days.length > 0
+            ? `${days.length} days of balance data`
+            : "Your balance trajectory over time"
+        }
+        fallback="/insights"
+      />
 
       {loading ? (
         <GlassCard style={{ marginTop: Spacing.md }}>
@@ -249,8 +253,6 @@ export default function TrendsScreen() {
 }
 
 const styles = StyleSheet.create({
-  title: { fontSize: 28, fontWeight: "800", marginTop: 4 },
-  subtitle: { marginTop: 6, marginBottom: 4, fontSize: 14 },
   miniStat: {
     paddingHorizontal: 12,
     paddingVertical: 6,

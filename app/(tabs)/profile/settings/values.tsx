@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Alert, Pressable, StyleSheet, Text, TextInput, View, useColorScheme } from "react-native";
 import { Screen } from "@/components/Screen";
 import { GlassCard } from "@/components/ui/GlassCard";
+import { ScreenHeader } from "@/components/ui/ScreenHeader";
 import { Button } from "@/components/ui/button";
 import { Colors } from "@/constants/Colors";
 import { getActiveValues, saveActiveValues } from "@/lib/storage";
@@ -46,7 +47,8 @@ export default function ValuesScreen() {
   };
 
   return (
-    <Screen scroll title="Values" subtitle="Choose up to 6 that matter most">
+    <Screen scroll>
+      <ScreenHeader title="Values" subtitle="Choose up to 6 that matter most" />
       <GlassCard>
         <Text style={{ color: c.text.primary, fontWeight: "800", fontSize: 16 }}>Core set</Text>
         <View style={styles.wrap}>

@@ -3,6 +3,7 @@ import { Pressable, Text, View, useColorScheme } from "react-native";
 import { router, useFocusEffect } from "expo-router";
 
 import { Screen } from "@/components/Screen";
+import { ScreenHeader } from "@/components/ui/ScreenHeader";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { Colors } from "@/constants/Colors";
 import { Spacing } from "@/constants/Spacing";
@@ -128,18 +129,11 @@ export default function AdherenceInsightsScreen() {
 
   return (
     <Screen scroll>
-      <Text
-        style={{
-          fontSize: Typography.fontSize.xxl,
-          fontWeight: Typography.fontWeight.bold,
-          color: c.text.primary,
-        }}
-      >
-        Sticking to your plan
-      </Text>
-      <Text style={{ marginTop: Spacing.xs, color: c.text.secondary }}>
-        Small steps add up. Here's how you've been doing.
-      </Text>
+      <ScreenHeader
+        title="Sticking to your plan"
+        subtitle="Small steps add up. Here's how you've been doing."
+        fallback="/insights"
+      />
 
       {loading ? (
         <GlassCard style={{ marginTop: Spacing.md }}>

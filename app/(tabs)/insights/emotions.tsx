@@ -4,6 +4,7 @@ import { useFocusEffect } from "expo-router";
 import { Pressable, Text, View, useColorScheme } from "react-native";
 
 import { Screen } from "@/components/Screen";
+import { ScreenHeader } from "@/components/ui/ScreenHeader";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { MiniLineChart } from "@/components/ui/MiniLineChart";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -79,12 +80,11 @@ export default function EmotionHistoryScreen() {
     <Screen scroll>
       <Stack.Screen options={{ headerShown: false, gestureEnabled: true }} />
 
-      <Text style={{ fontSize: 28, fontWeight: "900", color: c.text.primary, letterSpacing: -0.3 }}>
-        Emotional Journey
-      </Text>
-      <Text style={{ marginTop: 4, color: c.text.secondary, fontSize: 14 }}>
-        Your emotional patterns over the last 30 days
-      </Text>
+      <ScreenHeader
+        title="Emotional Journey"
+        subtitle="Your emotional patterns over the last 30 days"
+        fallback="/insights"
+      />
 
       {emotions.length === 0 ? (
         <GlassCard style={{ marginTop: Spacing.lg }}>

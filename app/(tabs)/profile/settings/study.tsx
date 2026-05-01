@@ -4,6 +4,7 @@ import { router } from "expo-router";
 
 import { Screen } from "@/components/Screen";
 import { GlassCard } from "@/components/ui/GlassCard";
+import { ScreenHeader } from "@/components/ui/ScreenHeader";
 import { Colors } from "@/constants/Colors";
 import { useColorScheme } from "react-native";
 import { listDailyRecords, listPlans } from "@/lib/storage";
@@ -27,10 +28,10 @@ export default function StudyCompletionScreen() {
 
   return (
     <Screen scroll contentStyle={{ paddingTop: 18 }}>
-      <Text style={[styles.h1, { color: c.text.primary }]}>Wrapping up</Text>
-      <Text style={[styles.sub, { color: c.text.secondary }]}>
-        If you've been trying the app for a while, this is a tidy way to share your feedback and take a copy of your data with you.
-      </Text>
+      <ScreenHeader
+        title="Wrapping up"
+        subtitle="If you've been trying the app for a while, this is a tidy way to share your feedback and take a copy of your data with you."
+      />
 
       <GlassCard style={styles.card}>
         <Text style={[styles.title, { color: c.text.primary }]}>Where you are</Text>

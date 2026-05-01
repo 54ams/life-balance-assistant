@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View, useColorScheme } from "react-native";
 import { Screen } from "@/components/Screen";
 import { GlassCard } from "@/components/ui/GlassCard";
+import { ScreenHeader } from "@/components/ui/ScreenHeader";
 import { Button } from "@/components/ui/button";
 import { Colors } from "@/constants/Colors";
 import { BorderRadius, Spacing } from "@/constants/Spacing";
@@ -68,7 +69,8 @@ export default function ScheduleScreen() {
   };
 
   return (
-    <Screen scroll title="My Schedule" subtitle="Set your recurring weekly commitments">
+    <Screen scroll>
+      <ScreenHeader title="My Schedule" subtitle="Set your recurring weekly commitments" />
       {/* Existing items */}
       {items.map((item) => (
         <GlassCard key={item.id} style={styles.card}>

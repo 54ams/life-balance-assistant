@@ -5,6 +5,7 @@ import { useFocusEffect } from "expo-router";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { Screen } from "@/components/Screen";
+import { ScreenHeader } from "@/components/ui/ScreenHeader";
 import { InsightsDatePicker } from "@/components/InsightsDatePicker";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { IconSymbol } from "@/components/ui/icon-symbol";
@@ -190,14 +191,14 @@ export default function AnalyticsScreen() {
     <Screen scroll contentStyle={styles.container}>
       <Stack.Screen options={{ headerShown: false, gestureEnabled: true }} />
 
-      <View style={styles.topBar}>
-        <View style={{ flex: 1 }}>
-          <Text style={[styles.title, { color: c.text.primary }]}>Analytics</Text>
-          <Text style={[styles.subtitle, { color: c.text.secondary }]}>
-            Your patterns over the last 30 days
-          </Text>
-        </View>
+      <ScreenHeader
+        title="Analytics"
+        subtitle="Your patterns over the last 30 days"
+        fallback="/insights"
+      />
 
+      <View style={styles.topBar}>
+        <View style={{ flex: 1 }} />
         <Pressable
           onPress={load}
           style={({ pressed }) => [
@@ -352,8 +353,6 @@ export default function AnalyticsScreen() {
 const styles = StyleSheet.create({
   container: { padding: 18, gap: 12 },
   topBar: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 6 },
-  title: { fontSize: 26, fontWeight: "900" },
-  subtitle: { marginTop: 2, fontSize: 13, fontWeight: "600" },
   iconBtn: { width: 42, height: 42, borderRadius: 21, alignItems: "center", justifyContent: "center" },
   btnRow: { flexDirection: "row", gap: 10 },
   btn: { flex: 1, borderWidth: 1, borderRadius: 14, paddingVertical: 12, paddingHorizontal: 12, alignItems: "center" },

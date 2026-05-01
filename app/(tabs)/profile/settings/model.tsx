@@ -3,6 +3,7 @@ import { StyleSheet, Text, View } from "react-native";
 
 import { Screen } from "@/components/Screen";
 import { GlassCard } from "@/components/ui/GlassCard";
+import { ScreenHeader } from "@/components/ui/ScreenHeader";
 import { Colors } from "@/constants/Colors";
 import { useColorScheme } from "react-native";
 import { DefaultModelConfig } from "@/lib/lbi";
@@ -17,7 +18,8 @@ export default function ModelSettingsScreen() {
   const stability = stabilityScore(sensitivity.map((s) => s.lbi));
 
   return (
-    <Screen scroll title="Scoring model" subtitle="Weights, thresholds, and sensitivity">
+    <Screen scroll>
+      <ScreenHeader title="Scoring model" subtitle="Weights, thresholds, and sensitivity" />
       <GlassCard style={styles.card}>
         <Text style={[styles.title, { color: c.text.primary }]}>Model version {DefaultModelConfig.version}</Text>
         <Text style={{ color: c.text.secondary, marginTop: 6 }}>

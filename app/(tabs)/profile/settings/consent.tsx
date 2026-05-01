@@ -1,5 +1,6 @@
 import { Screen } from "@/components/Screen";
 import { GlassCard } from "@/components/ui/GlassCard";
+import { ScreenHeader } from "@/components/ui/ScreenHeader";
 import { Colors } from "@/constants/Colors";
 import { useColorScheme } from "react-native";
 import { useEffect, useState } from "react";
@@ -82,10 +83,10 @@ export default function ConsentSafetyScreen() {
 
   return (
     <Screen scroll contentStyle={{ paddingTop: 18 }}>
-      <Text style={[styles.h1, { color: c.text.primary }]}>Consent & safety</Text>
-      <Text style={[styles.sub, { color: c.text.secondary }]}>
-        Explicit consent is required before insights and wearable sync.
-      </Text>
+      <ScreenHeader
+        title="Consent & safety"
+        subtitle="Explicit consent is required before insights and wearable sync."
+      />
 
       <GlassCard style={styles.card}>
         <Text style={[styles.title, { color: c.text.primary }]}>Current status</Text>

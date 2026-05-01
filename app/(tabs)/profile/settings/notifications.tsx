@@ -3,6 +3,7 @@ import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
 
 import { Screen } from "@/components/Screen";
 import { GlassCard } from "@/components/ui/GlassCard";
+import { ScreenHeader } from "@/components/ui/ScreenHeader";
 import { Colors } from "@/constants/Colors";
 import { useColorScheme } from "react-native";
 import {
@@ -53,8 +54,10 @@ export default function NotificationsSettings() {
 
   return (
     <Screen scroll contentStyle={{ paddingTop: 18 }}>
-      <Text style={[styles.h1, { color: c.text.primary }]}>Notifications</Text>
-      <Text style={[styles.sub, { color: c.text.secondary }]}>Reminders to keep your check-ins consistent.</Text>
+      <ScreenHeader
+        title="Notifications"
+        subtitle="Reminders to keep your check-ins consistent."
+      />
 
       <GlassCard style={styles.card}>
         <Text style={[styles.cardTitle, { color: c.text.primary }]}>Daily check-in reminder</Text>

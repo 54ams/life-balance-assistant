@@ -4,6 +4,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { Screen } from "@/components/Screen";
 import { GlassCard } from "@/components/ui/GlassCard";
+import { ScreenHeader } from "@/components/ui/ScreenHeader";
 import { Colors } from "@/constants/Colors";
 import { useColorScheme } from "react-native";
 import { getBackendBaseUrl } from "@/lib/backend";
@@ -55,8 +56,7 @@ export default function WhoopConsentScreen() {
 
   return (
     <Screen scroll contentStyle={{ paddingTop: 18 }}>
-      <Text style={[styles.h1, { color: c.text.primary }]}>WHOOP consent</Text>
-      <Text style={[styles.sub, { color: c.text.secondary }]}>Control your WHOOP data linkage.</Text>
+      <ScreenHeader title="WHOOP consent" subtitle="Control your WHOOP data linkage." />
 
       <GlassCard style={styles.card}>
         <Text style={[styles.cardTitle, { color: c.text.primary }]}>Status</Text>

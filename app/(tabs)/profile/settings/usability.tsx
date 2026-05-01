@@ -3,6 +3,7 @@ import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-
 
 import { Screen } from "@/components/Screen";
 import { GlassCard } from "@/components/ui/GlassCard";
+import { ScreenHeader } from "@/components/ui/ScreenHeader";
 import { Colors } from "@/constants/Colors";
 import { useColorScheme } from "react-native";
 import { SUS_QUESTIONS, computeSusScore, type SusResponse } from "@/lib/evaluation/sus";
@@ -113,12 +114,12 @@ export default function UsabilitySusScreen() {
   };
 
   return (
-    <Screen title="Usability (SUS)">
+    <Screen>
       <ScrollView contentContainerStyle={{ paddingBottom: 60 }}>
-        <Text style={[styles.h1, { color: c.text.primary }]}>SUS Survey</Text>
-        <Text style={[styles.sub, { color: c.text.secondary }]}>
-          Answer all 10 questions. Responses are stored locally and can be exported via JSON in Profile → Export.
-        </Text>
+        <ScreenHeader
+          title="SUS Survey"
+          subtitle="Answer all 10 questions. Responses are stored locally and can be exported via JSON in Profile → Export."
+        />
 
         <GlassCard style={{ marginTop: 14 }}>
           <Text style={[styles.meta, { color: c.text.secondary }]}>Participant ID</Text>

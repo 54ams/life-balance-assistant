@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { Screen } from "@/components/Screen";
 import { GlassCard } from "@/components/ui/GlassCard";
+import { ScreenHeader } from "@/components/ui/ScreenHeader";
 import { Colors } from "@/constants/Colors";
 import { useColorScheme } from "react-native";
-import { seedDemoData } from "@/lib/demoSeed";
 import {
   clearDemoOverrides,
   isDemoEnabled,
@@ -16,43 +16,73 @@ import {
 import { SCENARIOS, seedScenario, type ScenarioKey } from "@/lib/demoScenarios";
 import { confirmDestructive, notify } from "@/lib/util/confirm";
 
+// "Seed 30 days demo data" used to wipe the local store and write
+// 30 days of randomised data via seedDemoData(). The user-facing
+// behaviour we now want is: pressing the button opens a scenario
+// picker; the chosen scenario seeds 14 deterministic days *and*
+// flips Demo Mode on so the rest of the app shows the seeded badge.
+// 30-day random seeding has been retired because nothing in the app
+// surfaced day 15+ uniquely, and the deterministic 14-day arcs are
+// what every viva walkthrough actually uses.
+
 export default function DemoToolsScreen() {
   const scheme = useColorScheme();
   const c = Colors[scheme ?? "light"];
 
   const [demoOn, setDemoOn] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
+
+  // Re-read the demo flag whenever the screen mounts or after an
+  // operation, so the pill always matches what's actually persisted.
+  const refreshDemoFlag = async () => {
+    const on = await isDemoEnabled();
+    setDemoOn(on);
+  };
 
   useEffect(() => {
-    (async () => {
-      const on = await isDemoEnabled();
-      setDemoOn(on);
-    })();
+    refreshDemoFlag();
   }, []);
 
   const toggleDemo = async () => {
     setSaving(true);
     try {
-      await setDemoEnabled(!demoOn);
-      setDemoOn(!demoOn);
+      const next = !demoOn;
+      await setDemoEnabled(next);
+      setDemoOn(next);
     } finally {
       setSaving(false);
     }
   };
 
-  const onSeed = async () => {
+  // The big "Seed 30 days demo data" button now opens the scenario
+  // picker. The label is preserved for continuity, but the action is
+  // "choose a preset, seed it, turn Demo Mode on".
+  const onOpenScenarioPicker = () => {
+    setPickerOpen(true);
+  };
+
+  const onPickScenario = async (key: ScenarioKey, title: string) => {
+    setPickerOpen(false);
     const ok = await confirmDestructive(
-      "Seed demo data?",
-      "This wipes the current local data and replaces it with 30 days of example data. This cannot be undone.",
-      "Seed",
+      `Load "${title}"?`,
+      "This wipes the current local data and replaces it with 14 days of scenario example data. Demo Mode will be turned on. This cannot be undone.",
+      "Load scenario",
     );
     if (!ok) return;
     setSaving(true);
     try {
-      await seedDemoData(30);
-      notify("Done", "Seeded 30 days of demo data.");
-    } catch (err: any) {
-      notify("Seed failed", err?.message ?? "Could not seed demo data.");
+      await seedScenario(key);
+      // Auto-flip Demo Mode on so the seeded data is honoured by the
+      // rest of the app immediately — no extra tap required.
+      await setDemoEnabled(true);
+      await refreshDemoFlag();
+      notify(
+        "Scenario loaded",
+        `Seeded 14 days for "${title}" and turned Demo Mode on. Open Home, Insights, or History to see the data.`,
+      );
+    } catch (err) {
+      notify("Couldn't seed scenario", (err as any)?.message ?? "Unknown error");
     } finally {
       setSaving(false);
     }
@@ -61,14 +91,19 @@ export default function DemoToolsScreen() {
   const onClearOverrides = async () => {
     const ok = await confirmDestructive(
       "Clear demo overrides?",
-      "Removes the temporary check-in and wearable values used for demos. Your real data is unaffected.",
+      "Removes the temporary check-in and wearable values used for demos and turns Demo Mode off. Your real check-in and wearable data is unaffected.",
       "Clear",
     );
     if (!ok) return;
     setSaving(true);
     try {
       await clearDemoOverrides();
-      notify("Done", "Cleared demo overrides.");
+      // Turning Demo Mode off is the natural pair: clearing the
+      // overrides without flipping the flag would leave the rest of
+      // the app showing a "Demo data" badge with no demo to back it.
+      await setDemoEnabled(false);
+      await refreshDemoFlag();
+      notify("Done", "Cleared demo overrides and turned Demo Mode off.");
     } catch (err: any) {
       notify("Clear failed", err?.message ?? "Could not clear overrides.");
     } finally {
@@ -76,28 +111,12 @@ export default function DemoToolsScreen() {
     }
   };
 
-  const onSeedScenario = async (key: ScenarioKey, title: string) => {
-    const ok = await confirmDestructive(
-      `Load "${title}"?`,
-      "This wipes the current local data and replaces it with 14 days of scenario example data. This cannot be undone.",
-      "Load scenario",
-    );
-    if (!ok) return;
-    setSaving(true);
-    try {
-      await seedScenario(key);
-      notify("Scenario loaded", `Seeded 14 days for "${title}". Open Home to see the arc.`);
-    } catch (err) {
-      notify("Couldn't seed scenario", (err as any)?.message ?? "Unknown error");
-    } finally {
-      setSaving(false);
-    }
-  };
-
   return (
     <Screen scroll contentStyle={styles.container}>
-      <Text style={[styles.title, { color: c.text.primary }]}>Demo tools</Text>
-      <Text style={[styles.sub, { color: c.text.secondary }]}>Load example data so you can see how the app looks once a few days are filled in.</Text>
+      <ScreenHeader
+        title="Demo tools"
+        subtitle="Load example data so you can see how the app looks once a few days are filled in."
+      />
 
       <GlassCard>
         <View style={styles.rowBetween}>
@@ -107,6 +126,7 @@ export default function DemoToolsScreen() {
           </View>
           <Pressable
             accessibilityRole="button"
+            accessibilityLabel={`Demo mode ${demoOn ? "on" : "off"}`}
             onPress={toggleDemo}
             disabled={saving}
             style={({ pressed }) => [
@@ -124,12 +144,24 @@ export default function DemoToolsScreen() {
 
       <GlassCard style={styles.cardPad}>
         <Pressable
-          onPress={onSeed}
+          onPress={onOpenScenarioPicker}
           disabled={saving}
-          style={({ pressed }) => [styles.primaryBtn, { backgroundColor: c.accent.primary }, pressed && styles.pressed]}
+          accessibilityRole="button"
+          accessibilityLabel="Seed 30 days of demo data"
+          style={({ pressed }) => [
+            styles.primaryBtn,
+            { backgroundColor: c.accent.primary, opacity: saving ? 0.6 : 1 },
+            pressed && styles.pressed,
+          ]}
         >
-          <Text style={[styles.primaryText, { color: c.onPrimary }]}>Seed 30 days demo data</Text>
+          <Text style={[styles.primaryText, { color: c.onPrimary }]}>
+            {saving ? "Working…" : "Seed 30 days demo data"}
+          </Text>
         </Pressable>
+        <Text style={[styles.helper, { color: c.text.tertiary }]}>
+          Pick a scenario preset (Healthy week, Stress spike, Burnout → recovery, etc.). The chosen
+          preset seeds 14 deterministic days and turns Demo Mode on.
+        </Text>
         <View style={{ height: 12 }} />
         <Pressable
           onPress={async () => {
@@ -137,11 +169,14 @@ export default function DemoToolsScreen() {
             try {
               await setDemoWearable({ sleepHours: 7.4, recovery: 78, hrv: 58, restingHR: 54 });
               notify("Done", "Set demo wearable values.");
+            } catch (err: any) {
+              notify("Couldn't set wearable", err?.message ?? "Unknown error");
             } finally {
               setSaving(false);
             }
           }}
           disabled={saving}
+          accessibilityRole="button"
           style={({ pressed }) => [styles.secondaryBtn, { borderColor: c.border.medium }, pressed && styles.pressed]}
         >
           <Text style={[styles.secondaryText, { color: c.text.primary }]}>Set demo wearable values</Text>
@@ -171,11 +206,14 @@ export default function DemoToolsScreen() {
                 notes: "Demo check-in",
               });
               notify("Done", "Set demo check-in values.");
+            } catch (err: any) {
+              notify("Couldn't set check-in", err?.message ?? "Unknown error");
             } finally {
               setSaving(false);
             }
           }}
           disabled={saving}
+          accessibilityRole="button"
           style={({ pressed }) => [styles.secondaryBtn, { borderColor: c.border.medium }, pressed && styles.pressed]}
         >
           <Text style={[styles.secondaryText, { color: c.text.primary }]}>Set demo check-in values</Text>
@@ -184,6 +222,8 @@ export default function DemoToolsScreen() {
         <Pressable
           onPress={onClearOverrides}
           disabled={saving}
+          accessibilityRole="button"
+          accessibilityLabel="Clear demo overrides and turn Demo Mode off"
           style={({ pressed }) => [styles.secondaryBtn, { borderColor: c.border.medium }, pressed && styles.pressed]}
         >
           <Text style={[styles.secondaryText, { color: c.text.primary }]}>Clear demo overrides</Text>
@@ -200,8 +240,10 @@ export default function DemoToolsScreen() {
           <View key={s.key}>
             {idx > 0 && <View style={{ height: 10 }} />}
             <Pressable
-              onPress={() => onSeedScenario(s.key, s.title)}
+              onPress={() => onPickScenario(s.key, s.title)}
               disabled={saving}
+              accessibilityRole="button"
+              accessibilityLabel={`Load scenario: ${s.title}`}
               style={({ pressed }) => [
                 styles.scenarioBtn,
                 { borderColor: c.border.medium },
@@ -214,6 +256,55 @@ export default function DemoToolsScreen() {
           </View>
         ))}
       </GlassCard>
+
+      {/* Cross-platform scenario picker. Native Alert with N choices is
+          unreliable on iOS (3-button cap) and a no-op on web — a Modal
+          gives us identical behaviour everywhere. */}
+      <Modal
+        visible={pickerOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setPickerOpen(false)}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={[styles.modalSheet, { backgroundColor: c.background, borderColor: c.border.medium }]}>
+            <Text style={[styles.modalTitle, { color: c.text.primary }]}>Choose a scenario</Text>
+            <Text style={[styles.modalSub, { color: c.text.secondary }]}>
+              Pick the story you want the demo data to tell. Loading a scenario clears the current local data.
+            </Text>
+            <ScrollView style={{ maxHeight: 360 }} contentContainerStyle={{ paddingVertical: 8 }}>
+              {SCENARIOS.map((s) => (
+                <Pressable
+                  key={s.key}
+                  onPress={() => onPickScenario(s.key, s.title)}
+                  disabled={saving}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Load scenario: ${s.title}`}
+                  style={({ pressed }) => [
+                    styles.modalRow,
+                    { borderColor: c.border.medium },
+                    pressed && styles.pressed,
+                  ]}
+                >
+                  <Text style={[styles.modalRowTitle, { color: c.text.primary }]}>{s.title}</Text>
+                  <Text style={[styles.modalRowBlurb, { color: c.text.secondary }]}>{s.blurb}</Text>
+                </Pressable>
+              ))}
+            </ScrollView>
+            <Pressable
+              onPress={() => setPickerOpen(false)}
+              accessibilityRole="button"
+              style={({ pressed }) => [
+                styles.modalCancel,
+                { borderColor: c.border.medium },
+                pressed && styles.pressed,
+              ]}
+            >
+              <Text style={{ color: c.text.primary, fontWeight: "800", fontSize: 14 }}>Cancel</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
     </Screen>
   );
 }
@@ -237,6 +328,7 @@ const styles = StyleSheet.create({
   cardPad: { padding: 16 },
   primaryBtn: { paddingVertical: 14, borderRadius: 14, alignItems: "center" },
   primaryText: { color: "#fff", fontSize: 15, fontWeight: "800" },
+  helper: { marginTop: 8, fontSize: 12, lineHeight: 17 },
   secondaryBtn: {
     paddingVertical: 14,
     borderRadius: 14,
@@ -258,4 +350,36 @@ const styles = StyleSheet.create({
   },
   scenarioTitle: { fontSize: 15, fontWeight: "800" },
   scenarioBlurb: { marginTop: 4, fontSize: 12, lineHeight: 16 },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.45)",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 16,
+  },
+  modalSheet: {
+    width: "100%",
+    maxWidth: 460,
+    borderWidth: 1,
+    borderRadius: 18,
+    padding: 18,
+  },
+  modalTitle: { fontSize: 20, fontWeight: "900", letterSpacing: -0.2 },
+  modalSub: { marginTop: 6, fontSize: 13, lineHeight: 18 },
+  modalRow: {
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 14,
+    borderWidth: 1,
+    marginVertical: 6,
+  },
+  modalRowTitle: { fontSize: 15, fontWeight: "800" },
+  modalRowBlurb: { marginTop: 4, fontSize: 12, lineHeight: 16 },
+  modalCancel: {
+    marginTop: 10,
+    paddingVertical: 12,
+    borderRadius: 14,
+    borderWidth: 1,
+    alignItems: "center",
+  },
 });

@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, Text, View, useColorScheme } from "react-native"
 
 import { Screen } from "@/components/Screen";
 import { GlassCard } from "@/components/ui/GlassCard";
+import { ScreenHeader } from "@/components/ui/ScreenHeader";
 import { Colors } from "@/constants/Colors";
 import {
   getPreferredTone,
@@ -47,10 +48,10 @@ export default function ReflectionSettingsScreen() {
 
   return (
     <Screen scroll contentStyle={{ paddingTop: 18 }}>
-      <Text style={[styles.h1, { color: c.text.primary }]}>Reflection tone</Text>
-      <Text style={[styles.sub, { color: c.text.secondary }]}>
-        How would you like the app to speak to you when it offers a little reflection after a check-in?
-      </Text>
+      <ScreenHeader
+        title="Reflection tone"
+        subtitle="How would you like the app to speak to you when it offers a little reflection after a check-in?"
+      />
 
       <View style={{ gap: 10, marginTop: 14 }}>
         {TONES.map((t) => {

@@ -13,12 +13,13 @@ import { Screen } from "@/components/Screen";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { FlipCard } from "@/components/ui/FlipCard";
 import { IconSymbol } from "@/components/ui/icon-symbol";
+import { ScreenHeader } from "@/components/ui/ScreenHeader";
 import { Colors } from "@/constants/Colors";
 import { Spacing, BorderRadius } from "@/constants/Spacing";
-import { Typography } from "@/constants/Typography";
 import { useColorScheme } from "react-native";
 import { listDailyRecords, listPlans } from "@/lib/storage";
 import { exportPlans } from "@/lib/export";
+import { notify } from "@/lib/util/confirm";
 
 /* ── Report generation helpers ─────────────────────── */
 
@@ -227,9 +228,9 @@ export default function ExportScreen() {
   const onCopyReport = useCallback(async () => {
     try {
       await Clipboard.setStringAsync(report);
-      Alert.alert("Copied", "Your report has been copied to clipboard.");
+      notify("Copied", "Your report has been copied to clipboard.");
     } catch (e: any) {
-      Alert.alert("Copy failed", e?.message ?? "Unknown error");
+      notify("Copy failed", e?.message ?? "Unknown error");
     }
   }, [report]);
 
@@ -260,7 +261,7 @@ export default function ExportScreen() {
           a.remove();
           URL.revokeObjectURL(url);
         }
-        Alert.alert("Saved", "Report and raw data downloaded to your browser's Downloads folder.");
+        notify("Saved", "Report and raw data downloaded to your browser's Downloads folder.");
         return;
       }
 
@@ -274,41 +275,20 @@ export default function ExportScreen() {
       const jsonData = await exportPlans(days);
       await FileSystem.writeAsStringAsync(jsonPath, jsonData);
 
-      Alert.alert("Saved", `Report saved to:\n${exportDir}\n\nIncludes a readable report and raw data for research.`);
+      notify("Saved", `Report saved to:\n${exportDir}\n\nIncludes a readable report and raw data for research.`);
     } catch (e: any) {
-      Alert.alert("Save failed", e?.message ?? "Could not write files.");
+      notify("Save failed", e?.message ?? "Could not write files.");
     }
   }, [days, report]);
 
   return (
     <Screen scroll>
       {/* Header */}
-      <Text
-        style={{
-          color: c.text.tertiary,
-          fontSize: Typography.fontSize.xs,
-          fontFamily: Typography.fontFamily.bold,
-          letterSpacing: Typography.letterSpacing.allcaps,
-          fontWeight: "800",
-        }}
-      >
-        YOUR DATA
-      </Text>
-      <Text
-        style={{
-          color: c.text.primary,
-          fontSize: 32,
-          fontFamily: Typography.fontFamily.serifItalic,
-          letterSpacing: -0.3,
-          marginTop: 4,
-          lineHeight: 38,
-        }}
-      >
-        Export & Report
-      </Text>
-      <Text style={{ color: c.text.secondary, fontSize: 14, marginTop: 6, lineHeight: 20, maxWidth: 320 }}>
-        A readable summary of your wellbeing data. Share it with your GP, therapist, coach, or keep it for yourself.
-      </Text>
+      <ScreenHeader
+        title="Export & Report"
+        eyebrow="YOUR DATA"
+        subtitle="A readable summary of your wellbeing data. Share it with your GP, therapist, coach, or keep it for yourself."
+      />
 
       {/* Time range selector */}
       <View style={{ flexDirection: "row", gap: 8, marginTop: Spacing.base }}>

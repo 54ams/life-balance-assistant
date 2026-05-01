@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Text, View } from "react-native";
 
 import { Screen } from "@/components/Screen";
+import { ScreenHeader } from "@/components/ui/ScreenHeader";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { FlipCard } from "@/components/ui/FlipCard";
 import { WorkingPanel } from "@/components/ui/WorkingPanel";
@@ -106,7 +107,12 @@ export default function IntegrationScreen() {
   const hasAnyData = !!(record?.checkIn || record?.wearable);
 
   return (
-    <Screen title="Integration" subtitle="How complete your data is for a specific date">
+    <Screen>
+      <ScreenHeader
+        title="Integration"
+        subtitle="How complete your data is for a specific date"
+        fallback="/insights"
+      />
       <View style={{ gap: 12 }}>
         <InsightsDatePicker
           date={date}

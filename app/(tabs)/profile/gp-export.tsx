@@ -6,15 +6,15 @@ import {
   Text,
   View,
   useColorScheme,
-  Alert,
 } from "react-native";
+import { notify } from "@/lib/util/confirm";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { router } from "expo-router";
 import * as Haptics from "expo-haptics";
 import { Colors } from "@/constants/Colors";
 import { Spacing, BorderRadius } from "@/constants/Spacing";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { IconSymbol } from "@/components/ui/icon-symbol";
+import { ScreenHeader } from "@/components/ui/ScreenHeader";
 import { AuroraBackground } from "@/components/ui/AuroraBackground";
 import { generateGPExportData, generateGPExportHTML, type GPExportData } from "@/lib/gpExport";
 import { listDailyRecords, getUserName } from "@/lib/storage";
@@ -53,7 +53,7 @@ export default function GPExportScreen() {
         }
       } catch {
         // Fallback: share as text summary
-        Alert.alert(
+        notify(
           "Summary Generated",
           `${data.summary.checkInDays} check-ins over ${data.summary.totalDays} days.\nMood trend: ${data.summary.moodTrend}\nSleep avg: ${data.summary.avgSleepHours ?? "—"} hrs\n\nTo share as PDF, install expo-print.`,
         );
@@ -62,7 +62,7 @@ export default function GPExportScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       setExported(true);
     } catch (err) {
-      Alert.alert("Export failed", (err as any)?.message ?? "Unknown error");
+      notify("Export failed", (err as any)?.message ?? "Unknown error");
     }
   };
 
@@ -75,17 +75,7 @@ export default function GPExportScreen() {
           showsVerticalScrollIndicator={false}
         >
           {/* Header */}
-          <View style={styles.header}>
-            <Pressable onPress={() => router.back()} style={styles.backBtn}>
-              <IconSymbol name="chevron.left" size={20} color={c.text.primary} />
-            </Pressable>
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.title, { color: c.text.primary }]}>Show Your GP</Text>
-              <Text style={[styles.subtitle, { color: c.text.secondary }]}>
-                A clean summary for your appointment
-              </Text>
-            </View>
-          </View>
+          <ScreenHeader title="Show Your GP" subtitle="A clean summary for your appointment" />
 
           {/* Explanation */}
           <GlassCard style={{ marginTop: Spacing.lg }} padding="base">

@@ -3,6 +3,7 @@ import React, { useCallback, useMemo, useState } from "react";
 import { Pressable, Text, View, useColorScheme } from "react-native";
 
 import { Screen } from "@/components/Screen";
+import { ScreenHeader } from "@/components/ui/ScreenHeader";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Colors } from "@/constants/Colors";
@@ -219,8 +220,14 @@ export default function BridgeScreen() {
   );
 
   return (
-    <Screen title="Mind–Body Bridge" subtitle="How your body and mind track together">
+    <Screen>
       <Stack.Screen options={{ headerShown: false, gestureEnabled: true }} />
+
+      <ScreenHeader
+        title="Mind–Body Bridge"
+        subtitle="How your body and mind track together"
+        fallback="/insights"
+      />
 
       <View style={{ gap: 12 }}>
         {!haveData ? (

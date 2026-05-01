@@ -6,6 +6,7 @@ import * as Haptics from "expo-haptics";
 
 import { AuroraBackground } from "@/components/ui/AuroraBackground";
 import { GlassCard } from "@/components/ui/GlassCard";
+import { ScreenHeader } from "@/components/ui/ScreenHeader";
 import { Colors } from "@/constants/Colors";
 import { Spacing, BorderRadius } from "@/constants/Spacing";
 import { Typography } from "@/constants/Typography";
@@ -175,6 +176,13 @@ export default function CheckInSavedScreen() {
         contentContainerStyle={{ paddingBottom: 120, flexGrow: 1 }}
         showsVerticalScrollIndicator={false}
       >
+        <View style={{ paddingHorizontal: Spacing.base, paddingTop: Spacing.md }}>
+          <ScreenHeader
+            title="The bridge"
+            eyebrow="CHECK-IN SAVED"
+            fallback="/checkin"
+          />
+        </View>
         <Animated.View
           style={{
             flex: 1,
@@ -185,28 +193,6 @@ export default function CheckInSavedScreen() {
             paddingTop: Spacing.xl,
           }}
         >
-          <Text
-            style={{
-              color: c.text.tertiary,
-              fontSize: 11,
-              fontFamily: Typography.fontFamily.bold,
-              letterSpacing: 1.4,
-              fontWeight: "800",
-            }}
-          >
-            CHECK-IN SAVED
-          </Text>
-          <Text
-            style={{
-              color: c.text.primary,
-              fontSize: 30,
-              fontFamily: Typography.fontFamily.serifItalic,
-              marginTop: 4,
-              textAlign: "center",
-            }}
-          >
-            The bridge
-          </Text>
 
           {/* Dots track */}
           <View

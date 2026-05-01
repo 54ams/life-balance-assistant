@@ -4,9 +4,9 @@ import { Pressable, Text, View } from "react-native";
 import { Screen } from "@/components/Screen";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { IconSymbol } from "@/components/ui/icon-symbol";
+import { ScreenHeader } from "@/components/ui/ScreenHeader";
 import { Colors } from "@/constants/Colors";
 import { Spacing } from "@/constants/Spacing";
-import { Typography } from "@/constants/Typography";
 import { useColorScheme } from "react-native";
 
 type SettingsItem = { title: string; subtitle: string; icon: string; route: string };
@@ -125,28 +125,7 @@ export default function SettingsTab() {
 
   return (
     <Screen scroll>
-      <Text
-        style={{
-          color: c.text.tertiary,
-          fontSize: Typography.fontSize.xs,
-          fontFamily: Typography.fontFamily.bold,
-          letterSpacing: Typography.letterSpacing.allcaps,
-          fontWeight: "800",
-        }}
-      >
-        PREFERENCES
-      </Text>
-      <Text
-        style={{
-          color: c.text.primary,
-          fontSize: 32,
-          fontFamily: Typography.fontFamily.serifItalic,
-          marginTop: 4,
-          lineHeight: 38,
-        }}
-      >
-        Settings
-      </Text>
+      <ScreenHeader title="Settings" eyebrow="PREFERENCES" />
 
       <SettingsGroup label="YOUR APP" items={YOUR_APP} c={c} isDark={isDark} />
       <SettingsGroup label="YOUR DATA" items={YOUR_DATA} c={c} isDark={isDark} />

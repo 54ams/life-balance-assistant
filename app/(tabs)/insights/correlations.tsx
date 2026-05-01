@@ -4,6 +4,7 @@ import { useFocusEffect } from "expo-router";
 import { Pressable, Text, View } from "react-native";
 
 import { Screen } from "@/components/Screen";
+import { ScreenHeader } from "@/components/ui/ScreenHeader";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { StrengthIndicator, correlationToHuman } from "@/components/ui/StrengthIndicator";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -98,8 +99,14 @@ export default function CorrelationsScreen() {
   }, [summary]);
 
   return (
-    <Screen title="Correlations" subtitle="How your signals relate to each other">
+    <Screen>
       <Stack.Screen options={{ headerShown: false, gestureEnabled: true }} />
+
+      <ScreenHeader
+        title="Correlations"
+        subtitle="How your signals relate to each other"
+        fallback="/insights"
+      />
 
       <View style={{ gap: 12 }}>
         <InsightsDatePicker

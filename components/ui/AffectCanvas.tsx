@@ -106,12 +106,24 @@ export function AffectCanvas({ initial, onChange, ghost }: Props) {
                 pressed && { opacity: 0.75, transform: [{ scale: 0.97 }] },
               ]}
             >
-              <Text style={{ fontSize: 22 }}>{cell.emoji}</Text>
+              {/* Emoji glyphs render with their own intrinsic baseline,
+                  which is what made the icons drift off-centre on small
+                  cells. Pinning lineHeight = fontSize and forcing
+                  textAlign center removes that drift on iOS, Android, and
+                  react-native-web. */}
+              <Text
+                style={styles.emoji}
+                allowFontScaling={false}
+              >
+                {cell.emoji}
+              </Text>
               <Text
                 style={{
                   marginTop: 4,
                   fontSize: 12,
+                  lineHeight: 14,
                   fontWeight: "800",
+                  textAlign: "center",
                   color: active ? c.text.inverse : c.text.primary,
                 }}
               >
@@ -167,5 +179,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 4,
+  },
+  emoji: {
+    fontSize: 26,
+    lineHeight: 28,
+    textAlign: "center",
+    // textAlignVertical only does anything on Android, but it's harmless
+    // elsewhere and makes the centring visibly correct on Pixel devices.
+    textAlignVertical: "center",
+    includeFontPadding: false,
   },
 });

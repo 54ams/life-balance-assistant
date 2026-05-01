@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { Screen } from "@/components/Screen";
 import { GlassCard } from "@/components/ui/GlassCard";
+import { ScreenHeader } from "@/components/ui/ScreenHeader";
 import { Colors } from "@/constants/Colors";
 import { useColorScheme } from "react-native";
 import { clearAll, clearAllPlans } from "@/lib/storage";
@@ -147,8 +148,10 @@ export default function DataSettings() {
 
   return (
     <Screen scroll contentStyle={{ paddingTop: 18 }}>
-      <Text style={[styles.h1, { color: c.text.primary }]}>Data & privacy</Text>
-      <Text style={[styles.sub, { color: c.text.secondary }]}>Daily records stay on-device; WHOOP session tokens stay on the backend only.</Text>
+      <ScreenHeader
+        title="Data & privacy"
+        subtitle="Daily records stay on-device; WHOOP session tokens stay on the backend only."
+      />
 
       <GlassCard style={styles.card}>
         <Text style={[styles.cardTitle, { color: c.text.primary }]}>Local storage</Text>

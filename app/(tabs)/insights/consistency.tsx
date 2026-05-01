@@ -4,6 +4,7 @@ import { useFocusEffect } from "expo-router";
 import { Pressable, Text, View } from "react-native";
 
 import { Screen } from "@/components/Screen";
+import { ScreenHeader } from "@/components/ui/ScreenHeader";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { Colors } from "@/constants/Colors";
 import { Spacing } from "@/constants/Spacing";
@@ -69,8 +70,14 @@ export default function ConsistencyScreen() {
   const hasAny = windowed.length > 0;
 
   return (
-    <Screen title="Consistency" subtitle="How consistent your daily patterns are (last 14 days)">
+    <Screen>
       <Stack.Screen options={{ headerShown: false, gestureEnabled: true }} />
+
+      <ScreenHeader
+        title="Consistency"
+        subtitle="How consistent your daily patterns are (last 14 days)"
+        fallback="/insights"
+      />
 
       <View style={{ gap: 12 }}>
         <InsightsDatePicker

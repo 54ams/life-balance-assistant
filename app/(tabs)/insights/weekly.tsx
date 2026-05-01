@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Pressable, Text, View, useColorScheme } from "react-native";
 import { router } from "expo-router";
 import { Screen } from "@/components/Screen";
+import { ScreenHeader } from "@/components/ui/ScreenHeader";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { Colors } from "@/constants/Colors";
 import { getPlanAdherenceSummary, listDailyRecords, listEmotions, listPlans } from "@/lib/storage";
@@ -142,7 +143,12 @@ export default function WeeklyInsights() {
   }, []);
 
   return (
-    <Screen scroll title="Your week" subtitle="A look at how your week has gone">
+    <Screen scroll>
+      <ScreenHeader
+        title="Your week"
+        subtitle="A look at how your week has gone"
+        fallback="/insights"
+      />
       <View style={{ gap: 14 }}>
       {/* Values */}
       <GlassCard>

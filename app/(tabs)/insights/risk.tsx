@@ -3,6 +3,7 @@ import { Stack, router, useFocusEffect } from "expo-router";
 import { Pressable, Text, View } from "react-native";
 
 import { Screen } from "@/components/Screen";
+import { ScreenHeader } from "@/components/ui/ScreenHeader";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { Colors } from "@/constants/Colors";
 import { Spacing } from "@/constants/Spacing";
@@ -56,8 +57,13 @@ export default function RiskInsightsScreen() {
 
   if (!risk?.trained) {
     return (
-      <Screen title="Risk outlook" subtitle="What tomorrow might look like">
+      <Screen>
         <Stack.Screen options={{ headerShown: false, gestureEnabled: true }} />
+        <ScreenHeader
+          title="Risk outlook"
+          subtitle="What tomorrow might look like"
+          fallback="/insights"
+        />
         <ErrorState
           title="Not ready yet"
           message="The personal model needs more matched days with wearables, check-ins, and LBI before it can estimate tomorrow's risk."
@@ -72,8 +78,14 @@ export default function RiskInsightsScreen() {
   }
 
   return (
-    <Screen title="Risk outlook" subtitle="What tomorrow might look like">
+    <Screen>
       <Stack.Screen options={{ headerShown: false, gestureEnabled: true }} />
+
+      <ScreenHeader
+        title="Risk outlook"
+        subtitle="What tomorrow might look like"
+        fallback="/insights"
+      />
 
       <View style={{ gap: 12 }}>
         <GlassCard>

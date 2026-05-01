@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Pressable, Text, View, useColorScheme } from "react-native";
 import { router } from "expo-router";
 import { Screen } from "@/components/Screen";
+import { ScreenHeader } from "@/components/ui/ScreenHeader";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { Colors } from "@/constants/Colors";
 import { Spacing } from "@/constants/Spacing";
@@ -184,7 +185,12 @@ export default function BaselineScreen() {
   }, []);
 
   return (
-    <Screen scroll title="Personal baselines" subtitle="Your normal ranges, built from your own data">
+    <Screen scroll>
+      <ScreenHeader
+        title="Personal baselines"
+        subtitle="Your normal ranges, built from your own data"
+        fallback="/insights"
+      />
       {error ? (
         <GlassCard padding="base">
           <Text style={{ color: c.danger, fontWeight: "700" }}>Error</Text>

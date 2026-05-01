@@ -26,6 +26,7 @@ import {
   isDemoWhoopActive,
   WHOOP_DEMO_DAYS,
 } from "@/lib/demoWhoop";
+import { notify } from "@/lib/util/confirm";
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -137,11 +138,11 @@ export default function WhoopScreen() {
 
   const doConnect = async () => {
     if (!process.env.EXPO_PUBLIC_WHOOP_CLIENT_ID) {
-      Alert.alert("WHOOP", "Client ID not configured.");
+      notify("WHOOP", "Client ID not configured.");
       return;
     }
     if (!backendUrl) {
-      Alert.alert("WHOOP", "WHOOP connection is unavailable in this build.");
+      notify("WHOOP", "WHOOP connection is unavailable in this build.");
       return;
     }
     const state = randomId() + randomId();
@@ -167,14 +168,14 @@ export default function WhoopScreen() {
           window.location.assign(authUrl);
         }
       } catch (err: any) {
-        Alert.alert("WHOOP", `Failed to start auth: ${err?.message ?? "unknown"}`);
+        notify("WHOOP", `Failed to start auth: ${err?.message ?? "unknown"}`);
       }
       return;
     }
 
     const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUri);
     if (result.type !== "success" || !result.url) {
-      Alert.alert("WHOOP", "Authentication was cancelled or failed.");
+      notify("WHOOP", "Authentication was cancelled or failed.");
       return;
     }
 
@@ -182,12 +183,12 @@ export default function WhoopScreen() {
     const error = params.get("error");
     if (error) {
       const desc = params.get("error_description") || error;
-      Alert.alert("WHOOP", `Auth error: ${desc}`);
+      notify("WHOOP", `Auth error: ${desc}`);
       return;
     }
     const code = params.get("code");
     if (!code) {
-      Alert.alert("WHOOP", `No authorization code received.\n\nRedirect: ${result.url}`);
+      notify("WHOOP", `No authorization code received.\n\nRedirect: ${result.url}`);
       return;
     }
 
@@ -268,11 +269,11 @@ export default function WhoopScreen() {
 
   const syncDate = async (date: string) => {
     if (date > todayISO()) {
-      Alert.alert("WHOOP", "Future dates are not allowed.");
+      notify("WHOOP", "Future dates are not allowed.");
       return;
     }
     if (!sessionToken || !backendUrl) {
-      Alert.alert("WHOOP", "Not connected yet.");
+      notify("WHOOP", "Not connected yet.");
       return;
     }
     setBusy(true);
@@ -303,10 +304,10 @@ export default function WhoopScreen() {
       await refreshDerivedForDate(date as any);
       setLastSynced(date);
       await AsyncStorage.setItem(LAST_SYNC_KEY, date);
-      Alert.alert("WHOOP", `Synced ${formatDateFriendly(date)}`);
+      notify("WHOOP", `Synced ${formatDateFriendly(date)}`);
     } catch (err: any) {
       const e = toAppError(err, "WHOOP sync failed.");
-      Alert.alert("WHOOP", e.userMessage);
+      notify("WHOOP", e.userMessage);
     } finally {
       setBusy(false);
     }
@@ -316,18 +317,33 @@ export default function WhoopScreen() {
 
   const disconnect = async () => {
     if (!sessionToken) return;
-    if (backendUrl) {
-      try {
-        await fetch(`${backendUrl}/whoop/session`, {
-          method: "DELETE",
-          headers: { Authorization: `Bearer ${sessionToken}` },
-        });
-      } catch {}
+    setBusy(true);
+    try {
+      if (backendUrl) {
+        try {
+          await fetch(`${backendUrl}/whoop/session`, {
+            method: "DELETE",
+            headers: { Authorization: `Bearer ${sessionToken}` },
+          });
+        } catch {
+          /* non-fatal — token still cleared locally */
+        }
+      }
+      await AsyncStorage.multiRemove([SESSION_KEY, LAST_SYNC_KEY]);
+      setSessionToken(null);
+      setConnected(false);
+      setLastSynced(null);
+      // Without a notification a successful disconnect looks identical
+      // to a no-op tap, which is the bug the user reported. The visible
+      // state change (badge → "Not connected") is still the primary cue
+      // but a confirmation message removes the ambiguity on web where
+      // the badge re-paint can lag behind the tap.
+      notify("WHOOP", "Disconnected. Local WHOOP session was cleared.");
+    } catch (err: any) {
+      notify("WHOOP", err?.message ?? "Could not disconnect.");
+    } finally {
+      setBusy(false);
     }
-    await AsyncStorage.multiRemove([SESSION_KEY, LAST_SYNC_KEY]);
-    setSessionToken(null);
-    setConnected(false);
-    setLastSynced(null);
   };
 
   const useDemoWhoop = async () => {
@@ -336,12 +352,12 @@ export default function WhoopScreen() {
       const result = await activateDemoWhoop();
       setDemoActive(true);
       setLastSynced(result.lastDate);
-      Alert.alert(
+      notify(
         "Demo WHOOP",
         `Seeded ${result.daysSeeded} days of simulated WHOOP-shaped data (${formatDateFriendly(result.firstDate)} — ${formatDateFriendly(result.lastDate)}). The app now treats this as wearable input for LBI, plan, history, ML risk, and exports. Provenance is recorded as "WHOOP (demo)".`,
       );
     } catch (err: any) {
-      Alert.alert("Demo WHOOP", err?.message ?? "Failed to seed demo WHOOP data.");
+      notify("Demo WHOOP", err?.message ?? "Failed to seed demo WHOOP data.");
     } finally {
       setBusy(false);
     }
@@ -350,7 +366,7 @@ export default function WhoopScreen() {
   const stopDemoWhoop = async () => {
     await deactivateDemoWhoop();
     setDemoActive(false);
-    Alert.alert(
+    notify(
       "Demo WHOOP",
       "Demo flag cleared. Existing demo days remain on the device tagged as 'WHOOP (demo)'. Use Profile → Settings → Data → Purge now to remove them entirely.",
     );
@@ -361,20 +377,20 @@ export default function WhoopScreen() {
     const sleepHours = Number(manualSleep);
     const strain = manualStrain.trim() ? Number(manualStrain) : undefined;
     if (!Number.isFinite(recovery) || recovery < 0 || recovery > 100) {
-      Alert.alert("Manual entry", "Recovery must be between 0 and 100.");
+      notify("Manual entry", "Recovery must be between 0 and 100.");
       return;
     }
     if (!Number.isFinite(sleepHours) || sleepHours <= 0 || sleepHours > 14) {
-      Alert.alert("Manual entry", "Sleep hours must be between 0 and 14.");
+      notify("Manual entry", "Sleep hours must be between 0 and 14.");
       return;
     }
     if (strain != null && (!Number.isFinite(strain) || strain < 0 || strain > 21)) {
-      Alert.alert("Manual entry", "Strain must be between 0 and 21.");
+      notify("Manual entry", "Strain must be between 0 and 21.");
       return;
     }
     await upsertWearable(selectedDate as any, { recovery, sleepHours, strain }, "simulated_stub");
     await refreshDerivedForDate(selectedDate as any);
-    Alert.alert("Saved", `Wearable data saved for ${formatDateFriendly(selectedDate)}.`);
+    notify("Saved", `Wearable data saved for ${formatDateFriendly(selectedDate)}.`);
     setManualRecovery("");
     setManualSleep("");
     setManualStrain("");

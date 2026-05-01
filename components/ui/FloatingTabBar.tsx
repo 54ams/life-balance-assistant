@@ -4,11 +4,22 @@ import { StyleSheet, View, Pressable, Text, useColorScheme } from "react-native"
 import { BlurView } from "expo-blur";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { CommonActions } from "@react-navigation/native";
+import { router } from "expo-router";
 import * as Haptics from "expo-haptics";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { Colors } from "@/constants/Colors";
 import { Spacing } from "@/constants/Spacing";
 import { TourTarget } from "@/components/ui/TourOverlay";
+
+// Each tab has a canonical "root" URL. Tapping the tab — even from a
+// deeply nested screen — should always land here. The names below match
+// the file-system route names so a `route.name` lookup just works.
+const TAB_ROOT_URL: Record<string, string> = {
+  index: "/",
+  checkin: "/checkin",
+  insights: "/insights",
+  profile: "/profile",
+};
 
 const TOUR_TAB_TARGET: Record<string, "checkin_tab" | "insights_tab" | "profile_tab"> = {
   checkin: "checkin_tab",
@@ -64,26 +75,44 @@ export function FloatingTabBar({ state, descriptors, navigation }: BottomTabBarP
             if (event.defaultPrevented) return;
             Haptics.selectionAsync().catch(() => {});
 
-            // Tapping the bottom-tab icon should ALWAYS land the user on the
-            // tab's root screen — whether they're already on this tab (re-tap
-            // pops to top) or coming from a different tab and that tab still
-            // has a nested-stack history (e.g. they jumped into
-            // /insights/explain from the check-in saved page, then later
-            // tapped the Insights tab — without this, Expo Router would just
-            // re-focus the explain subpage rather than the Insights index).
+            // Tapping the bottom-tab icon should ALWAYS land the user on
+            // the tab's root screen — whether they're already on this tab
+            // (re-tap pops to top) or coming from a different tab and
+            // that tab still has nested-stack history.
             //
-            // Read fresh navigation state at press time — the props-level
-            // `state.routes[index].state` can be stale if the nested stack
-            // mounted after the bar last rendered, leaving POP_TO_TOP a no-op.
+            // Profile (Me) is special because its hierarchy goes deeper:
+            // /profile/settings/data is profile-stack → settings-stack →
+            // data. POP_TO_TOP on the outer Tabs navigator only pops the
+            // profile-stack one level (back to settings root, not to
+            // profile root). The reliable fix is to explicitly navigate
+            // to the canonical tab-root URL using the imperative router
+            // — Expo Router resolves it through every nested stack so
+            // settings/data, settings, profile-root all collapse cleanly
+            // back to /profile.
+            //
+            // We still emit POP_TO_TOP first as a no-cost optimisation
+            // for shallow stacks (e.g. Insights), so the imperative
+            // router.replace is only doing real work for the genuinely
+            // deep case.
             const liveRoot: any = (navigation as any).getState?.() ?? state;
             const liveRoute = liveRoot?.routes?.[index];
             const nestedKey = liveRoute?.state?.key;
             const nestedRoutes: unknown[] = liveRoute?.state?.routes ?? [];
             const hasNestedHistory = nestedRoutes.length > 1;
 
+            const tabRootUrl = TAB_ROOT_URL[route.name];
+
             if (isFocused) {
               if (nestedKey && hasNestedHistory) {
                 navigation.dispatch({ type: "POP_TO_TOP", target: nestedKey } as any);
+                // Backstop for double-nested stacks (Profile → Settings).
+                // POP_TO_TOP only operates on the inner-most stack key it
+                // was given, so a route like /profile/settings/data can
+                // be left at /profile/settings after the dispatch. The
+                // imperative replace finishes the job.
+                if (tabRootUrl) {
+                  router.replace(tabRootUrl as any);
+                }
               } else {
                 navigation.dispatch({
                   ...CommonActions.navigate({ name: route.name }),
@@ -91,11 +120,16 @@ export function FloatingTabBar({ state, descriptors, navigation }: BottomTabBarP
                 });
               }
             } else {
-              // Switch to the tab first, then pop its nested stack to root
-              // if it has any history left over. The explicit POP_TO_TOP is
-              // what aligns Insights' behaviour with Me's: stale subpages
-              // never become the landing screen for a tab tap.
-              navigation.navigate(route.name);
+              // Switch tabs by URL so we always land on the tab's root,
+              // not whatever subpage was last open in that tab. This is
+              // the single biggest UX fix vs. plain navigation.navigate
+              // — which Expo Router otherwise interprets as "focus the
+              // tab and keep its nested-stack state".
+              if (tabRootUrl) {
+                router.replace(tabRootUrl as any);
+              } else {
+                navigation.navigate(route.name);
+              }
               if (nestedKey && hasNestedHistory) {
                 navigation.dispatch({ type: "POP_TO_TOP", target: nestedKey } as any);
               }
