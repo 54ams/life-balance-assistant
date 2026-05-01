@@ -1,3 +1,18 @@
+// lib/export.ts
+//
+// Research / data export bundler.
+//
+// I use this file to gather every piece of data the user has chosen to
+// share — daily records, plans, SUS submissions, model evaluation
+// results, sensitivity analysis, settings — and emit a single JSON
+// bundle. The redaction toggles (text redaction, ID anonymisation) are
+// honoured here, so anything sensitive is replaced with a placeholder
+// before the bundle is written.
+//
+// Privacy: the export is initiated only from Profile → Export and
+// always shows the user a preview of what is included before they
+// share. Nothing leaves the device unless the user explicitly chooses
+// a share target.
 import { getPlanAdherenceSummary, listPlans, listDailyRecords } from "./storage";
 import { listSusSubmissions } from "./evaluation/storage";
 import { computeBaselineMeta } from "./baseline";

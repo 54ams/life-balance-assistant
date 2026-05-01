@@ -1,11 +1,22 @@
 // lib/bridge.ts
 //
-// Mind–Body bridge scoring helpers shared by:
+// Mind–Body Bridge — the H8 novelty claim in my dissertation.
+//
+// I use this file to keep two views of a day side-by-side:
+//   - Body score   (physiology, from WHOOP recovery / sleep / strain)
+//   - Mind score   (self-report, from the affect canvas + stress)
+// They are intentionally NOT merged into one number here. The LBI
+// (lib/lbi.ts) does the merging; the bridge keeps them separate so the
+// UI can show a "gap" — when body and mind disagree, the user sees that
+// directly rather than having it averaged away.
+//
+// Shared by:
 //   - insights/bridge.tsx (14-day dual-track chart)
 //   - Home "Today's bridge" card
-//   - Post-check-in bridge animation
+//   - Post-check-in bridge animation (the dots that glide together)
 //
-// Both scores are 0..100. null means "not enough signal".
+// Both scores are 0..100. `null` means "not enough signal" — the UI is
+// expected to label this honestly rather than rendering a 0.
 
 import type { DailyRecord } from "./types";
 
@@ -87,6 +98,20 @@ function clamp01to100(n: number): number {
   return Math.max(0, Math.min(100, Math.round(n)));
 }
 
+/**
+ * Mind score (0..100). Returns null when mood or energy are missing —
+ * the UI treats null as "not enough signal" and shows a placeholder
+ * rather than a zero.
+ *
+ * Composition:
+ *   base    = mood (1..5) → 0..50  +  energy (1..5) → 0..50
+ *   penalty = min(40, 8 × number of stress indicators ticked)
+ *   mind    = clamp(base − penalty, 0, 100)
+ *
+ * I cap the penalty at 40 so a maximally stressful day still leaves
+ * room for mood/energy to push the score up — otherwise five ticked
+ * indicators would zero out the mind side and mask any positive signal.
+ */
 export function mentalScore(d: Pick<DailyRecord, "checkIn">): number | null {
   const ci = (d as any).checkIn;
   if (!ci) return null;

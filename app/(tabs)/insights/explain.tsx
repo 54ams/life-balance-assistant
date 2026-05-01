@@ -1,3 +1,21 @@
+// app/(tabs)/insights/explain.tsx
+//
+// "What drives your score?" — the transparency screen.
+//
+// I use this screen to answer the viva question "how was today's
+// number produced?" directly in the app:
+//   - Show the four LBI sub-scores (Recovery, Sleep, Mood, Stress)
+//     as bars so the user sees which ones are pulling the score up
+//     or down.
+//   - Surface the strongest 3 drivers vs a 60 reference (lib/explain.ts).
+//   - Compare today vs personal baseline (lib/baseline.ts).
+//   - Run counterfactuals (lib/counterfactual.ts) — "what if you'd
+//     slept an hour more?" — so the user can see the formula's
+//     sensitivity without leaving the screen.
+//
+// Nothing on this screen comes from the LLM. Everything is derived
+// from the same lib/lbi.ts formula that produces the score itself, so
+// the explanation can never disagree with the number it explains.
 import { Stack, router, useFocusEffect } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import { Pressable, Text, View } from "react-native";

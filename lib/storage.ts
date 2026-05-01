@@ -1,4 +1,29 @@
 // lib/storage.ts
+//
+// Local on-device store. Every persistent value the app holds passes
+// through here so I have one auditable surface for "where is this data?".
+//
+// Why local-first?
+//   The dissertation commits to keeping personal data on the device.
+//   The backend (backend/server.ts) only handles the WHOOP OAuth token
+//   exchange and the optional LLM call — no daily records ever leave
+//   AsyncStorage unless the user explicitly exports them.
+//
+// What lives here:
+//   - DailyRecord per ISO date (check-in, wearable, derived LBI, plan)
+//   - StoredPlan (legacy shape, kept for history/trends/export screens)
+//   - Future events, values, life contexts, user name, install date
+//
+// Concurrency: writes are serialised through `withStoreWrite` so
+// rapid-fire saves (e.g. completing several plan actions in quick
+// succession) cannot interleave and lose data. I learned this the
+// hard way during testing — without the chain, a check-in save during
+// a WHOOP sync occasionally produced a half-merged record.
+//
+// Corruption recovery: if the JSON is unreadable I quarantine it under
+// `KEY_DAILY_RECORDS_CORRUPT_BACKUP` instead of silently dropping it,
+// so a future investigation can recover the data even after the app
+// has carried on with a clean slate.
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import type {
   DailyCheckIn,

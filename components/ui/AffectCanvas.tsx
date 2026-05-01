@@ -144,10 +144,18 @@ export function AffectCanvas({ initial, onChange, ghost }: Props) {
   );
 }
 
+// Cell sizing uses fixed flexBasis math instead of "%" + gap. Mixing the two
+// caused 31% × 3 + 2×8px gap to overflow on narrow widths and the third cell
+// to wrap, breaking the 3×3 grid and the visual alignment with the axis
+// labels. This computes a single basis that always tiles cleanly.
+const GRID_WIDTH = 320;
+const CELL_GAP = 8;
+const CELL_BASIS = (GRID_WIDTH - CELL_GAP * 2) / 3;
+
 const styles = StyleSheet.create({
   wrap: {
     width: "100%",
-    maxWidth: 360,
+    maxWidth: GRID_WIDTH,
     alignSelf: "center",
   },
   axisRow: {
@@ -157,8 +165,9 @@ const styles = StyleSheet.create({
   horizontalAxis: {
     flexDirection: "row",
     justifyContent: "space-between",
-    paddingHorizontal: 4,
-    marginTop: 4,
+    width: GRID_WIDTH,
+    alignSelf: "center",
+    marginTop: 6,
   },
   axisLabel: {
     fontSize: 10,
@@ -168,12 +177,13 @@ const styles = StyleSheet.create({
   grid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 8,
-    justifyContent: "center",
+    width: GRID_WIDTH,
+    alignSelf: "center",
+    gap: CELL_GAP,
   },
   cell: {
-    width: "31%",
-    aspectRatio: 1,
+    width: CELL_BASIS,
+    height: CELL_BASIS,
     borderRadius: 16,
     borderWidth: 1.5,
     alignItems: "center",

@@ -133,8 +133,21 @@ export default function OnboardingScreen() {
   };
 
   const finish = async () => {
-    if (!Object.values(flags).every(Boolean)) {
-      Alert.alert("Consent required", "You must accept all items to continue.");
+    const missing = (Object.entries(flags) as [keyof ConsentFlags, boolean][])
+      .filter(([, v]) => !v)
+      .map(([k]) => k);
+    if (missing.length > 0) {
+      const labels: Record<keyof ConsentFlags, string> = {
+        dataProcessing: "Local data processing",
+        whoopImport: "WHOOP import (if connected)",
+        exportForResearch: "Anonymised research export",
+        nonMedicalUse: "Non-medical use",
+      };
+      const items = missing.map((k) => `• ${labels[k] ?? String(k)}`).join("\n");
+      Alert.alert(
+        "Consent required",
+        `Please accept all items to continue.\n\nStill needed:\n${items}`,
+      );
       return;
     }
     if (userName.trim()) await saveUserName(userName.trim());

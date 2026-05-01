@@ -1,6 +1,14 @@
 /**
  * LBI calculation edge cases and boundary tests.
  *
+ * I use this suite as a guard around lib/lbi.ts so that the formula
+ * defended in the dissertation (70% objective + 30% subjective, with
+ * the high-strain / low-recovery mismatch penalty) cannot drift
+ * silently. Each case asserts both the headline classification and the
+ * direction of the score so a viva examiner could replay any of these
+ * scenarios on paper and check the output by hand.
+ *
+ * Run on the command line:
  *   node --no-warnings --import tsx tests/lbi.test.ts
  */
 import test from "node:test";

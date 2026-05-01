@@ -1,3 +1,10 @@
+// app/(tabs)/profile/settings/privacy.tsx
+//
+// Plain-English privacy notice. I keep this in the app (not just on a
+// web page) so participants can review it offline and so the wording
+// is locked to the version they consented to. The destructive
+// "delete all my data" action lives on the parent settings screen
+// and calls withdrawAllConsent() in lib/privacy.ts.
 import { Screen } from "@/components/Screen";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { ScreenHeader } from "@/components/ui/ScreenHeader";

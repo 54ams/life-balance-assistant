@@ -1,3 +1,24 @@
+// app/(tabs)/_layout.tsx
+//
+// Root tab layout for the app. I built this on top of Expo Router's
+// Tabs but wrapped in a Gesture pan so the four primary tabs (Home,
+// Check-in, Insights, Me) can be swiped between. The custom
+// FloatingTabBar lives in components/ui — this file's job is the
+// gesture wiring and the tab screen registration.
+//
+// Why the swipe is non-trivial:
+//   - I intentionally disable swipe when the user is inside a nested
+//     stack screen (e.g. /checkin/habits) so it doesn't fight with
+//     iOS's stack back gesture.
+//   - The left/right edges have a dead zone so the system back gesture
+//     wins. Without this, the swipe would intercept the gesture and
+//     the user could not back-swipe from a pushed screen.
+//   - Pan motion + haptic bounce when the user tries to swipe past
+//     the first/last tab — gives a felt boundary without disabling.
+//
+// Hidden screens (`href: null`) are pushed via router.push but do not
+// appear on the bar — this is how /history, /day/[date], /calendar
+// and /checkins are reached without bloating the bar.
 import { Tabs, router, useSegments } from "expo-router";
 import React, { useCallback, useMemo, useRef } from "react";
 import { Animated, Dimensions, StyleSheet } from "react-native";

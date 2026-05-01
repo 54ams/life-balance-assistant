@@ -1,3 +1,13 @@
+// lib/transparency.ts
+//
+// Honest "what's missing today" summary used by the explain screen and
+// the GP export. I built this so the user can always see why their
+// score's confidence is what it is — every missing input is named, and
+// the next-step nudge points to the action that would lift confidence.
+//
+// This is not the LBI calculation (lib/lbi.ts) or the explanation of
+// drivers (lib/explain.ts). It is purely the data-quality lens: which
+// fields are present, where the wearable came from, and what to do next.
 import type { DailyRecord } from "./types";
 
 export type MissingnessSummary = {
@@ -7,6 +17,16 @@ export type MissingnessSummary = {
   sourceLabel: string;
 };
 
+/**
+ * Walk a day's record and produce a list of missing inputs plus a
+ * human-readable label for the wearable source ("WHOOP", "WHOOP (demo)",
+ * "Manual entry"). Returning a structured object lets the UI render
+ * each item as a chip without parsing free text.
+ *
+ * I label demo data honestly — the explain screen shows "WHOOP (demo)"
+ * when the user is in kiosk/demo mode so a viva examiner can see at a
+ * glance that the day is illustrative, not real.
+ */
 export function buildMissingnessSummary(record: DailyRecord | null): MissingnessSummary {
   const missing: string[] = [];
   if (!record?.wearable) {

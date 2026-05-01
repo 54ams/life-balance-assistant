@@ -1,4 +1,20 @@
 // lib/baseline.ts
+//
+// Personal baseline statistics for the user.
+//
+// I use this file to compute the rolling median + IQR of the user's own
+// LBI, recovery, sleep, strain, mood and stress over the last `targetDays`
+// days. The baseline is what makes the score *personal* — the home screen
+// "calibrating" banner reads from it, the explain screen compares today
+// vs baseline, and the ML recommender uses similar windowed statistics
+// to z-score features.
+//
+// Status field: "calibrating" until I have at least `targetDays` days
+// with an LBI AND that window is stable (IQR / |median| < 0.35). Until
+// then, the home screen tells the user the score will read more
+// reliably soon — important so early-day "low" scores are not
+// misinterpreted as a real decline.
+
 import { getAllDays } from "./storage";
 import type { DailyRecord, WearableMetrics } from "./types";
 

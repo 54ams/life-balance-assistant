@@ -1,3 +1,37 @@
+// app/(tabs)/checkin/index.tsx
+//
+// Daily check-in flow — three steps:
+//   Step 0  Affect canvas (Russell 1980 circumplex of valence/arousal)
+//   Step 1  Life-context tags (Lazarus & Folkman demands/resources)
+//   Step 2  Free-text note + optional "deeper read" via the LLM
+//
+// I drove the design from two academic anchors so the journal-style
+// inputs are not arbitrary:
+//   - The affect canvas captures *how* the day feels in two dimensions
+//     rather than asking for a 1–10 mood number.
+//   - The tag step asks what is around the day — pressures vs
+//     replenishers — because the wellbeing literature consistently
+//     frames stress as a balance between demands and resources.
+//
+// The "deeper read" button is the only LLM touchpoint in the flow.
+// Crucially, I do not use the LLM to score the day. The numeric
+// outputs (mood/stress derived legacy scales, body and mind scores,
+// LBI) are computed locally before the LLM is invoked, and are
+// passed in as context. The LLM only narrates what those numbers
+// already say. If the network call fails, an on-device fallback
+// (lib/noteInterpret.ts → localMatch + localSentiment) takes over so
+// the button never appears broken.
+//
+// Save flow:
+//   - Force-sync WHOOP first (force: true) so the bridge animation
+//     on the saved screen reflects today's data.
+//   - Persist the check-in + emotion entry, then refresh the day's
+//     derived LBI via the pipeline.
+//   - Run the self-harm signal check on the note; if it trips, show
+//     the safety signposting alert before navigating away.
+//   - Push (not replace) /checkin/saved so back-swipe lands on
+//     /checkin (the root of the nested stack), matching the tab-bar
+//     pop-to-top behaviour.
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import React, { useEffect, useMemo, useRef, useState } from "react";
@@ -400,16 +434,28 @@ export default function DailyCheckInScreen() {
     const text = kind === "demand" ? customDemandText : customResourceText;
     const trimmed = text.trim();
     if (!trimmed) return;
-    const def = await addCustomTag(trimmed, kind);
-    if (!def) return;
+    let def: Awaited<ReturnType<typeof addCustomTag>> = null;
+    try {
+      def = await addCustomTag(trimmed, kind);
+    } catch (err) {
+      // Persistence failed — tell the user instead of silently swallowing.
+      const { notify } = await import("@/lib/util/confirm");
+      notify("Couldn't save tag", (err as any)?.message ?? "Please try again.");
+      return;
+    }
+    if (!def) {
+      const { notify } = await import("@/lib/util/confirm");
+      notify("Couldn't save tag", "We couldn't add that one. Try a different label.");
+      return;
+    }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     if (kind === "demand") setCustomDemandText("");
     else setCustomResourceText("");
     setCustomTagVersion((v) => v + 1);
     // Auto-select the freshly created tag.
     setTags((prev) => {
-      if (prev.find((t) => t.id === def.id)) return prev;
-      return [...prev, { id: def.id, kind: def.kind }];
+      if (prev.find((t) => t.id === def!.id)) return prev;
+      return [...prev, { id: def!.id, kind: def!.kind }];
     });
   };
 
@@ -1088,7 +1134,7 @@ export default function DailyCheckInScreen() {
 }
 
 const styles = StyleSheet.create({
-  headerRow: { flexDirection: "row", alignItems: "flex-start", gap: 14, marginTop: Spacing.xs },
+  headerRow: { flexDirection: "row", alignItems: "center", gap: 14, marginTop: Spacing.xs },
   backBtn: { padding: 10, borderRadius: BorderRadius.md, borderWidth: 1 },
   fieldLabel: { fontWeight: "800", fontSize: 13, marginTop: Spacing.md, letterSpacing: 0.4 },
   chipWrap: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: Spacing.sm },

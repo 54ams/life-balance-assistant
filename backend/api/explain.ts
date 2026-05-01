@@ -1,3 +1,20 @@
+// backend/api/explain.ts
+//
+// OpenAI proxy used by the app's "deeper read" and "smart recommendation"
+// features. Two important boundaries are enforced here:
+//
+//   1. The OpenAI API key never leaves this process. The app never
+//      sees it, even in development.
+//   2. The system prompt is fixed and observational. The model is
+//      explicitly told it is not giving medical advice, not making a
+//      diagnosis, and not running crisis management. This keeps the
+//      LLM in its lane: it only ever rephrases what the deterministic
+//      LBI / explain layer already said.
+//
+// Safety: I run the same self-harm keyword check the client uses
+// (lib/privacy.ts) before calling OpenAI. If it trips, we return a
+// fixed signposting message and never call the model. This is the
+// single canonical safety message used by the whole stack.
 import OpenAI from "openai";
 
 const apiKey = process.env.OPENAI_API_KEY;

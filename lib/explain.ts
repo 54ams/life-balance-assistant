@@ -1,4 +1,24 @@
 // lib/explain.ts
+//
+// Day-level "why is my score what it is?" explainer.
+//
+// I wrote this on purpose as a transparent, rule-based explanation —
+// not an LLM. It re-runs the LBI sub-scores from lib/lbi.ts and
+// surfaces the strongest 3 drivers (Recovery, Sleep, Mood, Stress)
+// vs a neutral reference of 60. The explain screen renders each driver
+// as a chip with a direction arrow and a strength label.
+//
+// Pattern mining at the bottom (`buildPatterns`) is deliberately tiny:
+// median splits and group means, capped at 6 items. The dissertation
+// scope is a prototype, and median splits are easy to defend in the
+// viva ("group days by mood, then take the average LBI in each group").
+//
+// What does NOT happen in this file:
+//   - No LLM call. The OpenAI explanation layer is invoked separately
+//     in lib/smartRecommendation.ts and only ever rephrases what is
+//     already true about the day.
+//   - No causal claim. The text says "tend to come with" / "linked
+//     with", never "caused by".
 import type { DailyRecord } from "./types";
 import { calculateLBI } from "./lbi";
 

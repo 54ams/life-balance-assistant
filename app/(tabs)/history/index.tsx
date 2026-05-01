@@ -1,3 +1,14 @@
+// app/(tabs)/history/index.tsx
+//
+// Plan history list. I show the last N days' saved plans here so the
+// user can scroll back through what the app suggested and what they
+// actually completed. Adherence (which actions were ticked off) is
+// part of the analytics shown elsewhere — this screen just lists
+// the plans themselves.
+//
+// I keep the rendering shallow on purpose: each row links into the
+// plan-details screen for the deeper view, so the list itself stays
+// fast even with months of history.
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";

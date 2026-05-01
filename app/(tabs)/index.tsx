@@ -1,3 +1,29 @@
+// app/(tabs)/index.tsx
+//
+// Home / dashboard screen.
+//
+// I treat this screen as the "single page" the user sees most often —
+// every other screen flows out from it. Visually it is dominated by the
+// State Orb (a single expressive metric driven by Body + Mind + LBI),
+// but underneath it stitches together every part of the app:
+//
+//   - State Orb + narrative headline (lib/bridge.ts)
+//   - Smart recommendation card (lib/smartRecommendation.ts → ML)
+//   - "Calibrating" banner from baseline status (lib/baseline.ts)
+//   - 7-day ribbon and 8-week heatmap of the LBI
+//   - Realign micro-intervention when body and mind diverge
+//   - Dawn/dusk anchors (lib/anchors.ts) within their windows
+//   - Quick actions toolbar (Breathe, Check-in, Habits, Reframe)
+//   - Pattern-decline alert (lib/patternInterrupt.ts)
+//   - Habit progress + streak (lib/habits.ts)
+//   - Weekly reflection prompt when due
+//   - First-launch empty state when no data exists yet
+//
+// I deliberately keep the screen resilient: a triple-tap on the
+// greeting fires the kiosk reset (used for live demos), every fetch
+// is wrapped so a failure never leaves the screen blank, and the
+// orb has a soft default so the Realign lift still renders even
+// before the first check-in.
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,

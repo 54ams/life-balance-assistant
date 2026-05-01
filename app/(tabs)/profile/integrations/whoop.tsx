@@ -1,3 +1,21 @@
+// app/(tabs)/profile/integrations/whoop.tsx
+//
+// WHOOP integration screen — connect, sync, and manage the wearable.
+//
+// I structured this screen as the user-facing wrapper around three
+// pieces of plumbing:
+//   - The OAuth flow (deep-link on native, full-page on web; the
+//     web callback lands at /whoop-auth which exchanges the code).
+//   - The session token kept in AsyncStorage under SESSION_KEY.
+//     The token is opaque — it identifies a row on the backend that
+//     holds the real WHOOP refresh token.
+//   - lib/whoopSync.ts which does the actual day pulls, retry, and
+//     local upsert.
+//
+// Demo mode: I include an "activate demo data" path so the viva can
+// proceed even without a band on hand. Demo data is clearly labelled
+// (wearableSource = "whoop_demo") so it cannot be confused with
+// real data on the explain screen or in any export.
 import * as WebBrowser from "expo-web-browser";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { useEffect, useMemo, useState } from "react";
@@ -26,7 +44,7 @@ import {
   isDemoWhoopActive,
   WHOOP_DEMO_DAYS,
 } from "@/lib/demoWhoop";
-import { notify } from "@/lib/util/confirm";
+import { confirmDestructive, notify } from "@/lib/util/confirm";
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -480,7 +498,15 @@ export default function WhoopScreen() {
               <Button
                 title="Disconnect"
                 variant="secondary"
-                onPress={disconnect}
+                onPress={async () => {
+                  const ok = await confirmDestructive(
+                    "Disconnect WHOOP?",
+                    "Clears the local WHOOP session token. Your synced records stay on the device. You can reconnect at any time.",
+                    "Disconnect",
+                  );
+                  if (!ok) return;
+                  await disconnect();
+                }}
                 disabled={busy}
                 accessibilityLabel="Disconnect WHOOP"
               />
@@ -594,7 +620,6 @@ export default function WhoopScreen() {
       {consentGranted && (
         <Pressable
           onPress={async () => {
-            const { confirmDestructive, notify } = await import("@/lib/util/confirm");
             const ok = await confirmDestructive(
               "Withdraw WHOOP consent?",
               "This will disconnect your WHOOP and clear all stored tokens.",

@@ -1,3 +1,27 @@
+// lib/privacy.ts
+//
+// Consent, data retention, tone preferences, and the safety gate.
+//
+// I keep all of the privacy-touching state in this single file so it is
+// easy for me to point to in the viva when I am asked "where exactly is
+// consent stored?" and "how do you delete everything?".
+//
+// What lives here:
+//   - Versioned consent record (APP_CONSENT_KEY) with explicit items
+//     for processing, WHOOP import, research export, non-medical use.
+//   - withdrawAllConsent(): single button call that clears the local
+//     store, the WHOOP session, the SUS submissions, and every consent
+//     flag. This is the "delete all my data" path used by Profile.
+//   - Retention window (7..365 days, default 90) — used by the
+//     scheduled purge so anything older than the window goes away.
+//   - Boolean toggles (LLM, nudges, streaks) used across the app to
+//     gate optional features without scattering AsyncStorage keys.
+//   - hashParticipantId(): small DJB2 hash so the optional research
+//     export carries a stable but de-identified ID — there is no
+//     personally identifying field stored anywhere on disk.
+//   - containsSelfHarmSignals(): the self-harm trigger word check.
+//     I use it to gate the LLM call (paused → safety message instead)
+//     and to surface signposting at save time.
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { clearAll, purgeOldData } from "./storage";
 import { clearSusSubmissions, purgeOldSusSubmissions } from "./evaluation/storage";
@@ -51,6 +75,14 @@ export async function saveAppConsent(consent: AppConsent): Promise<void> {
   await AsyncStorage.setItem(APP_CONSENT_KEY, JSON.stringify(consent));
 }
 
+/**
+ * Wipe every piece of local data the app owns. I call this when the
+ * user taps "delete all my data" in Profile → Privacy. Order matters:
+ * clear the daily records first, then the SUS submissions, then the
+ * consent flags themselves so the app reverts to a clean first-run
+ * state. WHOOP session keys are removed here too so the next launch
+ * cannot accidentally re-pull data on a stale token.
+ */
 export async function withdrawAllConsent(): Promise<void> {
   await clearAll();
   await clearSusSubmissions();
@@ -97,6 +129,13 @@ export async function setBooleanSetting(key: string, value: boolean): Promise<vo
   await AsyncStorage.setItem(key, value ? "1" : "0");
 }
 
+/**
+ * DJB2 hash → "p_<hex>" pseudonym used for research export. Not a
+ * cryptographic primitive — its only job is to give a stable but
+ * de-identified label so a participant's exports group together
+ * without exposing the raw id. The app never stores a real name or
+ * email, so even the input here is typically a generated string.
+ */
 export function hashParticipantId(input: string): string {
   let h = 5381;
   for (let i = 0; i < input.length; i++) {
@@ -143,6 +182,19 @@ export async function setSleepWindow(window: SleepWindow): Promise<void> {
   await AsyncStorage.setItem(SLEEP_WINDOW_KEY, window);
 }
 
+/**
+ * Lightweight keyword check used as a safety gate.
+ *
+ * I run this on the check-in note before the LLM call (so the model
+ * never sees the content) and again at save time (so the app can show
+ * crisis support links). It is intentionally simple — false positives
+ * are acceptable here, false negatives would be much worse, and the
+ * scope of a student prototype rules out anything more sophisticated.
+ *
+ * Limitations are stated honestly in the dissertation: this is not a
+ * clinical risk classifier, and the app does not claim to detect or
+ * manage crisis events.
+ */
 export function containsSelfHarmSignals(text: string): boolean {
   const t = text.toLowerCase();
   const needles = [

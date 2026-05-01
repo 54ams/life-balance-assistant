@@ -1,3 +1,29 @@
+// backend/whoop.ts
+//
+// WHOOP integration for the backend.
+//
+// I keep the WHOOP client secret and the user's refresh tokens here
+// (encrypted at rest with AES-256-GCM when WHOOP_STORE_KEY is set) so
+// they never reach the device. The app's only handle is an opaque
+// session id we mint at code-exchange time.
+//
+// Responsibilities:
+//   - exchangeCode(): trade an OAuth `code` for tokens, store them,
+//     mint a sessionId for the client.
+//   - getWhoopDay(): pull today's cycle + sleep + recovery, normalise
+//     into the `WearableDay` shape the app expects, cache for 24h.
+//   - refreshToken() / refreshWhoopSession(): roll the access token
+//     when it expires; return false to the app on hard failure so it
+//     can prompt the user to reconnect.
+//   - normalizeCycleToWearable(): a defensive mapper used by tests
+//     and any legacy import paths. WHOOP's score shape changes
+//     occasionally so the function tries several known field names
+//     and clamps the values into the units the app actually uses.
+//
+// Encryption is conditional on WHOOP_STORE_KEY for development
+// convenience. In production we set it; in dev without a key the
+// payload falls through unencrypted so a missing env var does not
+// silently break the OAuth flow.
 import fs from "fs/promises";
 import path from "path";
 import { URLSearchParams } from "url";

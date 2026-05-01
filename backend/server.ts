@@ -1,4 +1,30 @@
-// LBA Backend — WHOOP OAuth proxy + LLM explain endpoint
+// LBA Backend — WHOOP OAuth proxy + LLM explain endpoint.
+//
+// I keep the backend deliberately small. Two responsibilities only:
+//   1. Hold the WHOOP client secret. The native/web app cannot store
+//      it safely, so the OAuth code-exchange and the per-day data
+//      pulls are proxied through this server. The app only ever
+//      sees a session token, never the WHOOP refresh token.
+//   2. Proxy the OpenAI explain call. The OpenAI key never lives in
+//      the bundle — the app posts a prompt and gets back text.
+//
+// What this server does NOT do:
+//   - It does not persist daily records, check-ins, plans, or any
+//     wellbeing data. Those all live on the user's device.
+//   - It does not do its own scoring or recommendation logic. The
+//     LBI, the ML category classifier, and the explain layer are all
+//     run client-side; this server is a thin proxy.
+//
+// Hardening built into the request lifecycle:
+//   - CORS allowlist from env (CORS_ORIGINS).
+//   - Optional X-Api-Key shared secret (SERVER_API_KEY) on top of
+//     CORS so even allowed origins must present a key.
+//   - Per-IP rate limit (60 req / min) and per-session limit (30 req
+//     / min) on WHOOP day fetches so a leaked session token cannot
+//     be used to scrape history at high volume.
+//   - 64KB request body cap and a JSON-only parse path.
+//   - Date validation on /whoop/day so the upstream API only sees
+//     well-formed inputs and never future dates.
 import "dotenv/config";
 import { createServer } from "http";
 import { explainPlan } from "./api/explain.js";

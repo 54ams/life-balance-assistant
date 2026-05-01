@@ -1,3 +1,15 @@
+// app/(tabs)/profile/index.tsx
+//
+// Profile / "Me" tab — the hub for tools, settings, and integrations.
+//
+// I designed this as a single index screen so anything not on the
+// front three tabs (habits, sleep hygiene, reframe, weekly reflection,
+// behaviour cycles, wearables, GP export, calendar, history,
+// schedule, data export) is one tap from here.
+//
+// The settings group is intentionally short — most actual toggles
+// live in /profile/settings/* — so the index does not become a
+// dumping ground.
 import { Screen } from "@/components/Screen";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { IconSymbol } from "@/components/ui/icon-symbol";

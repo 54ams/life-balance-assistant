@@ -1,7 +1,23 @@
+// lib/report.ts
+//
+// Plain-text appendix summary used by the export flow.
+// I generate this so my dissertation appendix and any participant
+// export bundle share the same shape: number of records, baseline
+// status, top highlights, and the standing interpretation caveats.
+//
+// I intentionally keep the file tiny — it composes from
+// lib/analytics.ts and lib/baseline.ts rather than re-deriving stats,
+// so the numbers in the report and the numbers on screen always agree.
 import { buildAnalyticsSummary } from "./analytics";
 import { computeBaselineMeta } from "./baseline";
 import { listPlans, listDailyRecords } from "./storage";
 
+/**
+ * Build the textual appendix bundled with research/data exports.
+ * Adherence here means "days where every action in the saved plan was
+ * marked complete" — calling that out explicitly so the report cannot
+ * accidentally sound stronger than the underlying data.
+ */
 export async function buildAppendixSummary(days: number): Promise<string> {
   const records = await listDailyRecords(days);
   const plans = await listPlans(days);

@@ -1,3 +1,14 @@
+// app/(tabs)/day/[date].tsx
+//
+// Single-day detail screen — opened by tapping a day on the home
+// ribbon, the heatmap, or the calendar. I use it to give the user a
+// "zoom in" view: the radar chart of the four LBI sub-scores, the
+// emotional check-in summary, the saved plan for that day, and the
+// option to delete just that day's check-in.
+//
+// Only the day's own data is loaded (no cross-day aggregation) so the
+// screen stays cheap and never blocks waiting for the rest of the
+// store to load.
 import { Stack, router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import React, { useCallback, useMemo, useState } from "react";
 import { Pressable, Text, View, useColorScheme } from "react-native";
