@@ -35,12 +35,18 @@ advice and does not provide crisis support.
 
 ## Key features
 
-- **Daily check-in** (60 seconds) — mood, energy, stress, sleep quality,
-  stress indicators, habits, optional notes.
+- **Daily check-in** (60 seconds) — three steps: an affect canvas
+  (Russell 1980 circumplex of valence × arousal), life-context tags
+  (Lazarus & Folkman pressures vs replenishers, with custom tags), and
+  an optional free-text note with a "deeper read" button. Legacy
+  mood/energy/stress scales are derived from these inputs (see
+  `lib/derive.ts`).
 - **WHOOP integration** — OAuth 2.0 connect for recovery, sleep, strain.
   Web (PWA) and native both supported.
 - **Mind–Body Bridge** — single dual-axis state (`physio` × `mental`) with
-  a calm aurora-coloured orb that reflects today's balance.
+  a calm aurora-coloured orb that reflects today's balance: sage when
+  body and mind are aligned, terracotta when the body is ahead, teal
+  when the mind is ahead, olive when both are neutral.
 - **Life Balance Index (LBI)** — composite score with explainability
   (which features moved the score, why).
 - **Insights tab** — correlations (with FDR), baselines (median/IQR),
@@ -62,7 +68,7 @@ advice and does not provide crisis support.
 | Language | TypeScript 5.9 | strict |
 | Styling | StyleSheet + custom theme (`constants/Colors.ts`) | Cream canvas + lime accent |
 | Storage | `@react-native-async-storage/async-storage` | All user data on-device |
-| Backend | Node + TypeScript | Render web service |
+| Backend | Node `http` server + TypeScript (no Express) | Render web service |
 | OAuth | WHOOP API v2 | client secret only on backend |
 | LLM (optional) | OpenAI via backend | Local fallback if backend offline |
 | Testing | Built-in `node --import tsx` test runner | `tests/*.test.ts` |
@@ -86,8 +92,11 @@ lib/                  Domain logic (LBI, bridge, plan, baselines, ML, etc.)
   backend.ts          Backend URL resolution + cold-start handling
   errors.ts           User-friendly error mapping
 backend/              Node service for WHOOP OAuth + optional LLM
-  server.ts           Express server (health, /whoop/exchange, /whoop/day, /explain)
+  server.ts           HTTP server — routes by req.method + req.url
+                      (health, /whoop/exchange, /whoop/day, /whoop/refresh,
+                      /whoop/session, /explain)
   whoop.ts            WHOOP token exchange + refresh
+  api/explain.ts      OpenAI explain helper
 docs/                 Dissertation supporting docs
 tests/                Unit tests
 ```
@@ -271,8 +280,14 @@ The fastest way to evaluate the prototype:
 
 ```bash
 npx tsc --noEmit       # type-check
-npm test               # unit tests (privacy, baselines, ML, etc.)
+npm test               # 13 unit-test suites (privacy, baselines, ML, etc.)
 ```
+
+`tests/` also contains four additional suites
+(`bridge.test.ts`, `derive.test.ts`, `ml-pipeline.test.ts`,
+`smart-rec.test.ts`) used during development; they are not wired into
+`npm test` but can be run individually with
+`node --no-warnings --import tsx tests/<name>.test.ts`.
 
 The app is also exercised end-to-end via the live deploy.
 
@@ -284,7 +299,9 @@ The app is also exercised end-to-end via the live deploy.
   the viva, *warm the backend in advance* by hitting `/health`.
 - **Web build vs native parity.**
   - Local notifications and haptics no-op on web.
-  - File export uses a browser blob download (same JSON, different delivery).
+  - File export on web triggers two browser blob downloads (one
+    human-readable report, one raw JSON). Native uses
+    `expo-file-system` + share sheet.
   - Some BlurView effects render slightly differently across browsers.
 - **PWA caching.** If you previously visited the site, hard-reload
   (Cmd-Shift-R) or test in a private window — service-worker caching
@@ -300,7 +317,6 @@ The app is also exercised end-to-end via the live deploy.
 | WHOOP "auth state mismatch" | Browser blocked sessionStorage | Use a non-incognito window |
 | Empty home screen | Fresh-mode user with no check-ins | Tap "Start your first check-in" or load 30-day demo from Profile → Settings |
 | Charts look flat | Fewer than 5 days of data | Seed the 30-day demo data |
-| App "theme" looks different than expected | Aurora hue follows the bridge state — this is intentional. Once the user has data, the orb / aurora reflect today's balance (sage when aligned, terracotta when body, teal when mind, olive when neutral). |
 
 ## Dissertation docs
 
@@ -309,6 +325,7 @@ The app is also exercised end-to-end via the live deploy.
 - `docs/DataFlow.md` — end-to-end data flow
 - `docs/StudyProtocol.md` — feasibility study design
 - `docs/ThreatsToValidity.md` — validity threats and mitigations
+- `docs/VivaScript.md` — viva demo script and talking points
 
 ## Ethics and safety
 
